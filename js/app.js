@@ -928,47 +928,41 @@
           });
         }
 
-        document.getElementById('btn-new').addEventListener('click', () => this.confirmNew());
-        document.getElementById('btn-templates').addEventListener('click', () => this.openTemplatesDialog());
-        document.getElementById('btn-open').addEventListener('click', () => document.getElementById('file-input').click());
-        document.getElementById('btn-save').addEventListener('click', () => ExportManager.exportJSON(this.graph.toProject(this.themeMgr.currentTheme)));
+        document.getElementById('btn-new')?.addEventListener('click', () => this.confirmNew());
+        document.getElementById('btn-templates')?.addEventListener('click', () => this.openTemplatesDialog());
+        document.getElementById('btn-open')?.addEventListener('click', () => document.getElementById('file-input')?.click());
         document.getElementById('btn-export-dialog')?.addEventListener('click', () => this.openExportDialog());
-        document.getElementById('btn-export-mmd')?.addEventListener('click', () => ExportManager.exportMMD(this.graph));
-        document.getElementById('btn-export-json')?.addEventListener('click', () => ExportManager.exportJSON(this.graph.toProject(this.themeMgr.currentTheme)));
-        document.getElementById('btn-export-svg')?.addEventListener('click', () => this.openExportDialog());
-        document.getElementById('btn-export-png')?.addEventListener('click', () => this.openExportDialog());
+        document.getElementById('btn-undo')?.addEventListener('click', () => this.handleUndo());
+        document.getElementById('btn-redo')?.addEventListener('click', () => this.handleRedo());
 
-        document.getElementById('btn-undo').addEventListener('click', () => this.handleUndo());
-        document.getElementById('btn-redo').addEventListener('click', () => this.handleRedo());
+        document.getElementById('btn-add-node')?.addEventListener('click', () => this.openNodeDialog());
+        document.getElementById('btn-add-link')?.addEventListener('click', () => this.openLinkDialog());
+        document.getElementById('btn-autolayout-td')?.addEventListener('click', () => this.runAutoLayout('TD'));
+        document.getElementById('btn-autolayout-lr')?.addEventListener('click', () => this.runAutoLayout('LR'));
 
-        document.getElementById('btn-add-node').addEventListener('click', () => this.openNodeDialog());
-        document.getElementById('btn-add-link').addEventListener('click', () => this.openLinkDialog());
-        document.getElementById('btn-autolayout-td').addEventListener('click', () => this.runAutoLayout('TD'));
-        document.getElementById('btn-autolayout-lr').addEventListener('click', () => this.runAutoLayout('LR'));
-
-        document.getElementById('btn-theme').addEventListener('click', () => {
+        document.getElementById('btn-theme')?.addEventListener('click', () => {
           this.themeMgr.toggle();
           this.renderAll();
         });
 
-        document.getElementById('btn-rules').addEventListener('click', () => this.openRulesDialog());
-        document.getElementById('btn-add-rule-quick').addEventListener('click', () => this.openRulesDialog());
+        document.getElementById('btn-rules')?.addEventListener('click', () => this.openRulesDialog());
+        document.getElementById('btn-add-rule-quick')?.addEventListener('click', () => this.openRulesDialog());
 
-        document.getElementById('btn-zoom-in').addEventListener('click', () => this.zoomAtCenter(1.2));
-        document.getElementById('btn-zoom-out').addEventListener('click', () => this.zoomAtCenter(0.8));
-        document.getElementById('btn-zoom-fit').addEventListener('click', () => this.zoomToFit());
-        document.getElementById('btn-zoom-reset').addEventListener('click', () => {
+        document.getElementById('btn-zoom-in')?.addEventListener('click', () => this.zoomAtCenter(1.2));
+        document.getElementById('btn-zoom-out')?.addEventListener('click', () => this.zoomAtCenter(0.8));
+        document.getElementById('btn-zoom-fit')?.addEventListener('click', () => this.zoomToFit());
+        document.getElementById('btn-zoom-reset')?.addEventListener('click', () => {
           this.zoom = 1;
           this.panX = 0;
           this.panY = 0;
           this.renderAll();
         });
 
-        document.getElementById('btn-search-toggle').addEventListener('click', () => this.toggleSearchBox());
-        document.getElementById('btn-search-close').addEventListener('click', () => this.toggleSearchBox(false));
-        document.getElementById('search-input').addEventListener('input', (e) => this.handleSearchInput(e.target.value));
-        document.getElementById('btn-search-next').addEventListener('click', () => this.navigateSearch(1));
-        document.getElementById('btn-search-prev').addEventListener('click', () => this.navigateSearch(-1));
+        document.getElementById('btn-search-toggle')?.addEventListener('click', () => this.toggleSearchBox());
+        document.getElementById('btn-search-close')?.addEventListener('click', () => this.toggleSearchBox(false));
+        document.getElementById('search-input')?.addEventListener('input', (e) => this.handleSearchInput(e.target.value));
+        document.getElementById('btn-search-next')?.addEventListener('click', () => this.navigateSearch(1));
+        document.getElementById('btn-search-prev')?.addEventListener('click', () => this.navigateSearch(-1));
 
         document.querySelectorAll('.shape-item').forEach(item => {
           item.addEventListener('click', () => {
@@ -977,7 +971,7 @@
           });
         });
 
-        document.getElementById('file-input').addEventListener('change', (e) => this.handleFileOpen(e));
+        document.getElementById('file-input')?.addEventListener('change', (e) => this.handleFileOpen(e));
 
         window.addEventListener('resize', () => {
           this.updateScrollbars();
