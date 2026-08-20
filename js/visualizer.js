@@ -168,12 +168,13 @@ class MultiDiagramVisualizer {
           if (isSelP) rect.style.filter = selGlow;
           g.appendChild(rect);
 
+          const pFont = MultiDiagramVisualizer.getColor(p.id + ':font', primaryText);
           const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
           text.setAttribute('x', `${p.x}`);
           text.setAttribute('y', `${topY + 18}`);
           text.setAttribute('text-anchor', 'middle');
           text.setAttribute('dominant-baseline', 'central');
-          text.setAttribute('fill', primaryText);
+          text.setAttribute('fill', pFont);
           text.setAttribute('font-size', '12px');
           text.setAttribute('font-weight', '600');
           text.textContent = p.name;
@@ -192,11 +193,14 @@ class MultiDiagramVisualizer {
                     { value: 'participant', label: 'Participant (Box)' },
                     { value: 'actor', label: 'Actor (Stick Figure / Pill)' }
                   ]},
-                  { key: 'fill', label: 'Fill Color', type: 'color', value: pFill }
+                  { key: 'fill', label: 'Fill Color', type: 'color', value: pFill },
+                  { key: 'font', label: 'Font / Text Color', type: 'color', value: pFont }
                 ],
                 onSave: (vals) => {
                   MultiDiagramVisualizer.setColor(p.id, vals.fill);
+                  MultiDiagramVisualizer.setColor(p.id + ':font', vals.font);
                   MultiDiagramVisualizer.syncColorToCode(p.id, vals.fill);
+                  MultiDiagramVisualizer.syncColorToCode(p.id + ':font', vals.font);
                   MultiDiagramVisualizer.updateCodeLine((curCode) => {
                     const lines = curCode.split('\n');
                     const idx = lines.findIndex(l => new RegExp(`^(actor|participant)\\s+${p.id}\\b`, 'i').test(l.trim()));
@@ -267,12 +271,13 @@ class MultiDiagramVisualizer {
           if (isSelM) badgeBg.style.filter = selGlow;
           badgeG.appendChild(badgeBg);
 
+          const msgFont = MultiDiagramVisualizer.getColor(msgKey + ':font', msgColor !== linkColor ? msgColor : textColor);
           const badgeText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
           badgeText.setAttribute('x', `${midX}`);
           badgeText.setAttribute('y', `${y - 9}`);
           badgeText.setAttribute('text-anchor', 'middle');
           badgeText.setAttribute('dominant-baseline', 'central');
-          badgeText.setAttribute('fill', msgColor !== linkColor ? msgColor : textColor);
+          badgeText.setAttribute('fill', msgFont);
           badgeText.setAttribute('font-size', '10.5px');
           badgeText.setAttribute('font-weight', '500');
           badgeText.textContent = badgeTextStr;
@@ -295,12 +300,15 @@ class MultiDiagramVisualizer {
                     { value: '-x', label: 'Cross End (-x)' },
                     { value: '--x', label: 'Dotted Cross (--x)' }
                   ]},
-                  { key: 'color', label: 'Line / Arrow Color', type: 'color', value: msgColor }
+                  { key: 'color', label: 'Line / Arrow Color', type: 'color', value: msgColor },
+                  { key: 'font', label: 'Message Font Color', type: 'color', value: msgFont }
                 ],
                 onSave: (vals) => {
                   const newKey = `${m.from}->${m.to}:${vals.text}`;
                   MultiDiagramVisualizer.setColor(newKey, vals.color);
+                  MultiDiagramVisualizer.setColor(newKey + ':font', vals.font);
                   MultiDiagramVisualizer.syncColorToCode(newKey, vals.color);
+                  MultiDiagramVisualizer.syncColorToCode(newKey + ':font', vals.font);
                   MultiDiagramVisualizer.updateCodeLine((curCode) => {
                     const lines = curCode.split('\n');
                     const idx = lines.findIndex(l => new RegExp(`^\\s*${m.from}\\s*(?:-->>|->>|-->|->|-x|--x)\\s*${m.to}\\s*:`, 'i').test(l.trim()));
