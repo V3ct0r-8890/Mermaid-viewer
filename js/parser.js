@@ -61,6 +61,19 @@
                 continue;
               }
 
+              const linkStyleMatch = rawLine.match(/^linkStyle\s+(\d+)\s+(.+)$/i);
+              if (linkStyleMatch) {
+                const idx = parseInt(linkStyleMatch[1], 10);
+                const props = linkStyleMatch[2];
+                if (newGraph.edges[idx]) {
+                  const strokeM = props.match(/stroke:([^,;]+)/);
+                  const widthM = props.match(/stroke-width:([^,;]+)/);
+                  if (strokeM) newGraph.edges[idx].color = strokeM[1].trim();
+                  if (widthM) newGraph.edges[idx].strokeWidth = parseFloat(widthM[1]);
+                }
+                continue;
+              }
+
               const edgeRegex = /([A-Za-z0-9_]+(?:\s*[\(\[\{\/][^\)\]\}]+[\)\]\}\/]+)?)\s*(<==>|<-->|==>|-.->|--->|-->)\s*(?:\|"?([^\|"]*)"?\|\s*)?([A-Za-z0-9_]+(?:\s*[\(\[\{\/][^\)\]\}]+[\)\]\}\/]+)?)/;
               const edgeMatch = rawLine.match(edgeRegex);
 

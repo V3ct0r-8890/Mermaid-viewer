@@ -138,11 +138,16 @@
                     type: p.isActor ? 'Actor' : 'Participant',
                     title: p.name,
                     fields: [
-                      { key: 'name', label: 'Display Name', type: 'text', value: p.name }
+                      { key: 'name', label: 'Display Name', type: 'text', value: p.name },
+                      { key: 'type', label: 'Actor Shape', type: 'select', value: p.isActor ? 'actor' : 'participant', options: [
+                        { value: 'participant', label: 'Participant (Box)' },
+                        { value: 'actor', label: 'Actor (Stick Figure)' }
+                      ]},
+                      { key: 'fill', label: 'Fill Color', type: 'color', value: primaryFill }
                     ],
                     onSave: (vals) => {
-                      const regex = new RegExp(`(actor|participant)\\s+${p.id}(?:\\s+as\\s+[^\n]+)?`, 'i');
-                      MultiDiagramVisualizer.updateCodeLine(regex, `$1 ${p.id} as ${vals.name}`);
+                      const regex = new RegExp(`(actor|participant)\\s+${p.id}(?:\\s+as\\s+[^\\n]+)?`, 'i');
+                      MultiDiagramVisualizer.updateCodeLine(regex, `${vals.type} ${p.id} as ${vals.name}`);
                     }
                   });
                 }
@@ -210,12 +215,21 @@
                     type: 'Sequence Message',
                     title: `${m.from} → ${m.to}`,
                     fields: [
-                      { key: 'text', label: 'Message Text', type: 'text', value: m.text }
+                      { key: 'text', label: 'Message Text', type: 'text', value: m.text },
+                      { key: 'arrow', label: 'Arrow Type', type: 'select', value: m.type === 'dashed' ? '-->>' : '->>', options: [
+                        { value: '->>', label: 'Solid Arrow (->>)' },
+                        { value: '-->>', label: 'Dotted Arrow (-->>)' },
+                        { value: '->', label: 'Solid Line (->)' },
+                        { value: '-->', label: 'Dotted Line (-->)' },
+                        { value: '-x', label: 'Cross End (-x)' },
+                        { value: '--x', label: 'Dotted Cross (--x)' }
+                      ]},
+                      { key: 'color', label: 'Line / Badge Color', type: 'color', value: linkColor }
                     ],
                     onSave: (vals) => {
                       const escaped = m.text.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
-                      const regex = new RegExp(`(${m.from}\\s*(?:-->>|->>|-->|->)\\s*${m.to}\\s*:\\s*)${escaped}`, 'i');
-                      MultiDiagramVisualizer.updateCodeLine(regex, `$1${vals.text}`);
+                      const regex = new RegExp(`${m.from}\\s*(?:-->>|->>|-->|->|-x|--x)\\s*${m.to}\\s*:\\s*${escaped}`, 'i');
+                      MultiDiagramVisualizer.updateCodeLine(regex, `${m.from} ${vals.arrow} ${m.to}: ${vals.text}`);
                     }
                   });
                 }
@@ -304,7 +318,8 @@
                       title: d.label,
                       fields: [
                         { key: 'label', label: 'Slice Label', type: 'text', value: d.label },
-                        { key: 'val', label: 'Value / Proportion', type: 'number', value: d.val }
+                        { key: 'val', label: 'Value / Proportion', type: 'number', step: 1, min: 0, value: d.val },
+                        { key: 'color', label: 'Slice Color', type: 'color', value: d.color }
                       ],
                       onSave: (vals) => {
                         const escaped = d.label.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
@@ -651,13 +666,21 @@
                       title: t.name,
                       fields: [
                         { key: 'name', label: 'Task Name', type: 'text', value: t.name },
-                        { key: 'dur', label: 'Duration (Days)', type: 'number', value: t.dur },
-                        { key: 'status', label: 'Status', type: 'select', options: ['done', 'active', 'crit', 'milestone'], value: t.status }
+                        { key: 'dur', label: 'Duration (Days)', type: 'number', min: 1, step: 1, value: t.dur },
+                        { key: 'status', label: 'Task Status', type: 'select', value: t.status || 'normal', options: [
+                          { value: 'normal', label: 'Normal Task' },
+                          { value: 'active', label: 'Active (In Progress)' },
+                          { value: 'done', label: 'Done (Completed)' },
+                          { value: 'crit', label: 'Critical Path (Red)' },
+                          { value: 'milestone', label: 'Milestone' }
+                        ]},
+                        { key: 'color', label: 'Bar Color', type: 'color', value: t.crit ? '#F44336' : (t.done ? '#4CAF50' : (t.active ? '#FF9800' : '#2196F3')) }
                       ],
                       onSave: (vals) => {
                         const escaped = t.name.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
-                        const regex = new RegExp(`^(\\s*)${escaped}(\\s*:)`, 'm');
-                        MultiDiagramVisualizer.updateCodeLine(regex, `$1${vals.name}$2`);
+                        const regex = new RegExp(`^(\\s*)${escaped}(\\s*:[^\\n]+)$`, 'm');
+                        const stStr = vals.status && vals.status !== 'normal' ? (vals.status + ', ') : '';
+                        MultiDiagramVisualizer.updateCodeLine(regex, `$1${vals.name} : ${stStr}${vals.dur}d`);
                       }
                     });
                   }
@@ -846,7 +869,14 @@
                     title: c.id,
                     fields: [
                       { key: 'id', label: 'Commit Message / ID', type: 'text', value: c.id },
-                      { key: 'tag', label: 'Release Tag', type: 'text', value: c.tag || '' }
+                      { key: 'tag', label: 'Release Tag (Optional)', type: 'text', value: c.tag || '' },
+                      { key: 'type', label: 'Commit Type', type: 'select', value: c.type || 'NORMAL', options: [
+                        { value: 'NORMAL', label: 'Normal Commit' },
+                        { value: 'HIGHLIGHT', label: 'Highlight (Starred)' },
+                        { value: 'REVERSE', label: 'Reverse / Merge' }
+                      ]},
+                      { key: 'branch', label: 'Branch Name', type: 'text', value: c.branch || 'main' },
+                      { key: 'color', label: 'Commit Color', type: 'color', value: bInfo.color }
                     ],
                     onSave: (vals) => {
                       const escaped = c.id.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
@@ -983,13 +1013,20 @@
                       type: 'Journey Touchpoint',
                       title: t.name,
                       fields: [
-                        { key: 'name', label: 'Task Name', type: 'text', value: t.name },
-                        { key: 'score', label: 'Satisfaction (1-5)', type: 'select', options: [1, 2, 3, 4, 5], value: t.score },
-                        { key: 'actor', label: 'Actor', type: 'text', value: t.actor }
+                        { key: 'name', label: 'Task / Step Name', type: 'text', value: t.name },
+                        { key: 'score', label: 'Satisfaction Score (1-5)', type: 'select', options: [
+                          { value: 5, label: '5 - 😄 Great' },
+                          { value: 4, label: '4 - 🙂 Good' },
+                          { value: 3, label: '3 - 😐 Neutral' },
+                          { value: 2, label: '2 - 🙁 Poor' },
+                          { value: 1, label: '1 - 😡 Bad' }
+                        ], value: t.score },
+                        { key: 'actor', label: 'Involved Actor(s)', type: 'text', value: t.actor },
+                        { key: 'color', label: 'Card Background Color', type: 'color', value: isDark ? '#2B2D30' : '#FFFFFF' }
                       ],
                       onSave: (vals) => {
                         const escaped = t.name.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
-                        const regex = new RegExp(`^(\\s*)${escaped}(\\s*:\\s*)[0-9]+(\\s*:\\s*)${t.actor}`, 'm');
+                        const regex = new RegExp(`^(\\s*)${escaped}(\\s*:\\s*)[0-9]+(\\s*:\\s*)[^\\n]+`, 'm');
                         MultiDiagramVisualizer.updateCodeLine(regex, `$1${vals.name}$2${vals.score}$3${vals.actor}`);
                       }
                     });
@@ -1162,7 +1199,17 @@
                   type: 'Mindmap Root',
                   title: rootNode.text,
                   fields: [
-                    { key: 'text', label: 'Central Topic', type: 'text', value: rootNode.text }
+                    { key: 'text', label: 'Central Topic', type: 'text', value: rootNode.text },
+                    { key: 'shape', label: 'Root Shape', type: 'select', value: rootNode.shape || 'circle', options: [
+                      { value: 'circle', label: 'Circle ((Root))' },
+                      { value: 'rounded', label: 'Rounded (Root)' },
+                      { value: 'rectangle', label: 'Rectangle [Root]' },
+                      { value: 'hexagon', label: 'Hexagon {{Root}}' },
+                      { value: 'cloud', label: 'Cloud )Root(' },
+                      { value: 'bang', label: 'Bang ))Root((' }
+                    ]},
+                    { key: 'fill', label: 'Fill Color', type: 'color', value: primaryFill },
+                    { key: 'stroke', label: 'Border Color', type: 'color', value: primaryBorder }
                   ],
                   onSave: (vals) => {
                     const escaped = rootNode.text.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
@@ -1224,7 +1271,16 @@
                     type: `Mindmap Tier ${node.level}`,
                     title: node.text,
                     fields: [
-                      { key: 'text', label: 'Branch Topic', type: 'text', value: node.text }
+                      { key: 'text', label: 'Branch Topic', type: 'text', value: node.text },
+                      { key: 'icon', label: 'Icon (Optional)', type: 'select', value: 'none', options: [
+                        { value: 'none', label: 'No Icon' },
+                        { value: 'fa:fa-book', label: 'Book 📖' },
+                        { value: 'fa:fa-star', label: 'Star ⭐' },
+                        { value: 'fa:fa-cog', label: 'Gear ⚙️' },
+                        { value: 'fa:fa-check', label: 'Checkmark ✅' },
+                        { value: 'fa:fa-bolt', label: 'Lightning ⚡' }
+                      ]},
+                      { key: 'color', label: 'Branch Accent Color', type: 'color', value: node.level === 1 ? primaryBorder : cardBorder }
                     ],
                     onSave: (vals) => {
                       const escaped = node.text.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
@@ -1366,12 +1422,13 @@
                     title: ev.era,
                     fields: [
                       { key: 'era', label: 'Era / Year', type: 'text', value: ev.era },
-                      { key: 'items', label: 'Milestone Events (Comma Separated)', type: 'text', value: ev.items.join(', ') }
+                      { key: 'items', label: 'Milestone Events (Comma Separated)', type: 'textarea', rows: 2, value: ev.items.join(', ') },
+                      { key: 'color', label: 'Milestone Accent Color', type: 'color', value: colors[eIdx % colors.length] }
                     ],
                     onSave: (vals) => {
                       const escaped = ev.era.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
                       const newItems = vals.items.split(',').map(s => s.trim()).filter(Boolean).join(' : ');
-                      const regex = new RegExp(`(${escaped}\\s*:\\s*)[^\n]+`, 'i');
+                      const regex = new RegExp(`(${escaped}\\s*:\\s*)[^\\n]+`, 'i');
                       MultiDiagramVisualizer.updateCodeLine(regex, `$1${newItems}`);
                     }
                   });
@@ -1553,7 +1610,8 @@
                     fields: [
                       { key: 'name', label: 'Item Name', type: 'text', value: it.name },
                       { key: 'x', label: 'X Axis (0.0 - 1.0)', type: 'number', step: 0.05, min: 0, max: 1, value: it.x },
-                      { key: 'y', label: 'Y Axis (0.0 - 1.0)', type: 'number', step: 0.05, min: 0, max: 1, value: it.y }
+                      { key: 'y', label: 'Y Axis (0.0 - 1.0)', type: 'number', step: 0.05, min: 0, max: 1, value: it.y },
+                      { key: 'color', label: 'Point Color', type: 'color', value: it.color }
                     ],
                     onSave: (vals) => {
                       const escaped = it.name.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
@@ -1643,7 +1701,8 @@
                     type: 'Sankey Node',
                     title: name,
                     fields: [
-                      { key: 'name', label: 'Node Label', type: 'text', value: name }
+                      { key: 'name', label: 'Node Label', type: 'text', value: name },
+                      { key: 'color', label: 'Node Fill Color', type: 'color', value: color }
                     ],
                     onSave: (vals) => {
                       const escaped = name.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
@@ -1688,8 +1747,33 @@
               path.setAttribute('d', `M ${x1} ${y1} C ${(x1 + x2) / 2} ${y1}, ${(x1 + x2) / 2} ${y2}, ${x2} ${y2}`);
               path.setAttribute('fill', 'none');
               path.setAttribute('stroke', sInfo.color);
-              path.setAttribute('stroke-width', `${Math.max(3, Math.min(24, f.val / 250))}`);
+              path.setAttribute('stroke-width', `${Math.max(4, Math.min(26, f.val / 250))}`);
               path.setAttribute('opacity', '0.45');
+              path.style.cursor = 'pointer';
+
+              path.addEventListener('mousedown', (e) => e.stopPropagation());
+              path.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (typeof AppController !== 'undefined' && AppController.instance) {
+                  AppController.instance.selectVisualObject({
+                    type: 'Sankey Flow',
+                    title: `${f.src} → ${f.tgt}`,
+                    fields: [
+                      { key: 'src', label: 'Source Node', type: 'text', value: f.src },
+                      { key: 'tgt', label: 'Target Node', type: 'text', value: f.tgt },
+                      { key: 'val', label: 'Flow Volume / Value', type: 'number', min: 1, step: 10, value: f.val },
+                      { key: 'color', label: 'Flow Band Color', type: 'color', value: sInfo.color }
+                    ],
+                    onSave: (vals) => {
+                      const escSrc = f.src.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+                      const escTgt = f.tgt.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+                      const regex = new RegExp(`^(\\s*)${escSrc}\\s*,\\s*${escTgt}\\s*,[^\\n]+$`, 'm');
+                      MultiDiagramVisualizer.updateCodeLine(regex, `$1${vals.src}, ${vals.tgt}, ${vals.val}`);
+                    }
+                  });
+                }
+              });
+
               edgesLayer.appendChild(path);
             });
             break;

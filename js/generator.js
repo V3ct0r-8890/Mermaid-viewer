@@ -65,6 +65,17 @@
           }
         });
 
+        graph.edges.forEach((e, idx) => {
+          if (e.color || (e.strokeWidth && e.strokeWidth !== 2)) {
+            const parts = [];
+            if (e.color && e.color !== '#616161' && e.color !== '#BBBBBB') parts.push(`stroke:${e.color}`);
+            if (e.strokeWidth && e.strokeWidth !== 2) parts.push(`stroke-width:${e.strokeWidth}px`);
+            if (parts.length > 0) {
+              styles.push(`  linkStyle ${idx} ${parts.join(',')}`);
+            }
+          }
+        });
+
         if (styles.length > 0) {
           lines.push('');
           lines.push('  %% Styling');

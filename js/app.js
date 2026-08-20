@@ -409,13 +409,17 @@
           const isBi = edge.type === '<-->' || edge.type === '<==>';
 
           if (isThick) {
-            path.style.strokeWidth = isSelected ? '4.5px' : '3.5px';
+            path.style.strokeWidth = isSelected ? '4.5px' : (edge.strokeWidth ? `${edge.strokeWidth}px` : '3.5px');
             path.setAttribute('marker-end', isSelected ? 'url(#marker-thick-selected)' : 'url(#marker-thick)');
             if (isBi) path.setAttribute('marker-start', isSelected ? 'url(#marker-start-thick-selected)' : 'url(#marker-start-thick)');
           } else {
-            path.style.strokeWidth = isSelected ? '3px' : '2px';
+            path.style.strokeWidth = isSelected ? '3px' : (edge.strokeWidth ? `${edge.strokeWidth}px` : '2px');
             path.setAttribute('marker-end', isSelected ? 'url(#marker-arrow-selected)' : 'url(#marker-arrow)');
             if (isBi) path.setAttribute('marker-start', isSelected ? 'url(#marker-start-arrow-selected)' : 'url(#marker-start-arrow)');
+          }
+
+          if (edge.color) {
+            path.style.stroke = edge.color;
           }
 
           if (isDashed) {
@@ -598,6 +602,67 @@
                   });
                   inputElements[f.key] = sel;
                   grp.appendChild(sel);
+                } else if (f.type === 'color') {
+                  const colorWrap = document.createElement('div');
+                  colorWrap.style.display = 'flex';
+                  colorWrap.style.alignItems = 'center';
+                  colorWrap.style.gap = '8px';
+
+                  const inp = document.createElement('input');
+                  inp.type = 'color';
+                  inp.style.width = '32px';
+                  inp.style.height = '26px';
+                  inp.style.border = 'none';
+                  inp.style.borderRadius = '3px';
+                  inp.style.cursor = 'pointer';
+                  inp.value = f.value || '#2196F3';
+
+                  const hexLabel = document.createElement('span');
+                  hexLabel.style.fontSize = '11px';
+                  hexLabel.style.fontFamily = 'var(--code-font)';
+                  hexLabel.textContent = inp.value;
+
+                  inp.addEventListener('input', () => {
+                    draftValues[f.key] = inp.value;
+                    hexLabel.textContent = inp.value;
+                  });
+
+                  colorWrap.appendChild(inp);
+                  colorWrap.appendChild(hexLabel);
+                  grp.appendChild(colorWrap);
+
+                  const swatchesRow = document.createElement('div');
+                  swatchesRow.className = 'color-swatches';
+                  swatchesRow.style.marginTop = '6px';
+                  const swatchList = ['#2196F3', '#4CAF50', '#FF9800', '#F44336', '#9C27B0', '#00BCD4', '#607D8B', '#E91E63', '#3F51B5', '#009688'];
+                  swatchList.forEach(c => {
+                    const sw = document.createElement('div');
+                    sw.className = 'color-swatch';
+                    sw.style.background = c;
+                    sw.title = c;
+                    sw.addEventListener('click', () => {
+                      inp.value = c;
+                      hexLabel.textContent = c;
+                      draftValues[f.key] = c;
+                    });
+                    swatchesRow.appendChild(sw);
+                  });
+                  grp.appendChild(swatchesRow);
+
+                  inputElements[f.key] = {
+                    set value(v) { inp.value = v; hexLabel.textContent = v; },
+                    get value() { return inp.value; }
+                  };
+                } else if (f.type === 'textarea') {
+                  const txt = document.createElement('textarea');
+                  txt.className = 'prop-input';
+                  txt.rows = f.rows || 3;
+                  txt.value = f.value || '';
+                  txt.addEventListener('input', () => {
+                    draftValues[f.key] = txt.value;
+                  });
+                  inputElements[f.key] = txt;
+                  grp.appendChild(txt);
                 } else if (f.type === 'number') {
                   const inp = document.createElement('input');
                   inp.type = 'number';
@@ -729,11 +794,19 @@
 
             this.edgeInitialValues = {
               label: edge.label || '',
-              type: edge.type || '-->'
+              type: edge.type || '-->',
+              color: edge.color || (this.themeMgr.currentTheme === 'dark' ? '#BBBBBB' : '#616161'),
+              strokeWidth: String(edge.strokeWidth || 2)
             };
 
             document.getElementById('prop-edge-label').value = this.edgeInitialValues.label;
             document.getElementById('prop-edge-type').value = this.edgeInitialValues.type;
+            const edgeColorInp = document.getElementById('prop-edge-color');
+            if (edgeColorInp) edgeColorInp.value = this.edgeInitialValues.color;
+            const edgeColorVal = document.getElementById('prop-edge-color-val');
+            if (edgeColorVal) edgeColorVal.textContent = this.edgeInitialValues.color;
+            const edgeWidthSel = document.getElementById('prop-edge-width');
+            if (edgeWidthSel) edgeWidthSel.value = this.edgeInitialValues.strokeWidth;
             return;
           }
         }
@@ -871,6 +944,10 @@
 
           edge.label = document.getElementById('prop-edge-label').value.trim() || undefined;
           edge.type = document.getElementById('prop-edge-type').value;
+          const col = document.getElementById('prop-edge-color')?.value;
+          if (col) edge.color = col;
+          const wid = parseFloat(document.getElementById('prop-edge-width')?.value);
+          if (!isNaN(wid)) edge.strokeWidth = wid;
 
           this.renderEdges();
           this.updateMermaidCode();
@@ -882,7 +959,28 @@
           if (!this.edgeInitialValues) return;
           document.getElementById('prop-edge-label').value = this.edgeInitialValues.label;
           document.getElementById('prop-edge-type').value = this.edgeInitialValues.type;
+          const edgeColorInp = document.getElementById('prop-edge-color');
+          if (edgeColorInp) edgeColorInp.value = this.edgeInitialValues.color;
+          const edgeColorVal = document.getElementById('prop-edge-color-val');
+          if (edgeColorVal) edgeColorVal.textContent = this.edgeInitialValues.color;
+          const edgeWidthSel = document.getElementById('prop-edge-width');
+          if (edgeWidthSel) edgeWidthSel.value = this.edgeInitialValues.strokeWidth;
           Utils.showToast('Link properties reset', 'info');
+        });
+
+        document.getElementById('prop-edge-color')?.addEventListener('input', (e) => {
+          const valEl = document.getElementById('prop-edge-color-val');
+          if (valEl) valEl.textContent = e.target.value;
+        });
+
+        document.querySelectorAll('#edge-color-swatches .color-swatch').forEach(swatch => {
+          swatch.addEventListener('click', () => {
+            const col = swatch.getAttribute('data-color');
+            const inp = document.getElementById('prop-edge-color');
+            const valEl = document.getElementById('prop-edge-color-val');
+            if (inp) inp.value = col;
+            if (valEl) valEl.textContent = col;
+          });
         });
 
         document.getElementById('btn-edge-prop-deselect')?.addEventListener('click', () => {
