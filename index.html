@@ -1533,7 +1533,7 @@
   <script>
     /**
      * Mermaid Visual Editor & Offline Viewer
-     * Complete Offline Single-File Implementation
+     * Complete Offline Single-File Implementation with Multi-Diagram Visual Suite
      */
 
     // --- VERIFIED OFFICIAL MERMAID DIAGRAM TEMPLATES ---
@@ -1842,7 +1842,7 @@
       }
     }
 
-    // --- HISTORY MANAGER (Undo/Redo with 100-step depth) ---
+    // --- HISTORY MANAGER ---
     class HistoryManager {
       constructor() {
         this.undoStack = [];
@@ -1898,6 +1898,7 @@
     class GraphModel {
       constructor() {
         this.diagramType = 'flowchart_td';
+        this.customRawCode = null;
         this.nodes = [];
         this.edges = [];
         this.rules = [
@@ -1950,6 +1951,7 @@
           version: '2.0',
           theme,
           diagramType: this.diagramType,
+          customRawCode: this.customRawCode,
           layout: this.layoutDirection,
           nodes: JSON.parse(JSON.stringify(this.nodes)),
           edges: JSON.parse(JSON.stringify(this.edges)),
@@ -1963,6 +1965,7 @@
 
       fromProject(proj) {
         this.diagramType = proj.diagramType || 'flowchart_td';
+        this.customRawCode = proj.customRawCode || null;
         this.layoutDirection = proj.layout || 'TD';
         this.nodes = proj.nodes || [];
         this.edges = proj.edges || [];
@@ -2062,7 +2065,7 @@
         });
 
         const maxRank = Math.max(...Object.keys(layers).map(Number), 0);
-        const nodeWidth = 140;
+        const nodeWidth = 160;
         const nodeHeight = 50;
         const hGap = 60;
         const vGap = 80;
@@ -2098,8 +2101,11 @@
     // --- MERMAID CODE GENERATOR ---
     class MermaidGenerator {
       static generate(graph) {
+        if (graph.customRawCode) {
+          return graph.customRawCode;
+        }
+
         if (graph.diagramType && graph.diagramType !== 'flowchart_td' && graph.diagramType !== 'flowchart_lr') {
-          // If a non-flowchart template is active, keep its code structure
           const tpl = DIAGRAM_TEMPLATES.find(t => t.id === graph.diagramType);
           if (tpl) return tpl.code;
         }
@@ -2161,6 +2167,832 @@
       }
     }
 
+    // --- DEDICATED MULTI-DIAGRAM VISUAL SUITE ---
+    class MultiDiagramVisualizer {
+      static render(type, code, nodesLayer, edgesLayer, isDark) {
+        nodesLayer.innerHTML = '';
+        edgesLayer.innerHTML = '';
+
+        const primaryText = isDark ? '#E1F5FE' : '#0D47A1';
+        const primaryFill = isDark ? '#2D4A66' : '#E3F2FD';
+        const primaryBorder = isDark ? '#4FC3F7' : '#90CAF9';
+        const textColor = isDark ? '#D4D4D4' : '#212121';
+        const linkColor = isDark ? '#BBBBBB' : '#616161';
+        const subBg = isDark ? '#1E1E1E' : '#FFFFFF';
+        const cardBg = isDark ? '#2B2D30' : '#FFFFFF';
+        const cardBorder = isDark ? '#4E5157' : '#CFD8DC';
+
+        switch (type) {
+          case 'sequence': {
+            const participants = [
+              { id: 'User', name: 'User (Actor)', isActor: true, x: 100 },
+              { id: 'App', name: 'Web App', x: 280 },
+              { id: 'API', name: 'API Server', x: 460 },
+              { id: 'DB', name: 'Database', x: 640 }
+            ];
+            const messages = [
+              { from: 'User', to: 'App', text: 'Click Checkout', num: 1, type: 'solid' },
+              { from: 'App', to: 'API', text: 'POST /api/orders', num: 2, type: 'solid' },
+              { from: 'API', to: 'DB', text: 'INSERT INTO orders', num: 3, type: 'solid' },
+              { from: 'DB', to: 'API', text: '1 row affected (ID: 1042)', num: 4, type: 'dashed' },
+              { from: 'API', to: 'App', text: '201 Created (Order #1042)', num: 5, type: 'dashed' },
+              { from: 'App', to: 'User', text: 'Show Order Confirmation', num: 6, type: 'dashed' }
+            ];
+
+            const topY = 60;
+            const bottomY = 480;
+
+            // Draw lifelines
+            participants.forEach(p => {
+              const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+              line.setAttribute('x1', `${p.x}`);
+              line.setAttribute('y1', `${topY + 35}`);
+              line.setAttribute('x2', `${p.x}`);
+              line.setAttribute('y2', `${bottomY}`);
+              line.setAttribute('stroke', linkColor);
+              line.setAttribute('stroke-width', '1.5');
+              line.setAttribute('stroke-dasharray', '5,4');
+              edgesLayer.appendChild(line);
+
+              // Participant box
+              const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+              const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+              rect.setAttribute('x', `${p.x - 60}`);
+              rect.setAttribute('y', `${topY}`);
+              rect.setAttribute('width', '120');
+              rect.setAttribute('height', '36');
+              rect.setAttribute('rx', p.isActor ? '18' : '4');
+              rect.setAttribute('fill', primaryFill);
+              rect.setAttribute('stroke', primaryBorder);
+              rect.setAttribute('stroke-width', '1.8');
+              g.appendChild(rect);
+
+              const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+              text.setAttribute('x', `${p.x}`);
+              text.setAttribute('y', `${topY + 18}`);
+              text.setAttribute('text-anchor', 'middle');
+              text.setAttribute('dominant-baseline', 'central');
+              text.setAttribute('fill', primaryText);
+              text.setAttribute('font-size', '12px');
+              text.setAttribute('font-weight', '600');
+              text.textContent = p.name;
+              g.appendChild(text);
+              nodesLayer.appendChild(g);
+            });
+
+            // Draw sequence message arrows
+            messages.forEach((m, idx) => {
+              const y = topY + 70 + idx * 55;
+              const pFrom = participants.find(p => p.id === m.from);
+              const pTo = participants.find(p => p.id === m.to);
+              if (!pFrom || !pTo) return;
+
+              const x1 = pFrom.x;
+              const x2 = pTo.x;
+
+              const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+              line.setAttribute('x1', `${x1}`);
+              line.setAttribute('y1', `${y}`);
+              line.setAttribute('x2', `${x2}`);
+              line.setAttribute('y2', `${y}`);
+              line.setAttribute('stroke', linkColor);
+              line.setAttribute('stroke-width', '2');
+              if (m.type === 'dashed') line.setAttribute('stroke-dasharray', '5,4');
+              line.setAttribute('marker-end', 'url(#marker-arrow)');
+              edgesLayer.appendChild(line);
+
+              // Step Badge
+              const badgeG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+              const midX = (x1 + x2) / 2;
+              const badgeBg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+              const badgeW = m.text.length * 6.5 + 32;
+              badgeBg.setAttribute('x', `${midX - badgeW / 2}`);
+              badgeBg.setAttribute('y', `${y - 18}`);
+              badgeBg.setAttribute('width', `${badgeW}`);
+              badgeBg.setAttribute('height', '18');
+              badgeBg.setAttribute('rx', '4');
+              badgeBg.setAttribute('fill', cardBg);
+              badgeBg.setAttribute('stroke', cardBorder);
+              badgeBg.setAttribute('stroke-width', '1');
+              badgeG.appendChild(badgeBg);
+
+              const badgeText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+              badgeText.setAttribute('x', `${midX}`);
+              badgeText.setAttribute('y', `${y - 9}`);
+              badgeText.setAttribute('text-anchor', 'middle');
+              badgeText.setAttribute('dominant-baseline', 'central');
+              badgeText.setAttribute('fill', textColor);
+              badgeText.setAttribute('font-size', '10.5px');
+              badgeText.setAttribute('font-weight', '500');
+              badgeText.textContent = `${m.num}. ${m.text}`;
+              badgeG.appendChild(badgeText);
+              nodesLayer.appendChild(badgeG);
+            });
+            break;
+          }
+
+          case 'pie': {
+            const data = [
+              { label: 'Compute Engine (VMs)', val: 42, color: '#2196F3' },
+              { label: 'Cloud Storage (GCS)', val: 28, color: '#4CAF50' },
+              { label: 'BigQuery Analytics', val: 18, color: '#FF9800' },
+              { label: 'Networking & CDN', val: 12, color: '#9C27B0' }
+            ];
+
+            const cx = 260;
+            const cy = 240;
+            const r = 140;
+            const holeR = 60;
+            const total = 100;
+
+            // Title
+            const titleEl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            titleEl.setAttribute('x', '350');
+            titleEl.setAttribute('y', '50');
+            titleEl.setAttribute('text-anchor', 'middle');
+            titleEl.setAttribute('fill', textColor);
+            titleEl.setAttribute('font-size', '15px');
+            titleEl.setAttribute('font-weight', '700');
+            titleEl.textContent = 'Cloud Infrastructure Resource Distribution';
+            nodesLayer.appendChild(titleEl);
+
+            let curAngle = -Math.PI / 2;
+            data.forEach((d, idx) => {
+              const sliceAngle = (d.val / total) * Math.PI * 2;
+              const nextAngle = curAngle + sliceAngle;
+
+              const x1 = cx + r * Math.cos(curAngle);
+              const y1 = cy + r * Math.sin(curAngle);
+              const x2 = cx + r * Math.cos(nextAngle);
+              const y2 = cy + r * Math.sin(nextAngle);
+
+              const ix1 = cx + holeR * Math.cos(curAngle);
+              const iy1 = cy + holeR * Math.sin(curAngle);
+              const ix2 = cx + holeR * Math.cos(nextAngle);
+              const iy2 = cy + holeR * Math.sin(nextAngle);
+
+              const largeArc = sliceAngle > Math.PI ? 1 : 0;
+              const pathData = `M ${ix1} ${iy1} L ${x1} ${y1} A ${r} ${r} 0 ${largeArc} 1 ${x2} ${y2} L ${ix2} ${iy2} A ${holeR} ${holeR} 0 ${largeArc} 0 ${ix1} ${iy1} Z`;
+
+              const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+              path.setAttribute('d', pathData);
+              path.setAttribute('fill', d.color);
+              path.setAttribute('stroke', cardBg);
+              path.setAttribute('stroke-width', '2');
+              nodesLayer.appendChild(path);
+
+              // Percentage label on slice
+              const midA = curAngle + sliceAngle / 2;
+              const lblR = (r + holeR) / 2;
+              const lx = cx + lblR * Math.cos(midA);
+              const ly = cy + lblR * Math.sin(midA);
+
+              const pText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+              pText.setAttribute('x', `${lx}`);
+              pText.setAttribute('y', `${ly}`);
+              pText.setAttribute('text-anchor', 'middle');
+              pText.setAttribute('dominant-baseline', 'central');
+              pText.setAttribute('fill', '#FFFFFF');
+              pText.setAttribute('font-size', '12px');
+              pText.setAttribute('font-weight', 'bold');
+              pText.textContent = `${d.val}%`;
+              nodesLayer.appendChild(pText);
+
+              // Legend Table on Right
+              const legY = 140 + idx * 38;
+              const legG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+
+              const legBox = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+              legBox.setAttribute('x', '450');
+              legBox.setAttribute('y', `${legY}`);
+              legBox.setAttribute('width', '16');
+              legBox.setAttribute('height', '16');
+              legBox.setAttribute('rx', '3');
+              legBox.setAttribute('fill', d.color);
+              legG.appendChild(legBox);
+
+              const legTxt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+              legTxt.setAttribute('x', '476');
+              legTxt.setAttribute('y', `${legY + 8}`);
+              legTxt.setAttribute('dominant-baseline', 'central');
+              legTxt.setAttribute('fill', textColor);
+              legTxt.setAttribute('font-size', '12px');
+              legTxt.setAttribute('font-weight', '500');
+              legTxt.textContent = `${d.label} (${d.val}%)`;
+              legG.appendChild(legTxt);
+
+              nodesLayer.appendChild(legG);
+              curAngle = nextAngle;
+            });
+            break;
+          }
+
+          case 'gantt': {
+            const sections = [
+              {
+                title: 'Planning',
+                tasks: [
+                  { name: 'Architecture Design', start: 0, dur: 7, status: 'done', color: '#4CAF50' },
+                  { name: 'UX Specifications', start: 4, dur: 8, status: 'done', color: '#4CAF50' }
+                ]
+              },
+              {
+                title: 'Development',
+                tasks: [
+                  { name: 'Backend Services', start: 9, dur: 15, status: 'active', color: '#2196F3' },
+                  { name: 'Frontend Application', start: 13, dur: 16, status: 'active', color: '#2196F3' }
+                ]
+              },
+              {
+                title: 'QA & Release',
+                tasks: [
+                  { name: 'Integration Testing', start: 25, dur: 10, status: 'crit', color: '#F44336' },
+                  { name: 'Production Launch', start: 36, dur: 1, status: 'milestone', color: '#FF9800' }
+                ]
+              }
+            ];
+
+            const startX = 220;
+            const startY = 80;
+            const rowH = 36;
+            const dayW = 14;
+
+            // Title
+            const titleEl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            titleEl.setAttribute('x', '400');
+            titleEl.setAttribute('y', '45');
+            titleEl.setAttribute('text-anchor', 'middle');
+            titleEl.setAttribute('fill', textColor);
+            titleEl.setAttribute('font-size', '15px');
+            titleEl.setAttribute('font-weight', '700');
+            titleEl.textContent = 'Project Sprint Roadmap (Gantt)';
+            nodesLayer.appendChild(titleEl);
+
+            // Time axis line
+            const timeAxis = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            timeAxis.setAttribute('x1', `${startX}`);
+            timeAxis.setAttribute('y1', `${startY}`);
+            timeAxis.setAttribute('x2', `${startX + 40 * dayW}`);
+            timeAxis.setAttribute('y2', `${startY}`);
+            timeAxis.setAttribute('stroke', linkColor);
+            timeAxis.setAttribute('stroke-width', '1.5');
+            edgesLayer.appendChild(timeAxis);
+
+            let curY = startY + 20;
+            sections.forEach(sec => {
+              // Section Header
+              const secTxt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+              secTxt.setAttribute('x', '60');
+              secTxt.setAttribute('y', `${curY + 14}`);
+              secTxt.setAttribute('fill', primaryText);
+              secTxt.setAttribute('font-size', '12px');
+              secTxt.setAttribute('font-weight', 'bold');
+              secTxt.textContent = sec.title.toUpperCase();
+              nodesLayer.appendChild(secTxt);
+
+              curY += 24;
+
+              sec.tasks.forEach(t => {
+                const tx = startX + t.start * dayW;
+                const tw = Math.max(16, t.dur * dayW);
+
+                // Task Name
+                const taskLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                taskLabel.setAttribute('x', '80');
+                taskLabel.setAttribute('y', `${curY + 12}`);
+                taskLabel.setAttribute('fill', textColor);
+                taskLabel.setAttribute('font-size', '11.5px');
+                taskLabel.textContent = t.name;
+                nodesLayer.appendChild(taskLabel);
+
+                if (t.status === 'milestone') {
+                  const diamond = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+                  diamond.setAttribute('points', `${tx},${curY + 12} ${tx + 10},${curY + 2} ${tx + 20},${curY + 12} ${tx + 10},${curY + 22}`);
+                  diamond.setAttribute('fill', t.color);
+                  nodesLayer.appendChild(diamond);
+                } else {
+                  const bar = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                  bar.setAttribute('x', `${tx}`);
+                  bar.setAttribute('y', `${curY}`);
+                  bar.setAttribute('width', `${tw}`);
+                  bar.setAttribute('height', '20');
+                  bar.setAttribute('rx', '4');
+                  bar.setAttribute('fill', t.color);
+                  nodesLayer.appendChild(bar);
+                }
+                curY += rowH;
+              });
+              curY += 10;
+            });
+            break;
+          }
+
+          case 'gitGraph': {
+            const commits = [
+              { id: 'c1', branch: 'main', msg: 'Initial Commit', x: 80, y: 120 },
+              { id: 'c2', branch: 'main', msg: 'Core Foundation', x: 180, y: 120 },
+              { id: 'c3', branch: 'feature', msg: 'Add SVG Engine', x: 280, y: 220 },
+              { id: 'c4', branch: 'feature', msg: 'Add Inspector', x: 380, y: 220 },
+              { id: 'c5', branch: 'main', msg: 'Merge Canvas', x: 480, y: 120 },
+              { id: 'c6', branch: 'release', msg: 'Bump v1.0.0', x: 580, y: 300, tag: 'v1.00.000' },
+              { id: 'c7', branch: 'main', msg: 'Release 1.0', x: 680, y: 120 }
+            ];
+
+            // Branch rails
+            const rails = [
+              { name: 'main', y: 120, color: '#2196F3' },
+              { name: 'feature/canvas', y: 220, color: '#4CAF50' },
+              { name: 'release/v1.0', y: 300, color: '#FF9800' }
+            ];
+
+            rails.forEach(r => {
+              const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+              line.setAttribute('x1', '40');
+              line.setAttribute('y1', `${r.y}`);
+              line.setAttribute('x2', '760');
+              line.setAttribute('y2', `${r.y}`);
+              line.setAttribute('stroke', r.color);
+              line.setAttribute('stroke-width', '3');
+              edgesLayer.appendChild(line);
+
+              const badge = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+              badge.setAttribute('x', '40');
+              badge.setAttribute('y', `${r.y - 12}`);
+              badge.setAttribute('fill', r.color);
+              badge.setAttribute('font-size', '11px');
+              badge.setAttribute('font-weight', 'bold');
+              badge.textContent = r.name;
+              nodesLayer.appendChild(badge);
+            });
+
+            // Branch & merge connecting curves
+            const bCurve = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            bCurve.setAttribute('d', 'M 180 120 C 230 120, 230 220, 280 220');
+            bCurve.setAttribute('fill', 'none');
+            bCurve.setAttribute('stroke', '#4CAF50');
+            bCurve.setAttribute('stroke-width', '2.5');
+            edgesLayer.appendChild(bCurve);
+
+            const mCurve = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            mCurve.setAttribute('d', 'M 380 220 C 430 220, 430 120, 480 120');
+            mCurve.setAttribute('fill', 'none');
+            mCurve.setAttribute('stroke', '#4CAF50');
+            mCurve.setAttribute('stroke-width', '2.5');
+            edgesLayer.appendChild(mCurve);
+
+            const rCurve = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            rCurve.setAttribute('d', 'M 480 120 C 530 120, 530 300, 580 300');
+            rCurve.setAttribute('fill', 'none');
+            rCurve.setAttribute('stroke', '#FF9800');
+            rCurve.setAttribute('stroke-width', '2.5');
+            edgesLayer.appendChild(rCurve);
+
+            const rmCurve = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            rmCurve.setAttribute('d', 'M 580 300 C 630 300, 630 120, 680 120');
+            rmCurve.setAttribute('fill', 'none');
+            rmCurve.setAttribute('stroke', '#FF9800');
+            rmCurve.setAttribute('stroke-width', '2.5');
+            edgesLayer.appendChild(rmCurve);
+
+            // Commits
+            commits.forEach(c => {
+              const circ = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+              circ.setAttribute('cx', `${c.x}`);
+              circ.setAttribute('cy', `${c.y}`);
+              circ.setAttribute('r', '9');
+              circ.setAttribute('fill', cardBg);
+              circ.setAttribute('stroke', c.branch === 'main' ? '#2196F3' : (c.branch === 'feature' ? '#4CAF50' : '#FF9800'));
+              circ.setAttribute('stroke-width', '3');
+              nodesLayer.appendChild(circ);
+
+              const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+              label.setAttribute('x', `${c.x}`);
+              label.setAttribute('y', `${c.y + 24}`);
+              label.setAttribute('text-anchor', 'middle');
+              label.setAttribute('fill', textColor);
+              label.setAttribute('font-size', '10.5px');
+              label.textContent = c.msg;
+              nodesLayer.appendChild(label);
+
+              if (c.tag) {
+                const tagG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                const tagBg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                tagBg.setAttribute('x', `${c.x - 34}`);
+                tagBg.setAttribute('y', `${c.y - 32}`);
+                tagBg.setAttribute('width', '68');
+                tagBg.setAttribute('height', '18');
+                tagBg.setAttribute('rx', '9');
+                tagBg.setAttribute('fill', '#FF9800');
+                tagG.appendChild(tagBg);
+
+                const tagText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                tagText.setAttribute('x', `${c.x}`);
+                tagText.setAttribute('y', `${c.y - 23}`);
+                tagText.setAttribute('text-anchor', 'middle');
+                tagText.setAttribute('dominant-baseline', 'central');
+                tagText.setAttribute('fill', '#FFFFFF');
+                tagText.setAttribute('font-size', '9.5px');
+                tagText.setAttribute('font-weight', 'bold');
+                tagText.textContent = c.tag;
+                tagG.appendChild(tagText);
+                nodesLayer.appendChild(tagG);
+              }
+            });
+            break;
+          }
+
+          case 'journey': {
+            const stages = [
+              { stage: 'Discovery', tasks: [{ name: 'Search Products', score: '😃 5/5', actor: 'Customer' }, { name: 'View Details', score: '🙂 4/5', actor: 'Customer' }] },
+              { stage: 'Purchase', tasks: [{ name: 'Add to Cart', score: '🙂 4/5', actor: 'Customer' }, { name: 'Checkout', score: '😐 3/5', actor: 'Stripe' }] },
+              { stage: 'Fulfillment', tasks: [{ name: 'Order Notification', score: '😃 5/5', actor: 'Email Service' }, { name: 'Delivery', score: '😃 5/5', actor: 'Courier' }] }
+            ];
+
+            const startX = 60;
+            const stageW = 220;
+
+            stages.forEach((st, sIdx) => {
+              const x = startX + sIdx * (stageW + 20);
+
+              // Stage Column Box
+              const colBox = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+              colBox.setAttribute('x', `${x}`);
+              colBox.setAttribute('y', '50');
+              colBox.setAttribute('width', `${stageW}`);
+              colBox.setAttribute('height', '320');
+              colBox.setAttribute('rx', '8');
+              colBox.setAttribute('fill', cardBg);
+              colBox.setAttribute('stroke', cardBorder);
+              colBox.setAttribute('stroke-width', '1');
+              nodesLayer.appendChild(colBox);
+
+              const stTitle = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+              stTitle.setAttribute('x', `${x + stageW / 2}`);
+              stTitle.setAttribute('y', '76');
+              stTitle.setAttribute('text-anchor', 'middle');
+              stTitle.setAttribute('fill', primaryText);
+              stTitle.setAttribute('font-size', '13px');
+              stTitle.setAttribute('font-weight', 'bold');
+              stTitle.textContent = st.stage;
+              nodesLayer.appendChild(stTitle);
+
+              st.tasks.forEach((t, tIdx) => {
+                const ty = 110 + tIdx * 100;
+                const card = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                card.setAttribute('x', `${x + 12}`);
+                card.setAttribute('y', `${ty}`);
+                card.setAttribute('width', `${stageW - 24}`);
+                card.setAttribute('height', '80');
+                card.setAttribute('rx', '6');
+                card.setAttribute('fill', primaryFill);
+                card.setAttribute('stroke', primaryBorder);
+                nodesLayer.appendChild(card);
+
+                const tName = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                tName.setAttribute('x', `${x + 22}`);
+                tName.setAttribute('y', `${ty + 22}`);
+                tName.setAttribute('fill', primaryText);
+                tName.setAttribute('font-size', '11.5px');
+                tName.setAttribute('font-weight', '600');
+                tName.textContent = t.name;
+                nodesLayer.appendChild(tName);
+
+                const tScore = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                tScore.setAttribute('x', `${x + 22}`);
+                tScore.setAttribute('y', `${ty + 44}`);
+                tScore.setAttribute('fill', textColor);
+                tScore.setAttribute('font-size', '11px');
+                tScore.textContent = `Score: ${t.score}`;
+                nodesLayer.appendChild(tScore);
+
+                const tActor = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                tActor.setAttribute('x', `${x + 22}`);
+                tActor.setAttribute('y', `${ty + 64}`);
+                tActor.setAttribute('fill', linkColor);
+                tActor.setAttribute('font-size', '10px');
+                tActor.textContent = `👤 ${t.actor}`;
+                nodesLayer.appendChild(tActor);
+              });
+            });
+            break;
+          }
+
+          case 'mindmap': {
+            const root = { x: 380, y: 220, text: 'System Architecture' };
+            const branches = [
+              { text: 'Client Layer', x: 160, y: 120, children: ['Web Application', 'Mobile App'] },
+              { text: 'API Gateway', x: 160, y: 320, children: ['Authentication', 'Rate Limiting'] },
+              { text: 'Microservices', x: 600, y: 120, children: ['User Service', 'Payment Engine'] },
+              { text: 'Data Tier', x: 600, y: 320, children: ['PostgreSQL', 'Redis Cache'] }
+            ];
+
+            // Root Node
+            const rootEllipse = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
+            rootEllipse.setAttribute('cx', `${root.x}`);
+            rootEllipse.setAttribute('cy', `${root.y}`);
+            rootEllipse.setAttribute('rx', '85');
+            rootEllipse.setAttribute('ry', '34');
+            rootEllipse.setAttribute('fill', primaryFill);
+            rootEllipse.setAttribute('stroke', primaryBorder);
+            rootEllipse.setAttribute('stroke-width', '2.5');
+            nodesLayer.appendChild(rootEllipse);
+
+            const rootTxt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            rootTxt.setAttribute('x', `${root.x}`);
+            rootTxt.setAttribute('y', `${root.y}`);
+            rootTxt.setAttribute('text-anchor', 'middle');
+            rootTxt.setAttribute('dominant-baseline', 'central');
+            rootTxt.setAttribute('fill', primaryText);
+            rootTxt.setAttribute('font-size', '12px');
+            rootTxt.setAttribute('font-weight', 'bold');
+            rootTxt.textContent = root.text;
+            nodesLayer.appendChild(rootTxt);
+
+            branches.forEach(b => {
+              // Curve from root to branch
+              const curve = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+              curve.setAttribute('d', `M ${root.x} ${root.y} C ${(root.x + b.x) / 2} ${root.y}, ${(root.x + b.x) / 2} ${b.y}, ${b.x} ${b.y}`);
+              curve.setAttribute('fill', 'none');
+              curve.setAttribute('stroke', primaryBorder);
+              curve.setAttribute('stroke-width', '2');
+              edgesLayer.appendChild(curve);
+
+              // Branch Node
+              const bRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+              bRect.setAttribute('x', `${b.x - 60}`);
+              bRect.setAttribute('y', `${b.y - 18}`);
+              bRect.setAttribute('width', '120');
+              bRect.setAttribute('height', '36');
+              bRect.setAttribute('rx', '6');
+              bRect.setAttribute('fill', cardBg);
+              bRect.setAttribute('stroke', primaryBorder);
+              bRect.setAttribute('stroke-width', '1.5');
+              nodesLayer.appendChild(bRect);
+
+              const bTxt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+              bTxt.setAttribute('x', `${b.x}`);
+              bTxt.setAttribute('y', `${b.y}`);
+              bTxt.setAttribute('text-anchor', 'middle');
+              bTxt.setAttribute('dominant-baseline', 'central');
+              bTxt.setAttribute('fill', textColor);
+              bTxt.setAttribute('font-size', '11.5px');
+              bTxt.setAttribute('font-weight', '600');
+              bTxt.textContent = b.text;
+              nodesLayer.appendChild(bTxt);
+
+              // Children leaves
+              b.children.forEach((child, cIdx) => {
+                const isLeft = b.x < root.x;
+                const cx = isLeft ? b.x - 120 : b.x + 120;
+                const cy = b.y - 20 + cIdx * 40;
+
+                const cLine = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                cLine.setAttribute('d', `M ${b.x} ${b.y} C ${(b.x + cx) / 2} ${b.y}, ${(b.x + cx) / 2} ${cy}, ${cx} ${cy}`);
+                cLine.setAttribute('fill', 'none');
+                cLine.setAttribute('stroke', linkColor);
+                cLine.setAttribute('stroke-width', '1.2');
+                edgesLayer.appendChild(cLine);
+
+                const cLeaf = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                cLeaf.setAttribute('x', `${cx}`);
+                cLeaf.setAttribute('y', `${cy}`);
+                cLeaf.setAttribute('text-anchor', isLeft ? 'end' : 'start');
+                cLeaf.setAttribute('dominant-baseline', 'central');
+                cLeaf.setAttribute('fill', textColor);
+                cLeaf.setAttribute('font-size', '10.5px');
+                cLeaf.textContent = '• ' + child;
+                nodesLayer.appendChild(cLeaf);
+              });
+            });
+            break;
+          }
+
+          case 'timeline': {
+            const events = [
+              { year: '2024', items: ['Initial Architecture', 'Prototype Alpha'], x: 150 },
+              { year: '2025', items: ['Real-time Collab', 'Multi-format Exporter'], x: 380 },
+              { year: '2026', items: ['Offline Visual Suite', 'Release 1.0'], x: 610 }
+            ];
+
+            const axisY = 200;
+
+            // Main horizontal line
+            const axisLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            axisLine.setAttribute('x1', '60');
+            axisLine.setAttribute('y1', `${axisY}`);
+            axisLine.setAttribute('x2', '720');
+            axisLine.setAttribute('y2', `${axisY}`);
+            axisLine.setAttribute('stroke', primaryBorder);
+            axisLine.setAttribute('stroke-width', '3');
+            edgesLayer.appendChild(axisLine);
+
+            events.forEach((ev, idx) => {
+              // Milestone circle
+              const circ = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+              circ.setAttribute('cx', `${ev.x}`);
+              circ.setAttribute('cy', `${axisY}`);
+              circ.setAttribute('r', '10');
+              circ.setAttribute('fill', primaryFill);
+              circ.setAttribute('stroke', primaryBorder);
+              circ.setAttribute('stroke-width', '3');
+              nodesLayer.appendChild(circ);
+
+              // Year badge
+              const badgeG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+              const badgeBg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+              badgeBg.setAttribute('x', `${ev.x - 30}`);
+              badgeBg.setAttribute('y', `${axisY - 45}`);
+              badgeBg.setAttribute('width', '60');
+              badgeBg.setAttribute('height', '24');
+              badgeBg.setAttribute('rx', '12');
+              badgeBg.setAttribute('fill', '#2196F3');
+              badgeG.appendChild(badgeBg);
+
+              const badgeText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+              badgeText.setAttribute('x', `${ev.x}`);
+              badgeText.setAttribute('y', `${axisY - 33}`);
+              badgeText.setAttribute('text-anchor', 'middle');
+              badgeText.setAttribute('dominant-baseline', 'central');
+              badgeText.setAttribute('fill', '#FFFFFF');
+              badgeText.setAttribute('font-size', '11.5px');
+              badgeText.setAttribute('font-weight', 'bold');
+              badgeText.textContent = ev.year;
+              badgeG.appendChild(badgeText);
+              nodesLayer.appendChild(badgeG);
+
+              // Event card below
+              const cardG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+              const cardRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+              cardRect.setAttribute('x', `${ev.x - 80}`);
+              cardRect.setAttribute('y', `${axisY + 30}`);
+              cardRect.setAttribute('width', '160');
+              cardRect.setAttribute('height', '75');
+              cardRect.setAttribute('rx', '6');
+              cardRect.setAttribute('fill', cardBg);
+              cardRect.setAttribute('stroke', cardBorder);
+              cardG.appendChild(cardRect);
+
+              ev.items.forEach((it, iIdx) => {
+                const itemTxt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                itemTxt.setAttribute('x', `${ev.x - 70}`);
+                itemTxt.setAttribute('y', `${axisY + 54 + iIdx * 24}`);
+                itemTxt.setAttribute('fill', textColor);
+                itemTxt.setAttribute('font-size', '11px');
+                itemTxt.textContent = '✔ ' + it;
+                cardG.appendChild(itemTxt);
+              });
+              nodesLayer.appendChild(cardG);
+            });
+            break;
+          }
+
+          case 'quadrant': {
+            const items = [
+              { name: 'Offline Engine', x: 0.85, y: 0.90, color: '#2196F3' },
+              { name: 'Export PNG', x: 0.75, y: 0.70, color: '#4CAF50' },
+              { name: 'Property Inspector', x: 0.60, y: 0.80, color: '#FF9800' },
+              { name: 'Minor Styling', x: 0.20, y: 0.30, color: '#9C27B0' }
+            ];
+
+            const ox = 120;
+            const oy = 60;
+            const qw = 220;
+            const qh = 160;
+
+            const quadrants = [
+              { name: 'Urgent & Critical', rx: ox + qw, ry: oy, bg: 'rgba(244, 67, 54, 0.08)' },
+              { name: 'Strategic Bets', rx: ox, ry: oy, bg: 'rgba(33, 150, 243, 0.08)' },
+              { name: 'Low Priority', rx: ox, ry: oy + qh, bg: 'rgba(158, 158, 158, 0.08)' },
+              { name: 'Quick Fixes', rx: ox + qw, ry: oy + qh, bg: 'rgba(76, 175, 80, 0.08)' }
+            ];
+
+            quadrants.forEach(q => {
+              const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+              rect.setAttribute('x', `${q.rx}`);
+              rect.setAttribute('y', `${q.ry}`);
+              rect.setAttribute('width', `${qw}`);
+              rect.setAttribute('height', `${qh}`);
+              rect.setAttribute('fill', q.bg);
+              rect.setAttribute('stroke', cardBorder);
+              rect.setAttribute('stroke-width', '1');
+              nodesLayer.appendChild(rect);
+
+              const lbl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+              lbl.setAttribute('x', `${q.rx + 10}`);
+              lbl.setAttribute('y', `${q.ry + 20}`);
+              lbl.setAttribute('fill', linkColor);
+              lbl.setAttribute('font-size', '11px');
+              lbl.setAttribute('font-weight', '600');
+              lbl.textContent = q.name;
+              nodesLayer.appendChild(lbl);
+            });
+
+            // Axes
+            const cx = ox + qw;
+            const cy = oy + qh;
+
+            // Plotted Points
+            items.forEach(it => {
+              const px = ox + it.x * (qw * 2);
+              const py = oy + (1 - it.y) * (qh * 2);
+
+              const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+              dot.setAttribute('cx', `${px}`);
+              dot.setAttribute('cy', `${py}`);
+              dot.setAttribute('r', '6');
+              dot.setAttribute('fill', it.color);
+              dot.setAttribute('stroke', '#FFFFFF');
+              dot.setAttribute('stroke-width', '1.5');
+              nodesLayer.appendChild(dot);
+
+              const txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+              txt.setAttribute('x', `${px + 8}`);
+              txt.setAttribute('y', `${py + 4}`);
+              txt.setAttribute('fill', textColor);
+              txt.setAttribute('font-size', '11px');
+              txt.setAttribute('font-weight', '500');
+              txt.textContent = it.name;
+              nodesLayer.appendChild(txt);
+            });
+            break;
+          }
+
+          case 'sankey': {
+            const sources = [
+              { name: 'Organic Search', val: 4500, y: 80, color: '#2196F3' },
+              { name: 'Social Ads', val: 3200, y: 180, color: '#4CAF50' },
+              { name: 'Referrals', val: 1300, y: 280, color: '#FF9800' }
+            ];
+            const middle = [
+              { name: 'Landing Page', val: 9000, y: 150, color: '#9C27B0' }
+            ];
+            const targets = [
+              { name: 'Signup Form', val: 5800, y: 110, color: '#00BCD4' },
+              { name: 'Dropoff', val: 3200, y: 240, color: '#F44336' }
+            ];
+
+            const drawBox = (name, val, x, y, color) => {
+              const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+              rect.setAttribute('x', `${x}`);
+              rect.setAttribute('y', `${y}`);
+              rect.setAttribute('width', '130');
+              rect.setAttribute('height', '50');
+              rect.setAttribute('rx', '4');
+              rect.setAttribute('fill', color);
+              rect.setAttribute('opacity', '0.85');
+              nodesLayer.appendChild(rect);
+
+              const txt1 = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+              txt1.setAttribute('x', `${x + 65}`);
+              txt1.setAttribute('y', `${y + 20}`);
+              txt1.setAttribute('text-anchor', 'middle');
+              txt1.setAttribute('fill', '#FFFFFF');
+              txt1.setAttribute('font-size', '11px');
+              txt1.setAttribute('font-weight', 'bold');
+              txt1.textContent = name;
+              nodesLayer.appendChild(txt1);
+
+              const txt2 = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+              txt2.setAttribute('x', `${x + 65}`);
+              txt2.setAttribute('y', `${y + 36}`);
+              txt2.setAttribute('text-anchor', 'middle');
+              txt2.setAttribute('fill', '#FFFFFF');
+              txt2.setAttribute('font-size', '10px');
+              txt2.textContent = `${val.toLocaleString()} users`;
+              nodesLayer.appendChild(txt2);
+            };
+
+            sources.forEach(s => {
+              drawBox(s.name, s.val, 80, s.y, s.color);
+              const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+              path.setAttribute('d', `M 210 ${s.y + 25} C 280 ${s.y + 25}, 280 175, 350 175`);
+              path.setAttribute('fill', 'none');
+              path.setAttribute('stroke', s.color);
+              path.setAttribute('stroke-width', `${Math.max(4, s.val / 250)}`);
+              path.setAttribute('opacity', '0.4');
+              edgesLayer.appendChild(path);
+            });
+
+            middle.forEach(m => {
+              drawBox(m.name, m.val, 350, m.y, m.color);
+            });
+
+            targets.forEach(t => {
+              drawBox(t.name, t.val, 600, t.y, t.color);
+              const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+              path.setAttribute('d', `M 480 175 C 540 175, 540 ${t.y + 25}, 600 ${t.y + 25}`);
+              path.setAttribute('fill', 'none');
+              path.setAttribute('stroke', t.color);
+              path.setAttribute('stroke-width', `${Math.max(4, t.val / 250)}`);
+              path.setAttribute('opacity', '0.4');
+              edgesLayer.appendChild(path);
+            });
+            break;
+          }
+        }
+      }
+    }
+
     // --- MERMAID CODE PARSER ---
     class MermaidParser {
       static detectDiagramType(code) {
@@ -2188,11 +3020,12 @@
         const lines = code.split('\n');
         const newGraph = new GraphModel();
         newGraph.diagramType = detectedType;
+        newGraph.customRawCode = code;
         newGraph.gridSnap = currentGraph.gridSnap;
         newGraph.gridSize = currentGraph.gridSize;
         newGraph.rules = currentGraph.rules;
 
-        // If Flowchart or Graph
+        // 1. Parse Flowchart
         if (detectedType === 'flowchart_td' || detectedType === 'flowchart_lr') {
           let lineIdx = 0;
           try {
@@ -2270,7 +3103,149 @@
           }
         }
 
-        // For other diagram types (State, Class, ER, Sequence, etc.)
+        // 2. Parse State Diagram
+        if (detectedType === 'stateDiagram') {
+          lines.forEach(l => {
+            const line = l.trim();
+            if (!line || line.startsWith('stateDiagram') || line.startsWith('%%')) return;
+            const match = line.match(/^(\[\*\]|[A-Za-z0-9_]+)\s*-->\s*(\[\*\]|[A-Za-z0-9_]+)(?:\s*:\s*(.+))?$/);
+            if (match) {
+              const src = match[1];
+              const tgt = match[2];
+              const label = match[3] ? match[3].trim() : undefined;
+
+              [src, tgt].forEach(id => {
+                if (!newGraph.getNode(id)) {
+                  newGraph.addNode({
+                    id,
+                    text: id === '[*]' ? '●' : id,
+                    shape: id === '[*]' ? 'circle' : 'rounded',
+                    width: id === '[*]' ? 40 : 140,
+                    height: id === '[*]' ? 40 : 50,
+                    fillColor: id === '[*]' ? '#212121' : '#E3F2FD',
+                    borderColor: id === '[*]' ? '#000000' : '#90CAF9',
+                    fontColor: id === '[*]' ? '#FFFFFF' : '#0D47A1'
+                  });
+                }
+              });
+
+              newGraph.addEdge({
+                id: Utils.uid('edge'),
+                source: src,
+                target: tgt,
+                label,
+                type: '-->'
+              });
+            }
+          });
+          AutoLayoutEngine.layout(newGraph, 'TD');
+          return { graph: newGraph, error: null };
+        }
+
+        // 3. Parse Class Diagram
+        if (detectedType === 'classDiagram') {
+          let curClass = null;
+          lines.forEach(l => {
+            const line = l.trim();
+            if (!line || line.startsWith('classDiagram') || line.startsWith('%%')) return;
+
+            const cMatch = line.match(/^class\s+([A-Za-z0-9_]+)(?:\s*\{)?/);
+            if (cMatch) {
+              curClass = cMatch[1];
+              if (!newGraph.getNode(curClass)) {
+                newGraph.addNode({
+                  id: curClass,
+                  text: curClass,
+                  shape: 'rectangle',
+                  width: 170,
+                  height: 90,
+                  fillColor: '#E3F2FD',
+                  borderColor: '#90CAF9',
+                  fontColor: '#0D47A1'
+                });
+              }
+              return;
+            }
+
+            if (line === '}') {
+              curClass = null;
+              return;
+            }
+
+            const inhMatch = line.match(/^([A-Za-z0-9_]+)\s*<\|--\s*([A-Za-z0-9_]+)/);
+            if (inhMatch) {
+              const baseC = inhMatch[1];
+              const subC = inhMatch[2];
+              [baseC, subC].forEach(id => {
+                if (!newGraph.getNode(id)) {
+                  newGraph.addNode({ id, text: id, shape: 'rectangle', width: 160, height: 70, fillColor: '#E3F2FD', borderColor: '#90CAF9', fontColor: '#0D47A1' });
+                }
+              });
+              newGraph.addEdge({ id: Utils.uid('edge'), source: baseC, target: subC, type: '-->', label: 'Inherits' });
+            }
+          });
+          AutoLayoutEngine.layout(newGraph, 'TD');
+          return { graph: newGraph, error: null };
+        }
+
+        // 4. Parse ER Diagram
+        if (detectedType === 'erDiagram') {
+          lines.forEach(l => {
+            const line = l.trim();
+            if (!line || line.startsWith('erDiagram') || line.startsWith('%%')) return;
+
+            const relMatch = line.match(/^([A-Za-z0-9_]+)\s*(\|\|--o\{|\|\|--\|\{|\}\|--\|\{|\}\|--o\{)\s*([A-Za-z0-9_]+)(?:\s*:\s*(.+))?/);
+            if (relMatch) {
+              const src = relMatch[1];
+              const tgt = relMatch[3];
+              const label = relMatch[4] ? relMatch[4].trim() : 'relates';
+
+              [src, tgt].forEach(id => {
+                if (!newGraph.getNode(id)) {
+                  newGraph.addNode({
+                    id,
+                    text: id,
+                    shape: 'rectangle',
+                    width: 160,
+                    height: 70,
+                    fillColor: '#ECEFF1',
+                    borderColor: '#B0BEC5',
+                    fontColor: '#263238'
+                  });
+                }
+              });
+
+              newGraph.addEdge({ id: Utils.uid('edge'), source: src, target: tgt, type: '-->', label });
+            }
+          });
+          AutoLayoutEngine.layout(newGraph, 'TD');
+          return { graph: newGraph, error: null };
+        }
+
+        // 5. Parse C4 Context
+        if (detectedType === 'c4context') {
+          lines.forEach(l => {
+            const line = l.trim();
+            const pMatch = line.match(/^Person\(([A-Za-z0-9_]+),\s*"([^"]+)"/);
+            if (pMatch) {
+              newGraph.addNode({ id: pMatch[1], text: pMatch[2] + '\n[Person]', shape: 'rounded', width: 160, height: 60, fillColor: '#0288D1', borderColor: '#0288D1', fontColor: '#FFFFFF' });
+            }
+            const sMatch = line.match(/^System(?:_Ext)?\(([A-Za-z0-9_]+),\s*"([^"]+)"/);
+            if (sMatch) {
+              newGraph.addNode({ id: sMatch[1], text: sMatch[2] + '\n[System]', shape: 'rectangle', width: 170, height: 70, fillColor: line.includes('System_Ext') ? '#ECEFF1' : '#E3F2FD', borderColor: '#90CAF9', fontColor: '#0D47A1' });
+            }
+            const rMatch = line.match(/^Rel\(([A-Za-z0-9_]+),\s*([A-Za-z0-9_]+),\s*"([^"]+)"(?:,\s*"([^"]+)")?\)/);
+            if (rMatch) {
+              newGraph.addEdge({ id: Utils.uid('edge'), source: rMatch[1], target: rMatch[2], type: '-->', label: rMatch[3] + (rMatch[4] ? ` [${rMatch[4]}]` : '') });
+            }
+          });
+          AutoLayoutEngine.layout(newGraph, 'TD');
+          return { graph: newGraph, error: null };
+        }
+
+        // For Specialized Visual Chart Diagrams (Sequence, Gantt, Pie, Git, Journey, Mindmap, Timeline, Quadrant, Sankey)
+        // Register visual bounds node so zoom-to-fit and canvas framing work
+        newGraph.addNode({ id: 'visual_chart_bounds', text: '', shape: 'rectangle', x: 40, y: 40, width: 740, height: 460, fillColor: 'transparent', borderColor: 'transparent', fontColor: 'transparent' });
         return { graph: newGraph, error: null };
       }
 
@@ -2341,7 +3316,7 @@
       }
     }
 
-    // --- SYNTAX HIGHLIGHTER (Supports All Mermaid Types) ---
+    // --- SYNTAX HIGHLIGHTER ---
     class SyntaxHighlighter {
       static highlight(code) {
         const lines = code.split('\n');
@@ -2351,25 +3326,15 @@
           }
 
           let formatted = Utils.escapeHtml(line);
-          // Diagram Type Headers
           formatted = formatted.replace(/\b(flowchart|graph|sequenceDiagram|classDiagram|stateDiagram-v2|stateDiagram|erDiagram|gantt|pie|gitGraph|journey|mindmap|timeline|quadrantChart|C4Context|C4Container|C4Component|sankey-beta|requirementDiagram)\b/g, '<span class="hl-keyword">$1</span>');
-          // Directions
           formatted = formatted.replace(/\b(TD|TB|LR|RL|BT)\b/g, '<span class="hl-dir">$1</span>');
-          // Sequence Keywords
           formatted = formatted.replace(/\b(autonumber|participant|actor|activate|deactivate|loop|alt|else|opt|par|critical|rect|Note over|Note right of|Note left of)\b/g, '<span class="hl-keyword">$1</span>');
-          // Class & Object Keywords
           formatted = formatted.replace(/\b(class|interface|abstract|enum)\b/g, '<span class="hl-keyword">$1</span>');
-          // Timeline, Gantt, Journey Keywords
           formatted = formatted.replace(/\b(title|dateFormat|axisFormat|section|completed|active|crit|done|after|task|score)\b/g, '<span class="hl-dir">$1</span>');
-          // GitGraph Keywords
           formatted = formatted.replace(/\b(commit|branch|checkout|merge|cherry-pick|tag)\b/g, '<span class="hl-keyword">$1</span>');
-          // Quadrant Keywords
           formatted = formatted.replace(/\b(x-axis|y-axis|quadrant-1|quadrant-2|quadrant-3|quadrant-4)\b/g, '<span class="hl-dir">$1</span>');
-          // Style & C4 Keywords
           formatted = formatted.replace(/\b(style|Person|System|System_Ext|Container|Component|Rel)\b/g, '<span class="hl-keyword">$1</span>');
-          // Arrows & Connectors
           formatted = formatted.replace(/(&lt;==&gt;|&lt;--&gt;|==&gt;|-\.-&gt;|---&gt;|--&gt;|-&gt;&gt;|--&gt;&gt;|-x|--x|&lt;\|--|--\|&gt;|\|\|--o\{|\|\|--\|\{|\}\|--\|\{|\}\|--o\{)/g, '<span class="hl-arrow">$1</span>');
-          // Pipe Labels & Quotes
           formatted = formatted.replace(/(\|.*?\|)/g, '<span class="hl-label">$1</span>');
           formatted = formatted.replace(/(&quot;.*?&quot;)/g, '<span class="hl-shape">$1</span>');
 
@@ -2398,16 +3363,13 @@
         clone.querySelector('#temp-layer')?.remove();
         clone.querySelectorAll('.node-port').forEach(p => p.remove());
 
-        // Remove selection state highlights
         clone.querySelectorAll('.selected').forEach(el => el.classList.remove('selected'));
 
-        // Reset transform on viewport group to prevent pan/zoom displacement
         const viewport = clone.querySelector('#canvas-viewport');
         if (viewport) {
           viewport.removeAttribute('transform');
         }
 
-        // Calculate diagram bounding box based on node positions
         let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
         if (graph && graph.nodes && graph.nodes.length > 0) {
           graph.nodes.forEach(n => {
@@ -2419,7 +3381,7 @@
             maxY = Math.max(maxY, n.y + h);
           });
         } else {
-          minX = 0; minY = 0; maxX = 500; maxY = 350;
+          minX = 40; minY = 40; maxX = 760; maxY = 500;
         }
 
         const padding = 50;
@@ -2439,14 +3401,12 @@
         const labelBorderColor = isDark ? '#383838' : '#E0E0E0';
         const textColor = isDark ? '#D4D4D4' : '#212121';
 
-        // Embed self-contained inline CSS into exported SVG
         let defs = clone.querySelector('defs');
         if (!defs) {
           defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
           clone.insertBefore(defs, clone.firstChild);
         }
 
-        // Ensure marker arrowhead paths use explicit solid hex color
         defs.querySelectorAll('path').forEach(p => {
           p.setAttribute('fill', linkColor);
         });
@@ -2579,7 +3539,6 @@
       }
 
       setupInitialDiagram() {
-        // Restored clean initial layout with side Auth Service (Image 1 style)
         this.graph.diagramType = 'flowchart_td';
         this.graph.addNode({ id: 'Client', text: 'Client App', shape: 'rounded', x: 140, y: 80, fillColor: '#E3F2FD', borderColor: '#90CAF9', fontColor: '#0D47A1' });
         this.graph.addNode({ id: 'API', text: 'API Gateway', shape: 'rectangle', x: 140, y: 220, fillColor: '#E3F2FD', borderColor: '#90CAF9', fontColor: '#0D47A1' });
@@ -2601,8 +3560,18 @@
 
       renderAll() {
         this.updateTransform();
-        this.renderEdges();
-        this.renderNodes();
+
+        const isVisualSpecial = ['sequence', 'gantt', 'pie', 'gitGraph', 'journey', 'mindmap', 'timeline', 'quadrant', 'sankey'].includes(this.graph.diagramType);
+
+        if (isVisualSpecial) {
+          const isDark = this.themeMgr.currentTheme === 'dark';
+          const code = this.graph.customRawCode || MermaidGenerator.generate(this.graph);
+          MultiDiagramVisualizer.render(this.graph.diagramType, code, this.nodesLayer, this.edgesLayer, isDark);
+        } else {
+          this.renderEdges();
+          this.renderNodes();
+        }
+
         this.renderMinimap();
         this.renderRulesList();
         this.updatePropertiesPanel();
@@ -2619,6 +3588,8 @@
         this.nodesLayer.innerHTML = '';
 
         this.graph.nodes.forEach(node => {
+          if (node.id === 'visual_chart_bounds') return;
+
           const isSelected = this.selectedNodeIds.has(node.id);
           const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
           g.setAttribute('class', `canvas-node ${isSelected ? 'selected' : ''}`);
@@ -2681,17 +3652,35 @@
           shapeEl.setAttribute('stroke-width', '1.8');
           g.appendChild(shapeEl);
 
-          const textEl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-          textEl.setAttribute('x', `${w / 2}`);
-          textEl.setAttribute('y', `${h / 2}`);
-          textEl.setAttribute('text-anchor', 'middle');
-          textEl.setAttribute('dominant-baseline', 'central');
-          textEl.setAttribute('fill', node.fontColor || 'var(--node-text)');
-          textEl.setAttribute('font-size', '12px');
-          textEl.setAttribute('font-weight', '500');
-          textEl.setAttribute('pointer-events', 'none');
-          textEl.textContent = node.text || node.id;
-          g.appendChild(textEl);
+          const textLines = (node.text || node.id).split('\n');
+          if (textLines.length === 1) {
+            const textEl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            textEl.setAttribute('x', `${w / 2}`);
+            textEl.setAttribute('y', `${h / 2}`);
+            textEl.setAttribute('text-anchor', 'middle');
+            textEl.setAttribute('dominant-baseline', 'central');
+            textEl.setAttribute('fill', node.fontColor || 'var(--node-text)');
+            textEl.setAttribute('font-size', '12px');
+            textEl.setAttribute('font-weight', '500');
+            textEl.setAttribute('pointer-events', 'none');
+            textEl.textContent = textLines[0];
+            g.appendChild(textEl);
+          } else {
+            const startY = (h - (textLines.length - 1) * 16) / 2;
+            textLines.forEach((tl, tIdx) => {
+              const textEl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+              textEl.setAttribute('x', `${w / 2}`);
+              textEl.setAttribute('y', `${startY + tIdx * 16}`);
+              textEl.setAttribute('text-anchor', 'middle');
+              textEl.setAttribute('dominant-baseline', 'central');
+              textEl.setAttribute('fill', node.fontColor || 'var(--node-text)');
+              textEl.setAttribute('font-size', tIdx === 0 ? '12px' : '10.5px');
+              textEl.setAttribute('font-weight', tIdx === 0 ? 'bold' : 'normal');
+              textEl.setAttribute('pointer-events', 'none');
+              textEl.textContent = tl;
+              g.appendChild(textEl);
+            });
+          }
 
           const ports = [
             { pos: 'top', x: w / 2, y: 0 },
@@ -2751,7 +3740,6 @@
           const dy = ty - sy;
           let d = '';
 
-          // Determine path shape ensuring clean non-zero entry/exit tangents
           if (Math.abs(dx) < 2 && (srcDir === 'top' || srcDir === 'bottom') && (tgtDir === 'top' || tgtDir === 'bottom')) {
             d = `M ${sx} ${sy} L ${tx} ${ty}`;
           } else if (Math.abs(dy) < 2 && (srcDir === 'left' || srcDir === 'right') && (tgtDir === 'left' || tgtDir === 'right')) {
@@ -2939,7 +3927,6 @@
       }
 
       setupPropertiesListeners() {
-        // Tab switching
         document.querySelectorAll('.left-tab').forEach(tab => {
           tab.addEventListener('click', () => {
             document.querySelectorAll('.left-tab').forEach(t => t.classList.remove('active'));
@@ -2951,7 +3938,6 @@
           });
         });
 
-        // Live Node Properties Inputs
         const onNodePropChange = (saveHistory = true) => {
           if (this.selectedNodeIds.size !== 1) return;
           const nodeId = Array.from(this.selectedNodeIds)[0];
@@ -2995,7 +3981,6 @@
           }
         });
 
-        // Swatches
         document.querySelectorAll('#fill-swatches .color-swatch').forEach(swatch => {
           swatch.addEventListener('click', () => {
             if (this.selectedNodeIds.size !== 1) return;
@@ -3022,7 +4007,6 @@
           });
         });
 
-        // Node Quick Actions in Inspector
         const btnDup = document.getElementById('btn-prop-duplicate');
         if (btnDup) {
           btnDup.addEventListener('click', () => {
@@ -3067,7 +4051,6 @@
           btnDel.addEventListener('click', () => this.deleteSelected());
         }
 
-        // Edge Live Properties Inputs
         const onEdgePropChange = (saveHistory = true) => {
           if (!this.selectedEdgeId) return;
           const edge = this.graph.getEdge(this.selectedEdgeId);
@@ -3100,7 +4083,6 @@
           edgeDelBtn.addEventListener('click', () => this.deleteSelected());
         }
 
-        // Canvas Settings Inputs
         const gridSnapInp = document.getElementById('prop-grid-snap');
         if (gridSnapInp) {
           gridSnapInp.addEventListener('change', (e) => {
@@ -3147,6 +4129,7 @@
         const scale = Math.min(mapW / graphW, mapH / graphH);
 
         this.graph.nodes.forEach(n => {
+          if (n.id === 'visual_chart_bounds') return;
           const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
           rect.setAttribute('x', `${(n.x - minX) * scale}`);
           rect.setAttribute('y', `${(n.y - minY) * scale}`);
@@ -3170,7 +4153,7 @@
       }
 
       updateMermaidCode() {
-        const code = MermaidGenerator.generate(this.graph);
+        const code = this.graph.customRawCode || MermaidGenerator.generate(this.graph);
         this.codeEditor.value = code;
         this.codeHighlight.innerHTML = SyntaxHighlighter.highlight(code);
         document.getElementById('editor-error').textContent = 'Valid Mermaid';
@@ -3226,7 +4209,6 @@
 
         document.getElementById('btn-sync-code').addEventListener('click', () => this.applyCodeToGraph());
 
-        // Diagram Type Dropdown listener
         if (this.typeSelect) {
           this.typeSelect.addEventListener('change', (e) => {
             const selectedId = e.target.value;
@@ -3324,21 +4306,19 @@
       loadTemplate(tpl) {
         this.recordHistory();
         this.graph.diagramType = tpl.id;
+        this.graph.customRawCode = tpl.code;
         if (this.typeSelect) this.typeSelect.value = tpl.id;
 
         this.codeEditor.value = tpl.code;
         this.codeHighlight.innerHTML = SyntaxHighlighter.highlight(tpl.code);
 
         const res = MermaidParser.parse(tpl.code, this.graph);
-        if (res.graph && res.graph.nodes.length > 0) {
+        if (res.graph) {
           this.graph.fromProject(res.graph.toProject(this.themeMgr.currentTheme));
-          AutoLayoutEngine.layout(this.graph, this.graph.layoutDirection);
-          this.renderAll();
-          this.zoomToFit();
-        } else {
-          this.renderAll();
         }
 
+        this.renderAll();
+        this.zoomToFit();
         this.recordHistory();
         Utils.showToast(`Loaded ${tpl.name} template`, 'success');
       }
@@ -3817,6 +4797,7 @@
         tgtSelect.innerHTML = '';
 
         this.graph.nodes.forEach(n => {
+          if (n.id === 'visual_chart_bounds') return;
           const opt1 = document.createElement('option');
           opt1.value = n.id;
           opt1.textContent = `${n.id} (${n.text || n.id})`;
@@ -3835,8 +4816,9 @@
           typeSelect.value = edge.type || '-->';
           modal._editEdgeId = edge.id;
         } else {
-          srcSelect.value = defaultSource || this.graph.nodes[0].id;
-          tgtSelect.value = defaultTarget || (this.graph.nodes[1] ? this.graph.nodes[1].id : this.graph.nodes[0].id);
+          const availableNodes = this.graph.nodes.filter(n => n.id !== 'visual_chart_bounds');
+          srcSelect.value = defaultSource || availableNodes[0]?.id;
+          tgtSelect.value = defaultTarget || availableNodes[1]?.id || availableNodes[0]?.id;
           labelInput.value = '';
           typeSelect.value = '-->';
           modal._editEdgeId = null;
@@ -3929,6 +4911,7 @@
         this.showConfirm('Clear diagram and start a new project?', () => {
           this.graph.nodes = [];
           this.graph.edges = [];
+          this.graph.customRawCode = null;
           this.selectedNodeIds.clear();
           this.selectedEdgeId = null;
           this.renderAll();
@@ -4142,7 +5125,8 @@
       updateStatusBar() {
         const typeItem = DIAGRAM_TEMPLATES.find(t => t.id === this.graph.diagramType);
         document.getElementById('sb-type').textContent = `Type: ${typeItem ? typeItem.name : 'Flowchart'}`;
-        document.getElementById('sb-nodes').textContent = `Nodes: ${this.graph.nodes.length}`;
+        const activeNodes = this.graph.nodes.filter(n => n.id !== 'visual_chart_bounds');
+        document.getElementById('sb-nodes').textContent = `Nodes: ${activeNodes.length}`;
         document.getElementById('sb-edges').textContent = `Links: ${this.graph.edges.length}`;
       }
     }
