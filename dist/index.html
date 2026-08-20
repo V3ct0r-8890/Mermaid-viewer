@@ -4654,7 +4654,7 @@ class MultiDiagramVisualizer {
         break;
       }
 
-      case 'gantt': {
+            case 'gantt': {
         const rawLines = (code || '').split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('%%'));
         let title = 'Project Sprint Roadmap';
         const sections = [];
@@ -4664,6 +4664,13 @@ class MultiDiagramVisualizer {
         const parseDateOffset = (dateStr) => {
           const t = Date.parse(dateStr);
           return isNaN(t) ? null : t;
+        };
+
+        const getWeekNumber = (d) => {
+          const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+          date.setUTCDate(date.getUTCDate() + 4 - (date.getUTCDay() || 7));
+          const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+          return Math.ceil((((date - yearStart) / 86400000) + 1) / 7);
         };
 
         const allTasks = [];
@@ -4742,45 +4749,99 @@ class MultiDiagramVisualizer {
 
         // Compute global date baseline
         let minTime = null;
+        let maxTime = null;
         allTasks.forEach(t => {
           if (t.startDate) {
-            const time = parseDateOffset(t.startDate);
-            if (time && (minTime === null || time < minTime)) minTime = time;
+            const time1 = parseDateOffset(t.startDate);
+            if (time1 && (minTime === null || time1 < minTime)) minTime = time1;
+            const time2 = t.endDate ? parseDateOffset(t.endDate) : (time1 ? time1 + t.dur * 86400000 : null);
+            if (time2 && (maxTime === null || time2 > maxTime)) maxTime = time2;
           }
         });
 
         const titleEl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
         titleEl.setAttribute('x', '30');
-        titleEl.setAttribute('y', '34');
+        titleEl.setAttribute('y', '32');
         titleEl.setAttribute('fill', primaryText);
         titleEl.setAttribute('font-size', '15px');
         titleEl.setAttribute('font-weight', 'bold');
         titleEl.textContent = title;
         nodesLayer.appendChild(titleEl);
 
-        let curY = 65;
         const startX = 200;
-        const pxPerDay = 18;
+        const pxPerDay = 16;
+        const totalDays = (minTime && maxTime) ? Math.max(35, Math.ceil((maxTime - minTime) / 86400000) + 7) : 42;
+        const numWeeks = Math.ceil(totalDays / 7);
+        const totalGanttWidth = numWeeks * 7 * pxPerDay;
 
-        // Timeline header bar
-        const headerBar = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-        headerBar.setAttribute('x', `${startX}`);
-        headerBar.setAttribute('y', '46');
-        headerBar.setAttribute('width', '520');
-        headerBar.setAttribute('height', '18');
-        headerBar.setAttribute('rx', '3');
-        headerBar.setAttribute('fill', isDark ? '#232527' : '#ECEFF1');
-        nodesLayer.appendChild(headerBar);
+        // Estimate total height for background grid
+        let taskCount = 0;
+        sections.forEach(s => { taskCount += s.tasks.length; });
+        const estTotalHeight = 85 + sections.length * 36 + taskCount * 28 + 30;
 
-        const headerTxt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-        headerTxt.setAttribute('x', `${startX + 10}`);
-        headerTxt.setAttribute('y', '59');
-        headerTxt.setAttribute('fill', textColor);
-        headerTxt.setAttribute('font-size', '10px');
-        headerTxt.setAttribute('font-weight', 'bold');
-        headerTxt.textContent = '📅 Timeline Axis (Sprint Days & Milestones)';
-        nodesLayer.appendChild(headerTxt);
+        // Draw Week # Header Columns & Vertical Gridlines
+        for (let w = 0; w < numWeeks; w++) {
+          const wx = startX + w * 7 * pxPerDay;
+          const ww = 7 * pxPerDay;
 
+          // Vertical background gridline
+          const gridLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+          gridLine.setAttribute('x1', `${wx}`);
+          gridLine.setAttribute('y1', '44');
+          gridLine.setAttribute('x2', `${wx}`);
+          gridLine.setAttribute('y2', `${estTotalHeight}`);
+          gridLine.setAttribute('stroke', cardBorder);
+          gridLine.setAttribute('stroke-width', '1');
+          gridLine.setAttribute('stroke-dasharray', '3,3');
+          gridLine.setAttribute('opacity', '0.45');
+          edgesLayer.appendChild(gridLine);
+
+          // Week header box
+          const weekBox = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+          weekBox.setAttribute('x', `${wx}`);
+          weekBox.setAttribute('y', '44');
+          weekBox.setAttribute('width', `${ww - 2}`);
+          weekBox.setAttribute('height', '30');
+          weekBox.setAttribute('rx', '4');
+          weekBox.setAttribute('fill', isDark ? '#2B2D30' : '#ECEFF1');
+          weekBox.setAttribute('stroke', cardBorder);
+          weekBox.setAttribute('stroke-width', '1');
+          nodesLayer.appendChild(weekBox);
+
+          let weekLabel = `Week ${w + 1}`;
+          let subLabel = `Day ${w * 7 + 1}-${(w + 1) * 7}`;
+
+          if (minTime) {
+            const wStartDate = new Date(minTime + w * 7 * 86400000);
+            const wEndDate = new Date(minTime + (w * 7 + 6) * 86400000);
+            const wNum = getWeekNumber(wStartDate);
+            weekLabel = `Week ${wNum}`;
+            const m1 = wStartDate.toLocaleString('en-US', { month: 'short' });
+            const m2 = wEndDate.toLocaleString('en-US', { month: 'short' });
+            subLabel = m1 === m2 ? `${m1} ${wStartDate.getDate()}-${wEndDate.getDate()}` : `${m1} ${wStartDate.getDate()}-${m2} ${wEndDate.getDate()}`;
+          }
+
+          const wText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+          wText.setAttribute('x', `${wx + ww / 2}`);
+          wText.setAttribute('y', '56');
+          wText.setAttribute('text-anchor', 'middle');
+          wText.setAttribute('fill', primaryText);
+          wText.setAttribute('font-size', '10.5px');
+          wText.setAttribute('font-weight', 'bold');
+          wText.textContent = weekLabel;
+          nodesLayer.appendChild(wText);
+
+          const subText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+          subText.setAttribute('x', `${wx + ww / 2}`);
+          subText.setAttribute('y', '68');
+          subText.setAttribute('text-anchor', 'middle');
+          subText.setAttribute('fill', linkColor);
+          subText.setAttribute('font-size', '8.5px');
+          subText.textContent = subLabel;
+          nodesLayer.appendChild(subText);
+        }
+
+        let curY = 88;
         let globalDayCounter = 0;
 
         sections.forEach(sec => {
@@ -4819,7 +4880,7 @@ class MultiDiagramVisualizer {
             taskRowG.appendChild(lbl);
 
             const bx = startX + dayOffset * pxPerDay;
-            const bw = Math.max(20, t.dur * pxPerDay);
+            const bw = Math.max(18, t.dur * pxPerDay);
 
             if (t.milestone) {
               const diamond = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
