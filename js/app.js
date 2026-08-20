@@ -441,6 +441,9 @@
 
             const labelText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
             labelText.setAttribute('class', 'edge-label-text');
+            if (edge.textColor) {
+              labelText.style.fill = edge.textColor;
+            }
             labelText.textContent = edge.label;
             labelG.appendChild(labelText);
 
@@ -859,7 +862,8 @@
               label: edge.label || '',
               type: edge.type || '-->',
               color: edge.color || (this.themeMgr.currentTheme === 'dark' ? '#BBBBBB' : '#616161'),
-              strokeWidth: String(edge.strokeWidth || 2)
+              strokeWidth: String(edge.strokeWidth || 2),
+              textColor: edge.textColor || (this.themeMgr.currentTheme === 'dark' ? '#D4D4D4' : '#212121')
             };
 
             document.getElementById('prop-edge-label').value = this.edgeInitialValues.label;
@@ -870,6 +874,10 @@
             if (edgeColorVal) edgeColorVal.textContent = this.edgeInitialValues.color;
             const edgeWidthSel = document.getElementById('prop-edge-width');
             if (edgeWidthSel) edgeWidthSel.value = this.edgeInitialValues.strokeWidth;
+            const edgeTxtColInp = document.getElementById('prop-edge-text-color');
+            if (edgeTxtColInp) edgeTxtColInp.value = this.edgeInitialValues.textColor;
+            const edgeTxtColVal = document.getElementById('prop-edge-text-color-val');
+            if (edgeTxtColVal) edgeTxtColVal.textContent = this.edgeInitialValues.textColor;
             return;
           }
         }
@@ -1011,6 +1019,8 @@
           if (col) edge.color = col;
           const wid = parseFloat(document.getElementById('prop-edge-width')?.value);
           if (!isNaN(wid)) edge.strokeWidth = wid;
+          const txtCol = document.getElementById('prop-edge-text-color')?.value;
+          if (txtCol) edge.textColor = txtCol;
 
           this.renderEdges();
           this.updateMermaidCode();
@@ -1028,6 +1038,10 @@
           if (edgeColorVal) edgeColorVal.textContent = this.edgeInitialValues.color;
           const edgeWidthSel = document.getElementById('prop-edge-width');
           if (edgeWidthSel) edgeWidthSel.value = this.edgeInitialValues.strokeWidth;
+          const edgeTextColInp = document.getElementById('prop-edge-text-color');
+          if (edgeTextColInp) edgeTextColInp.value = this.edgeInitialValues.textColor || '#212121';
+          const edgeTextColVal = document.getElementById('prop-edge-text-color-val');
+          if (edgeTextColVal) edgeTextColVal.textContent = this.edgeInitialValues.textColor || '#212121';
           Utils.showToast('Link properties reset', 'info');
         });
 
@@ -1043,6 +1057,21 @@
             const valEl = document.getElementById('prop-edge-color-val');
             if (inp) inp.value = col;
             if (valEl) valEl.textContent = col;
+          });
+        });
+
+        document.getElementById('prop-edge-text-color')?.addEventListener('input', (e) => {
+          const valEl = document.getElementById('prop-edge-text-color-val');
+          if (valEl) valEl.textContent = e.target.value;
+        });
+
+        document.querySelectorAll('#edge-text-color-swatches .color-swatch').forEach(sw => {
+          sw.addEventListener('click', () => {
+            const color = sw.getAttribute('data-color');
+            const inp = document.getElementById('prop-edge-text-color');
+            const val = document.getElementById('prop-edge-text-color-val');
+            if (inp) inp.value = color;
+            if (val) val.textContent = color;
           });
         });
 

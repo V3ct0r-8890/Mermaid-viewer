@@ -256,6 +256,23 @@
             </select>
           </div>
 
+          <div class="prop-group">
+            <label>Label Font Color</label>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <input type="color" id="prop-edge-text-color" style="width:32px; height:26px; border:none; border-radius:3px; cursor:pointer;" value="#212121">
+              <span id="prop-edge-text-color-val" style="font-size:11px; font-family:var(--code-font);">#212121</span>
+            </div>
+            <div class="color-swatches" id="edge-text-color-swatches" style="margin-top:6px;">
+              <div class="color-swatch" style="background:#212121;" data-color="#212121" title="Dark"></div>
+              <div class="color-swatch" style="background:#FFFFFF;" data-color="#FFFFFF" title="White"></div>
+              <div class="color-swatch" style="background:#2196F3;" data-color="#2196F3" title="Blue"></div>
+              <div class="color-swatch" style="background:#4CAF50;" data-color="#4CAF50" title="Green"></div>
+              <div class="color-swatch" style="background:#FF9800;" data-color="#FF9800" title="Orange"></div>
+              <div class="color-swatch" style="background:#F44336;" data-color="#F44336" title="Red"></div>
+              <div class="color-swatch" style="background:#9C27B0;" data-color="#9C27B0" title="Purple"></div>
+            </div>
+          </div>
+
           <div style="display:flex; gap:8px; margin-top:14px;">
             <button class="prop-action-btn primary" id="btn-edge-prop-save" style="flex:1;">Save / Apply</button>
             <button class="prop-action-btn" id="btn-edge-prop-reset" style="flex:1;">Reset</button>

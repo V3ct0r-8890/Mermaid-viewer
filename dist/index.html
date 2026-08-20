@@ -1282,6 +1282,23 @@
             </select>
           </div>
 
+          <div class="prop-group">
+            <label>Label Font Color</label>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <input type="color" id="prop-edge-text-color" style="width:32px; height:26px; border:none; border-radius:3px; cursor:pointer;" value="#212121">
+              <span id="prop-edge-text-color-val" style="font-size:11px; font-family:var(--code-font);">#212121</span>
+            </div>
+            <div class="color-swatches" id="edge-text-color-swatches" style="margin-top:6px;">
+              <div class="color-swatch" style="background:#212121;" data-color="#212121" title="Dark"></div>
+              <div class="color-swatch" style="background:#FFFFFF;" data-color="#FFFFFF" title="White"></div>
+              <div class="color-swatch" style="background:#2196F3;" data-color="#2196F3" title="Blue"></div>
+              <div class="color-swatch" style="background:#4CAF50;" data-color="#4CAF50" title="Green"></div>
+              <div class="color-swatch" style="background:#FF9800;" data-color="#FF9800" title="Orange"></div>
+              <div class="color-swatch" style="background:#F44336;" data-color="#F44336" title="Red"></div>
+              <div class="color-swatch" style="background:#9C27B0;" data-color="#9C27B0" title="Purple"></div>
+            </div>
+          </div>
+
           <div style="display:flex; gap:8px; margin-top:14px;">
             <button class="prop-action-btn primary" id="btn-edge-prop-save" style="flex:1;">Save / Apply</button>
             <button class="prop-action-btn" id="btn-edge-prop-reset" style="flex:1;">Reset</button>
@@ -3744,6 +3761,23 @@ class MultiDiagramVisualizer {
               <option value="3">Thick (3px)</option>
               <option value="4">Heavy (4px)</option>
             </select>
+          </div>
+
+          <div class="prop-group">
+            <label>Label Font Color</label>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <input type="color" id="prop-edge-text-color" style="width:32px; height:26px; border:none; border-radius:3px; cursor:pointer;" value="#212121">
+              <span id="prop-edge-text-color-val" style="font-size:11px; font-family:var(--code-font);">#212121</span>
+            </div>
+            <div class="color-swatches" id="edge-text-color-swatches" style="margin-top:6px;">
+              <div class="color-swatch" style="background:#212121;" data-color="#212121" title="Dark"></div>
+              <div class="color-swatch" style="background:#FFFFFF;" data-color="#FFFFFF" title="White"></div>
+              <div class="color-swatch" style="background:#2196F3;" data-color="#2196F3" title="Blue"></div>
+              <div class="color-swatch" style="background:#4CAF50;" data-color="#4CAF50" title="Green"></div>
+              <div class="color-swatch" style="background:#FF9800;" data-color="#FF9800" title="Orange"></div>
+              <div class="color-swatch" style="background:#F44336;" data-color="#F44336" title="Red"></div>
+              <div class="color-swatch" style="background:#9C27B0;" data-color="#9C27B0" title="Purple"></div>
+            </div>
           </div>
 
           <div style="display:flex; gap:8px; margin-top:14px;">
@@ -6807,6 +6841,23 @@ class MultiDiagramVisualizer {
             </select>
           </div>
 
+          <div class="prop-group">
+            <label>Label Font Color</label>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <input type="color" id="prop-edge-text-color" style="width:32px; height:26px; border:none; border-radius:3px; cursor:pointer;" value="#212121">
+              <span id="prop-edge-text-color-val" style="font-size:11px; font-family:var(--code-font);">#212121</span>
+            </div>
+            <div class="color-swatches" id="edge-text-color-swatches" style="margin-top:6px;">
+              <div class="color-swatch" style="background:#212121;" data-color="#212121" title="Dark"></div>
+              <div class="color-swatch" style="background:#FFFFFF;" data-color="#FFFFFF" title="White"></div>
+              <div class="color-swatch" style="background:#2196F3;" data-color="#2196F3" title="Blue"></div>
+              <div class="color-swatch" style="background:#4CAF50;" data-color="#4CAF50" title="Green"></div>
+              <div class="color-swatch" style="background:#FF9800;" data-color="#FF9800" title="Orange"></div>
+              <div class="color-swatch" style="background:#F44336;" data-color="#F44336" title="Red"></div>
+              <div class="color-swatch" style="background:#9C27B0;" data-color="#9C27B0" title="Purple"></div>
+            </div>
+          </div>
+
           <div style="display:flex; gap:8px; margin-top:14px;">
             <button class="prop-action-btn primary" id="btn-edge-prop-save" style="flex:1;">Save / Apply</button>
             <button class="prop-action-btn" id="btn-edge-prop-reset" style="flex:1;">Reset</button>
@@ -8896,6 +8947,9 @@ class MultiDiagramVisualizer {
 
             const labelText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
             labelText.setAttribute('class', 'edge-label-text');
+            if (edge.textColor) {
+              labelText.style.fill = edge.textColor;
+            }
             labelText.textContent = edge.label;
             labelG.appendChild(labelText);
 
@@ -9314,7 +9368,8 @@ class MultiDiagramVisualizer {
               label: edge.label || '',
               type: edge.type || '-->',
               color: edge.color || (this.themeMgr.currentTheme === 'dark' ? '#BBBBBB' : '#616161'),
-              strokeWidth: String(edge.strokeWidth || 2)
+              strokeWidth: String(edge.strokeWidth || 2),
+              textColor: edge.textColor || (this.themeMgr.currentTheme === 'dark' ? '#D4D4D4' : '#212121')
             };
 
             document.getElementById('prop-edge-label').value = this.edgeInitialValues.label;
@@ -9325,6 +9380,10 @@ class MultiDiagramVisualizer {
             if (edgeColorVal) edgeColorVal.textContent = this.edgeInitialValues.color;
             const edgeWidthSel = document.getElementById('prop-edge-width');
             if (edgeWidthSel) edgeWidthSel.value = this.edgeInitialValues.strokeWidth;
+            const edgeTxtColInp = document.getElementById('prop-edge-text-color');
+            if (edgeTxtColInp) edgeTxtColInp.value = this.edgeInitialValues.textColor;
+            const edgeTxtColVal = document.getElementById('prop-edge-text-color-val');
+            if (edgeTxtColVal) edgeTxtColVal.textContent = this.edgeInitialValues.textColor;
             return;
           }
         }
@@ -9466,6 +9525,8 @@ class MultiDiagramVisualizer {
           if (col) edge.color = col;
           const wid = parseFloat(document.getElementById('prop-edge-width')?.value);
           if (!isNaN(wid)) edge.strokeWidth = wid;
+          const txtCol = document.getElementById('prop-edge-text-color')?.value;
+          if (txtCol) edge.textColor = txtCol;
 
           this.renderEdges();
           this.updateMermaidCode();
@@ -9483,6 +9544,10 @@ class MultiDiagramVisualizer {
           if (edgeColorVal) edgeColorVal.textContent = this.edgeInitialValues.color;
           const edgeWidthSel = document.getElementById('prop-edge-width');
           if (edgeWidthSel) edgeWidthSel.value = this.edgeInitialValues.strokeWidth;
+          const edgeTextColInp = document.getElementById('prop-edge-text-color');
+          if (edgeTextColInp) edgeTextColInp.value = this.edgeInitialValues.textColor || '#212121';
+          const edgeTextColVal = document.getElementById('prop-edge-text-color-val');
+          if (edgeTextColVal) edgeTextColVal.textContent = this.edgeInitialValues.textColor || '#212121';
           Utils.showToast('Link properties reset', 'info');
         });
 
@@ -9498,6 +9563,21 @@ class MultiDiagramVisualizer {
             const valEl = document.getElementById('prop-edge-color-val');
             if (inp) inp.value = col;
             if (valEl) valEl.textContent = col;
+          });
+        });
+
+        document.getElementById('prop-edge-text-color')?.addEventListener('input', (e) => {
+          const valEl = document.getElementById('prop-edge-text-color-val');
+          if (valEl) valEl.textContent = e.target.value;
+        });
+
+        document.querySelectorAll('#edge-text-color-swatches .color-swatch').forEach(sw => {
+          sw.addEventListener('click', () => {
+            const color = sw.getAttribute('data-color');
+            const inp = document.getElementById('prop-edge-text-color');
+            const val = document.getElementById('prop-edge-text-color-val');
+            if (inp) inp.value = color;
+            if (val) val.textContent = color;
           });
         });
 
