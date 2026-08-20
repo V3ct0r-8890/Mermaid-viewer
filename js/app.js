@@ -932,10 +932,11 @@
         document.getElementById('btn-templates').addEventListener('click', () => this.openTemplatesDialog());
         document.getElementById('btn-open').addEventListener('click', () => document.getElementById('file-input').click());
         document.getElementById('btn-save').addEventListener('click', () => ExportManager.exportJSON(this.graph.toProject(this.themeMgr.currentTheme)));
-        document.getElementById('btn-export-mmd').addEventListener('click', () => ExportManager.exportMMD(this.graph));
-        document.getElementById('btn-export-json').addEventListener('click', () => ExportManager.exportJSON(this.graph.toProject(this.themeMgr.currentTheme)));
-        document.getElementById('btn-export-svg').addEventListener('click', () => ExportManager.exportSVG(this.svg, this.graph, this.themeMgr.currentTheme));
-        document.getElementById('btn-export-png').addEventListener('click', () => ExportManager.exportPNG(this.svg, this.graph, this.themeMgr.currentTheme));
+        document.getElementById('btn-export-dialog')?.addEventListener('click', () => this.openExportDialog());
+        document.getElementById('btn-export-mmd')?.addEventListener('click', () => ExportManager.exportMMD(this.graph));
+        document.getElementById('btn-export-json')?.addEventListener('click', () => ExportManager.exportJSON(this.graph.toProject(this.themeMgr.currentTheme)));
+        document.getElementById('btn-export-svg')?.addEventListener('click', () => this.openExportDialog());
+        document.getElementById('btn-export-png')?.addEventListener('click', () => this.openExportDialog());
 
         document.getElementById('btn-undo').addEventListener('click', () => this.handleUndo());
         document.getElementById('btn-redo').addEventListener('click', () => this.handleRedo());
@@ -1100,6 +1101,38 @@
 
         document.getElementById('templates-modal-close')?.addEventListener('click', () => this.closeModal('templates-modal'));
         document.getElementById('templates-modal-cancel')?.addEventListener('click', () => this.closeModal('templates-modal'));
+
+        document.getElementById('export-modal-close')?.addEventListener('click', () => this.closeModal('export-modal'));
+        document.getElementById('export-modal-cancel')?.addEventListener('click', () => this.closeModal('export-modal'));
+
+        document.getElementById('btn-do-export-png')?.addEventListener('click', () => {
+          const bg = document.getElementById('export-bg-option').value;
+          const scale = parseInt(document.getElementById('export-scale-option').value, 10) || 2;
+          const filename = document.getElementById('export-filename').value.trim() || 'diagram';
+          ExportManager.exportPNG(this.svg, this.graph, this.themeMgr.currentTheme, { background: bg, scale, filename });
+          this.closeModal('export-modal');
+        });
+
+        document.getElementById('btn-do-export-svg')?.addEventListener('click', () => {
+          const bg = document.getElementById('export-bg-option').value;
+          const filename = document.getElementById('export-filename').value.trim() || 'diagram';
+          ExportManager.exportSVG(this.svg, this.graph, this.themeMgr.currentTheme, { background: bg, filename });
+          this.closeModal('export-modal');
+        });
+
+        document.getElementById('btn-do-export-mmd')?.addEventListener('click', () => {
+          ExportManager.exportMMD(this.graph);
+          this.closeModal('export-modal');
+        });
+
+        document.getElementById('btn-do-export-json')?.addEventListener('click', () => {
+          ExportManager.exportJSON(this.graph.toProject(this.themeMgr.currentTheme));
+          this.closeModal('export-modal');
+        });
+      }
+
+      openExportDialog() {
+        document.getElementById('export-modal')?.classList.add('open');
       }
 
       handleCanvasMouseDown(e) {

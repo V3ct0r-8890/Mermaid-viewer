@@ -56,17 +56,15 @@
     </div>
 
     <div class="toolbar-group">
-      <button class="tb-btn" id="btn-export-mmd" title="Export Mermaid Code (.mmd)">
-        <span>Export MMD</span>
+      <button class="tb-btn" id="btn-export-dialog" title="Export Options (PNG, SVG, MMD, JSON)">
+        <svg viewBox="0 0 24 24"><path d="M19 12v7H5v-7H3v7c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-7h-2zm-6 .67l2.59-2.58L17 11.5l-5 5-5-5 1.41-1.41L11 12.67V3h2z"/></svg>
+        <span>Export</span>
       </button>
-      <button class="tb-btn" id="btn-export-json" title="Export JSON (.graph.json)">
-        <span>Export JSON</span>
-      </button>
-      <button class="tb-btn" id="btn-export-svg" title="Export SVG (.svg)">
-        <span>SVG</span>
-      </button>
-      <button class="tb-btn" id="btn-export-png" title="Export PNG (.png)">
+      <button class="tb-btn" id="btn-export-png" title="Export PNG Image">
         <span>PNG</span>
+      </button>
+      <button class="tb-btn" id="btn-export-svg" title="Export SVG Vector">
+        <span>SVG</span>
       </button>
     </div>
 
@@ -587,6 +585,59 @@
       </div>
       <div class="modal-footer">
         <button class="btn btn-secondary" id="templates-modal-cancel">Close</button>
+      </div>
+    </div>
+  <!-- Export Options Modal -->
+  <div class="modal-overlay" id="export-modal">
+    <div class="modal-card" style="width:420px; max-width:92vw;">
+      <div class="modal-header">
+        <span>Export Diagram Options</span>
+        <button class="float-btn" id="export-modal-close" style="width:24px;height:24px;">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Background Style</label>
+          <select id="export-bg-option" class="form-control">
+            <option value="theme">⚪ Theme Default (White in Light / Dark in Dark)</option>
+            <option value="transparent">🏁 Transparent Background (PNG / SVG)</option>
+            <option value="white">⬜ Pure White Background</option>
+            <option value="dark">⬛ Dark Background</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>PNG Quality / Resolution Scale</label>
+          <select id="export-scale-option" class="form-control">
+            <option value="1">1x (Standard)</option>
+            <option value="2" selected>2x (High-Res Retina - Default)</option>
+            <option value="3">3x (Ultra HD / Print)</option>
+            <option value="4">4x (Maximum Crispness)</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>File Name</label>
+          <input type="text" id="export-filename" class="form-control" value="diagram" placeholder="e.g. architecture-diagram">
+        </div>
+
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-top:16px;">
+          <button class="btn btn-primary" id="btn-do-export-png" style="display:flex; justify-content:center; align-items:center; gap:6px;">
+            <svg viewBox="0 0 24 24" style="width:15px;height:15px;fill:currentColor;"><path d="M19 12v7H5v-7H3v7c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-7h-2zm-6 .67l2.59-2.58L17 11.5l-5 5-5-5 1.41-1.41L11 12.67V3h2z"/></svg>
+            <span>Download PNG</span>
+          </button>
+          <button class="btn btn-secondary" id="btn-do-export-svg" style="display:flex; justify-content:center; align-items:center; gap:6px;">
+            <svg viewBox="0 0 24 24" style="width:15px;height:15px;fill:currentColor;"><path d="M19 12v7H5v-7H3v7c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-7h-2zm-6 .67l2.59-2.58L17 11.5l-5 5-5-5 1.41-1.41L11 12.67V3h2z"/></svg>
+            <span>Download SVG</span>
+          </button>
+        </div>
+
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-top:8px;">
+          <button class="btn btn-secondary" id="btn-do-export-mmd">Mermaid (.mmd)</button>
+          <button class="btn btn-secondary" id="btn-do-export-json">Project (.json)</button>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="export-modal-cancel">Close</button>
       </div>
     </div>
   </div>

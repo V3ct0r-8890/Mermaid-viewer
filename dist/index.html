@@ -1082,17 +1082,15 @@
     </div>
 
     <div class="toolbar-group">
-      <button class="tb-btn" id="btn-export-mmd" title="Export Mermaid Code (.mmd)">
-        <span>Export MMD</span>
+      <button class="tb-btn" id="btn-export-dialog" title="Export Options (PNG, SVG, MMD, JSON)">
+        <svg viewBox="0 0 24 24"><path d="M19 12v7H5v-7H3v7c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-7h-2zm-6 .67l2.59-2.58L17 11.5l-5 5-5-5 1.41-1.41L11 12.67V3h2z"/></svg>
+        <span>Export</span>
       </button>
-      <button class="tb-btn" id="btn-export-json" title="Export JSON (.graph.json)">
-        <span>Export JSON</span>
-      </button>
-      <button class="tb-btn" id="btn-export-svg" title="Export SVG (.svg)">
-        <span>SVG</span>
-      </button>
-      <button class="tb-btn" id="btn-export-png" title="Export PNG (.png)">
+      <button class="tb-btn" id="btn-export-png" title="Export PNG Image">
         <span>PNG</span>
+      </button>
+      <button class="tb-btn" id="btn-export-svg" title="Export SVG Vector">
+        <span>SVG</span>
       </button>
     </div>
 
@@ -1613,6 +1611,59 @@
       </div>
       <div class="modal-footer">
         <button class="btn btn-secondary" id="templates-modal-cancel">Close</button>
+      </div>
+    </div>
+  <!-- Export Options Modal -->
+  <div class="modal-overlay" id="export-modal">
+    <div class="modal-card" style="width:420px; max-width:92vw;">
+      <div class="modal-header">
+        <span>Export Diagram Options</span>
+        <button class="float-btn" id="export-modal-close" style="width:24px;height:24px;">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Background Style</label>
+          <select id="export-bg-option" class="form-control">
+            <option value="theme">⚪ Theme Default (White in Light / Dark in Dark)</option>
+            <option value="transparent">🏁 Transparent Background (PNG / SVG)</option>
+            <option value="white">⬜ Pure White Background</option>
+            <option value="dark">⬛ Dark Background</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>PNG Quality / Resolution Scale</label>
+          <select id="export-scale-option" class="form-control">
+            <option value="1">1x (Standard)</option>
+            <option value="2" selected>2x (High-Res Retina - Default)</option>
+            <option value="3">3x (Ultra HD / Print)</option>
+            <option value="4">4x (Maximum Crispness)</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>File Name</label>
+          <input type="text" id="export-filename" class="form-control" value="diagram" placeholder="e.g. architecture-diagram">
+        </div>
+
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-top:16px;">
+          <button class="btn btn-primary" id="btn-do-export-png" style="display:flex; justify-content:center; align-items:center; gap:6px;">
+            <svg viewBox="0 0 24 24" style="width:15px;height:15px;fill:currentColor;"><path d="M19 12v7H5v-7H3v7c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-7h-2zm-6 .67l2.59-2.58L17 11.5l-5 5-5-5 1.41-1.41L11 12.67V3h2z"/></svg>
+            <span>Download PNG</span>
+          </button>
+          <button class="btn btn-secondary" id="btn-do-export-svg" style="display:flex; justify-content:center; align-items:center; gap:6px;">
+            <svg viewBox="0 0 24 24" style="width:15px;height:15px;fill:currentColor;"><path d="M19 12v7H5v-7H3v7c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-7h-2zm-6 .67l2.59-2.58L17 11.5l-5 5-5-5 1.41-1.41L11 12.67V3h2z"/></svg>
+            <span>Download SVG</span>
+          </button>
+        </div>
+
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-top:8px;">
+          <button class="btn btn-secondary" id="btn-do-export-mmd">Mermaid (.mmd)</button>
+          <button class="btn btn-secondary" id="btn-do-export-json">Project (.json)</button>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="export-modal-cancel">Close</button>
       </div>
     </div>
   </div>
@@ -4594,17 +4645,15 @@
     </div>
 
     <div class="toolbar-group">
-      <button class="tb-btn" id="btn-export-mmd" title="Export Mermaid Code (.mmd)">
-        <span>Export MMD</span>
+      <button class="tb-btn" id="btn-export-dialog" title="Export Options (PNG, SVG, MMD, JSON)">
+        <svg viewBox="0 0 24 24"><path d="M19 12v7H5v-7H3v7c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-7h-2zm-6 .67l2.59-2.58L17 11.5l-5 5-5-5 1.41-1.41L11 12.67V3h2z"/></svg>
+        <span>Export</span>
       </button>
-      <button class="tb-btn" id="btn-export-json" title="Export JSON (.graph.json)">
-        <span>Export JSON</span>
-      </button>
-      <button class="tb-btn" id="btn-export-svg" title="Export SVG (.svg)">
-        <span>SVG</span>
-      </button>
-      <button class="tb-btn" id="btn-export-png" title="Export PNG (.png)">
+      <button class="tb-btn" id="btn-export-png" title="Export PNG Image">
         <span>PNG</span>
+      </button>
+      <button class="tb-btn" id="btn-export-svg" title="Export SVG Vector">
+        <span>SVG</span>
       </button>
     </div>
 
@@ -5125,6 +5174,59 @@
       </div>
       <div class="modal-footer">
         <button class="btn btn-secondary" id="templates-modal-cancel">Close</button>
+      </div>
+    </div>
+  <!-- Export Options Modal -->
+  <div class="modal-overlay" id="export-modal">
+    <div class="modal-card" style="width:420px; max-width:92vw;">
+      <div class="modal-header">
+        <span>Export Diagram Options</span>
+        <button class="float-btn" id="export-modal-close" style="width:24px;height:24px;">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Background Style</label>
+          <select id="export-bg-option" class="form-control">
+            <option value="theme">⚪ Theme Default (White in Light / Dark in Dark)</option>
+            <option value="transparent">🏁 Transparent Background (PNG / SVG)</option>
+            <option value="white">⬜ Pure White Background</option>
+            <option value="dark">⬛ Dark Background</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>PNG Quality / Resolution Scale</label>
+          <select id="export-scale-option" class="form-control">
+            <option value="1">1x (Standard)</option>
+            <option value="2" selected>2x (High-Res Retina - Default)</option>
+            <option value="3">3x (Ultra HD / Print)</option>
+            <option value="4">4x (Maximum Crispness)</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>File Name</label>
+          <input type="text" id="export-filename" class="form-control" value="diagram" placeholder="e.g. architecture-diagram">
+        </div>
+
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-top:16px;">
+          <button class="btn btn-primary" id="btn-do-export-png" style="display:flex; justify-content:center; align-items:center; gap:6px;">
+            <svg viewBox="0 0 24 24" style="width:15px;height:15px;fill:currentColor;"><path d="M19 12v7H5v-7H3v7c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-7h-2zm-6 .67l2.59-2.58L17 11.5l-5 5-5-5 1.41-1.41L11 12.67V3h2z"/></svg>
+            <span>Download PNG</span>
+          </button>
+          <button class="btn btn-secondary" id="btn-do-export-svg" style="display:flex; justify-content:center; align-items:center; gap:6px;">
+            <svg viewBox="0 0 24 24" style="width:15px;height:15px;fill:currentColor;"><path d="M19 12v7H5v-7H3v7c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-7h-2zm-6 .67l2.59-2.58L17 11.5l-5 5-5-5 1.41-1.41L11 12.67V3h2z"/></svg>
+            <span>Download SVG</span>
+          </button>
+        </div>
+
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-top:8px;">
+          <button class="btn btn-secondary" id="btn-do-export-mmd">Mermaid (.mmd)</button>
+          <button class="btn btn-secondary" id="btn-do-export-json">Project (.json)</button>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="export-modal-cancel">Close</button>
       </div>
     </div>
   </div>
@@ -6071,15 +6173,30 @@
         return { clone, width, height, x, y };
       }
 
-      static exportSVG(svgElement, graph, theme) {
+      static exportSVG(svgElement, graph, theme, options = {}) {
+        const bgOption = options.background || 'theme';
+        const filename = options.filename ? (options.filename.endsWith('.svg') ? options.filename : `${options.filename}.svg`) : 'diagram.svg';
         const { clone } = ExportManager.prepareSvgElement(svgElement, graph, theme);
+
+        if (bgOption !== 'transparent') {
+          const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+          rect.setAttribute('width', '100%');
+          rect.setAttribute('height', '100%');
+          rect.setAttribute('fill', bgOption === 'white' ? '#FFFFFF' : (bgOption === 'dark' ? '#252526' : (theme === 'dark' ? '#252526' : '#FFFFFF')));
+          clone.insertBefore(rect, clone.firstChild);
+        }
+
         const svgData = new XMLSerializer().serializeToString(clone);
         const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
         const url = URL.createObjectURL(svgBlob);
-        ExportManager.downloadUrl(url, 'diagram.svg');
+        ExportManager.downloadUrl(url, filename);
       }
 
-      static exportPNG(svgElement, graph, theme) {
+      static exportPNG(svgElement, graph, theme, options = {}) {
+        const bgOption = options.background || 'theme'; // 'transparent', 'theme', 'white', 'dark'
+        const scale = options.scale || 2;
+        const filename = options.filename ? (options.filename.endsWith('.png') ? options.filename : `${options.filename}.png`) : 'diagram.png';
+
         const { clone, width, height } = ExportManager.prepareSvgElement(svgElement, graph, theme);
         const svgData = new XMLSerializer().serializeToString(clone);
         const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
@@ -6087,22 +6204,32 @@
         const img = new Image();
 
         img.onload = () => {
-          const scale = 2;
           const canvas = document.createElement('canvas');
           canvas.width = width * scale;
           canvas.height = height * scale;
           const ctx = canvas.getContext('2d');
           ctx.scale(scale, scale);
 
-          ctx.fillStyle = theme === 'dark' ? '#252526' : '#FFFFFF';
-          ctx.fillRect(0, 0, width, height);
+          if (bgOption !== 'transparent') {
+            if (bgOption === 'white') {
+              ctx.fillStyle = '#FFFFFF';
+            } else if (bgOption === 'dark') {
+              ctx.fillStyle = '#252526';
+            } else {
+              ctx.fillStyle = theme === 'dark' ? '#252526' : '#FFFFFF';
+            }
+            ctx.fillRect(0, 0, width, height);
+          } else {
+            ctx.clearRect(0, 0, width, height);
+          }
+
           ctx.drawImage(img, 0, 0, width, height);
           URL.revokeObjectURL(url);
 
           canvas.toBlob(blob => {
             if (blob) {
               const pngUrl = URL.createObjectURL(blob);
-              ExportManager.downloadUrl(pngUrl, 'diagram.png');
+              ExportManager.downloadUrl(pngUrl, filename);
             }
           }, 'image/png');
         };
@@ -7066,10 +7193,11 @@
         document.getElementById('btn-templates').addEventListener('click', () => this.openTemplatesDialog());
         document.getElementById('btn-open').addEventListener('click', () => document.getElementById('file-input').click());
         document.getElementById('btn-save').addEventListener('click', () => ExportManager.exportJSON(this.graph.toProject(this.themeMgr.currentTheme)));
-        document.getElementById('btn-export-mmd').addEventListener('click', () => ExportManager.exportMMD(this.graph));
-        document.getElementById('btn-export-json').addEventListener('click', () => ExportManager.exportJSON(this.graph.toProject(this.themeMgr.currentTheme)));
-        document.getElementById('btn-export-svg').addEventListener('click', () => ExportManager.exportSVG(this.svg, this.graph, this.themeMgr.currentTheme));
-        document.getElementById('btn-export-png').addEventListener('click', () => ExportManager.exportPNG(this.svg, this.graph, this.themeMgr.currentTheme));
+        document.getElementById('btn-export-dialog')?.addEventListener('click', () => this.openExportDialog());
+        document.getElementById('btn-export-mmd')?.addEventListener('click', () => ExportManager.exportMMD(this.graph));
+        document.getElementById('btn-export-json')?.addEventListener('click', () => ExportManager.exportJSON(this.graph.toProject(this.themeMgr.currentTheme)));
+        document.getElementById('btn-export-svg')?.addEventListener('click', () => this.openExportDialog());
+        document.getElementById('btn-export-png')?.addEventListener('click', () => this.openExportDialog());
 
         document.getElementById('btn-undo').addEventListener('click', () => this.handleUndo());
         document.getElementById('btn-redo').addEventListener('click', () => this.handleRedo());
@@ -7234,6 +7362,38 @@
 
         document.getElementById('templates-modal-close')?.addEventListener('click', () => this.closeModal('templates-modal'));
         document.getElementById('templates-modal-cancel')?.addEventListener('click', () => this.closeModal('templates-modal'));
+
+        document.getElementById('export-modal-close')?.addEventListener('click', () => this.closeModal('export-modal'));
+        document.getElementById('export-modal-cancel')?.addEventListener('click', () => this.closeModal('export-modal'));
+
+        document.getElementById('btn-do-export-png')?.addEventListener('click', () => {
+          const bg = document.getElementById('export-bg-option').value;
+          const scale = parseInt(document.getElementById('export-scale-option').value, 10) || 2;
+          const filename = document.getElementById('export-filename').value.trim() || 'diagram';
+          ExportManager.exportPNG(this.svg, this.graph, this.themeMgr.currentTheme, { background: bg, scale, filename });
+          this.closeModal('export-modal');
+        });
+
+        document.getElementById('btn-do-export-svg')?.addEventListener('click', () => {
+          const bg = document.getElementById('export-bg-option').value;
+          const filename = document.getElementById('export-filename').value.trim() || 'diagram';
+          ExportManager.exportSVG(this.svg, this.graph, this.themeMgr.currentTheme, { background: bg, filename });
+          this.closeModal('export-modal');
+        });
+
+        document.getElementById('btn-do-export-mmd')?.addEventListener('click', () => {
+          ExportManager.exportMMD(this.graph);
+          this.closeModal('export-modal');
+        });
+
+        document.getElementById('btn-do-export-json')?.addEventListener('click', () => {
+          ExportManager.exportJSON(this.graph.toProject(this.themeMgr.currentTheme));
+          this.closeModal('export-modal');
+        });
+      }
+
+      openExportDialog() {
+        document.getElementById('export-modal')?.classList.add('open');
       }
 
       handleCanvasMouseDown(e) {

@@ -79,15 +79,30 @@
         return { clone, width, height, x, y };
       }
 
-      static exportSVG(svgElement, graph, theme) {
+      static exportSVG(svgElement, graph, theme, options = {}) {
+        const bgOption = options.background || 'theme';
+        const filename = options.filename ? (options.filename.endsWith('.svg') ? options.filename : `${options.filename}.svg`) : 'diagram.svg';
         const { clone } = ExportManager.prepareSvgElement(svgElement, graph, theme);
+
+        if (bgOption !== 'transparent') {
+          const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+          rect.setAttribute('width', '100%');
+          rect.setAttribute('height', '100%');
+          rect.setAttribute('fill', bgOption === 'white' ? '#FFFFFF' : (bgOption === 'dark' ? '#252526' : (theme === 'dark' ? '#252526' : '#FFFFFF')));
+          clone.insertBefore(rect, clone.firstChild);
+        }
+
         const svgData = new XMLSerializer().serializeToString(clone);
         const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
         const url = URL.createObjectURL(svgBlob);
-        ExportManager.downloadUrl(url, 'diagram.svg');
+        ExportManager.downloadUrl(url, filename);
       }
 
-      static exportPNG(svgElement, graph, theme) {
+      static exportPNG(svgElement, graph, theme, options = {}) {
+        const bgOption = options.background || 'theme'; // 'transparent', 'theme', 'white', 'dark'
+        const scale = options.scale || 2;
+        const filename = options.filename ? (options.filename.endsWith('.png') ? options.filename : `${options.filename}.png`) : 'diagram.png';
+
         const { clone, width, height } = ExportManager.prepareSvgElement(svgElement, graph, theme);
         const svgData = new XMLSerializer().serializeToString(clone);
         const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
@@ -95,22 +110,32 @@
         const img = new Image();
 
         img.onload = () => {
-          const scale = 2;
           const canvas = document.createElement('canvas');
           canvas.width = width * scale;
           canvas.height = height * scale;
           const ctx = canvas.getContext('2d');
           ctx.scale(scale, scale);
 
-          ctx.fillStyle = theme === 'dark' ? '#252526' : '#FFFFFF';
-          ctx.fillRect(0, 0, width, height);
+          if (bgOption !== 'transparent') {
+            if (bgOption === 'white') {
+              ctx.fillStyle = '#FFFFFF';
+            } else if (bgOption === 'dark') {
+              ctx.fillStyle = '#252526';
+            } else {
+              ctx.fillStyle = theme === 'dark' ? '#252526' : '#FFFFFF';
+            }
+            ctx.fillRect(0, 0, width, height);
+          } else {
+            ctx.clearRect(0, 0, width, height);
+          }
+
           ctx.drawImage(img, 0, 0, width, height);
           URL.revokeObjectURL(url);
 
           canvas.toBlob(blob => {
             if (blob) {
               const pngUrl = URL.createObjectURL(blob);
-              ExportManager.downloadUrl(pngUrl, 'diagram.png');
+              ExportManager.downloadUrl(pngUrl, filename);
             }
           }, 'image/png');
         };
