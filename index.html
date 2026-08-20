@@ -93,7 +93,7 @@
     .toolbar-group {
       display: flex;
       align-items: center;
-      gap: 3px;
+      gap: 4px;
       padding-right: 6px;
       margin-right: 6px;
       border-right: 1px solid var(--border-color);
@@ -119,6 +119,23 @@
       width: 20px;
       height: 20px;
       fill: var(--btn-primary);
+    }
+
+    .tb-select {
+      background: var(--bg-color);
+      border: 1px solid var(--border-color);
+      color: var(--text-color);
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-family: inherit;
+      outline: none;
+      cursor: pointer;
+      font-weight: 500;
+      transition: border-color 0.15s;
+    }
+    .tb-select:hover, .tb-select:focus {
+      border-color: var(--selection-color);
     }
 
     button.tb-btn {
@@ -951,14 +968,36 @@
       <span>Mermaid Editor</span>
     </div>
 
+    <!-- Diagram Type Selector Dropdown -->
+    <div class="toolbar-group">
+      <label style="font-size:11px; font-weight:600; color:var(--text-muted); margin-right:2px;">Type:</label>
+      <select id="diagram-type-select" class="tb-select" title="Active Diagram Type (Switch to load template)">
+        <option value="flowchart_td">Flowchart TD</option>
+        <option value="flowchart_lr">Flowchart LR</option>
+        <option value="sequence">Sequence Diagram</option>
+        <option value="classDiagram">Class Diagram</option>
+        <option value="stateDiagram">State Diagram</option>
+        <option value="erDiagram">ER Diagram</option>
+        <option value="gantt">Gantt Chart</option>
+        <option value="pie">Pie Chart</option>
+        <option value="gitGraph">Git Graph</option>
+        <option value="journey">User Journey</option>
+        <option value="mindmap">Mindmap</option>
+        <option value="timeline">Timeline</option>
+        <option value="quadrant">Quadrant Chart</option>
+        <option value="c4context">C4 Architecture</option>
+        <option value="sankey">Sankey</option>
+      </select>
+      <button class="tb-btn" id="btn-templates" title="Browse & Load Diagram Starter Templates">
+        <svg viewBox="0 0 24 24"><path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H8V4h12v12z"/></svg>
+        <span>Templates</span>
+      </button>
+    </div>
+
     <div class="toolbar-group">
       <button class="tb-btn" id="btn-new" title="New Project (Ctrl+N)">
         <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
         <span>New</span>
-      </button>
-      <button class="tb-btn" id="btn-templates" title="Load Diagram Templates & All Mermaid Types">
-        <svg viewBox="0 0 24 24"><path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H8V4h12v12z"/></svg>
-        <span>Templates</span>
       </button>
       <button class="tb-btn" id="btn-open" title="Open Project (Ctrl+O)">
         <svg viewBox="0 0 24 24"><path d="M20 6h-8l-2-2H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm0 12H4V8h16v10z"/></svg>
@@ -1305,7 +1344,7 @@
         </div>
         <div id="editor-status-bar">
           <span id="editor-error">Valid Mermaid</span>
-          <span>Mermaid Diagram</span>
+          <span id="editor-type-label">Flowchart TD</span>
         </div>
       </div>
     </div>
@@ -1313,6 +1352,7 @@
 
   <!-- Status Bar -->
   <div id="status-bar">
+    <div class="status-item"><span id="sb-type">Type: Flowchart</span></div>
     <div class="status-item"><span id="sb-nodes">Nodes: 0</span></div>
     <div class="status-item"><span id="sb-edges">Links: 0</span></div>
     <div class="status-item"><span id="sb-zoom">Zoom: 100%</span></div>
@@ -1451,15 +1491,15 @@
     </div>
   </div>
 
-  <!-- Templates Chooser Modal (All Mermaid Diagram Types) -->
+  <!-- Templates Chooser Modal (All 15 Mermaid Diagram Types) -->
   <div class="modal-overlay" id="templates-modal">
-    <div class="modal-card" style="width:620px; max-width:92vw;">
+    <div class="modal-card" style="width:640px; max-width:94vw;">
       <div class="modal-header">
-        <span>Mermaid Diagram Types & Starter Templates</span>
+        <span>Mermaid Diagram Types & Verified Templates</span>
         <button class="float-btn" id="templates-modal-close" style="width:24px;height:24px;">✕</button>
       </div>
       <div class="modal-body" style="max-height:68vh; overflow-y:auto;">
-        <p style="color:var(--text-muted); font-size:11px;">Select any Mermaid diagram type below to load an interactive starter template.</p>
+        <p style="color:var(--text-muted); font-size:11px;">Select any official Mermaid diagram type to load its clean starter template.</p>
         <div style="display:grid; grid-template-columns: repeat(2, 1fr); gap:10px;" id="templates-grid">
           <!-- Dynamically populated from DIAGRAM_TEMPLATES -->
         </div>
@@ -1496,13 +1536,13 @@
      * Complete Offline Single-File Implementation
      */
 
-    // --- ALL MERMAID DIAGRAM TYPE TEMPLATES ---
+    // --- VERIFIED OFFICIAL MERMAID DIAGRAM TEMPLATES ---
     const DIAGRAM_TEMPLATES = [
       {
         id: 'flowchart_td',
         name: 'Flowchart (Top-Down)',
         badge: 'flowchart TD',
-        desc: 'Standard multi-tier architecture & workflow',
+        desc: 'Multi-tier system architecture & workflow',
         code: `flowchart TD
   Client["Client App"] -->|"HTTP Request"| API["API Gateway"]
   API -->|"Verify"| Auth{"Auth Service"}
@@ -1512,10 +1552,10 @@
         id: 'flowchart_lr',
         name: 'Flowchart (Left-Right)',
         badge: 'flowchart LR',
-        desc: 'Horizontal sequential pipeline process',
+        desc: 'Horizontal sequential data processing pipeline',
         code: `flowchart LR
   Start([Start]) --> Process["Process Input"]
-  Process --> Validate{"Valid?"}
+  Process --> Validate{"Is Valid?"}
   Validate -->|Yes| Output[("Save Record")]
   Validate -->|No| Reject["Reject with Error"]`
       },
@@ -1523,56 +1563,56 @@
         id: 'sequence',
         name: 'Sequence Diagram',
         badge: 'sequenceDiagram',
-        desc: 'Time-ordered actor & service interactions',
+        desc: 'Actor & microservice request/response flow over time',
         code: `sequenceDiagram
   autonumber
-  actor User
+  actor User as User
   participant App as Web App
   participant API as API Server
   participant DB as Database
 
   User->>App: Click Checkout
-  App->>API: POST /orders
-  API->>DB: INSERT order
-  DB-->>API: Order ID #1042
-  API-->>App: 201 Created
-  App-->>User: Show Confirmation`
+  App->>API: POST /api/orders
+  API->>DB: INSERT INTO orders
+  DB-->>API: 1 row affected (ID: 1042)
+  API-->>App: 201 Created (Order #1042)
+  App-->>User: Show Order Confirmation`
       },
       {
         id: 'classDiagram',
         name: 'Class Diagram',
         badge: 'classDiagram',
-        desc: 'OOP structure, classes, fields, and inheritance',
+        desc: 'OOP class models, attributes, methods, inheritance',
         code: `classDiagram
-  class Vehicle {
-    +String brand
-    +int year
-    +startEngine()
+  class BankAccount {
+    +String owner
+    +Decimal balance
+    +deposit(amount)
+    +withdraw(amount)
   }
-  class Car {
-    +int numberOfDoors
-    +drive()
+  class SavingsAccount {
+    +Decimal interestRate
+    +addInterest()
   }
-  class ElectricCar {
-    +int batteryCapacity
-    +charge()
+  class CheckingAccount {
+    +Decimal overdraftLimit
   }
-  Vehicle <|-- Car
-  Car <|-- ElectricCar`
+  BankAccount <|-- SavingsAccount
+  BankAccount <|-- CheckingAccount`
       },
       {
         id: 'stateDiagram',
         name: 'State Diagram (v2)',
         badge: 'stateDiagram-v2',
-        desc: 'Finite state machine states & transitions',
+        desc: 'State machine states, transitions, error retries',
         code: `stateDiagram-v2
   [*] --> Idle
-  Idle --> Processing: New Job
-  Processing --> Succeeded: Completed
-  Processing --> Failed: Error
-  Failed --> Retrying: Backoff
-  Retrying --> Processing: Retry
-  Retrying --> DeadLetter: Max Retries
+  Idle --> Processing : New Task
+  Processing --> Succeeded : Complete
+  Processing --> Failed : Error
+  Failed --> Retrying : Retry Allowed
+  Retrying --> Processing : Attempt Again
+  Retrying --> DeadLetter : Max Retries Exceeded
   Succeeded --> [*]
   DeadLetter --> [*]`
       },
@@ -1580,51 +1620,62 @@
         id: 'erDiagram',
         name: 'Entity Relationship (ER)',
         badge: 'erDiagram',
-        desc: 'Relational database entities, keys, and foreign links',
+        desc: 'Database schemas, keys, foreign cardinality',
         code: `erDiagram
-  USER ||--o{ ORDER : places
+  CUSTOMER ||--o{ ORDER : places
   ORDER ||--|{ ORDER_ITEM : contains
-  PRODUCT ||--o{ ORDER_ITEM : ordered_in
-  USER {
+  PRODUCT ||--o{ ORDER_ITEM : included_in
+  CUSTOMER {
     int id PK
-    string email
     string name
+    string email
   }
   ORDER {
     int id PK
-    int user_id FK
-    decimal total
-    string status
+    int customer_id FK
+    date order_date
+    decimal total_amount
+  }
+  ORDER_ITEM {
+    int id PK
+    int order_id FK
+    int product_id FK
+    int quantity
+  }
+  PRODUCT {
+    int id PK
+    string name
+    decimal price
   }`
       },
       {
         id: 'gantt',
-        name: 'Gantt Project Roadmap',
+        name: 'Gantt Roadmap',
         badge: 'gantt',
-        desc: 'Timelines, milestones, and project sprints',
+        desc: 'Sprint schedules, task timelines, and milestones',
         code: `gantt
-  title Q3 Product Roadmap
+  title Project Sprint Roadmap
   dateFormat YYYY-MM-DD
   section Planning
-    Architecture Design :done, p1, 2026-08-01, 2026-08-07
-    UX Wireframing      :done, p2, 2026-08-05, 2026-08-14
+    Architecture Design  :done, p1, 2026-08-01, 2026-08-07
+    UX Specifications    :done, p2, 2026-08-05, 2026-08-12
   section Development
-    Core Engine API     :active, dev1, 2026-08-12, 2026-08-28
-    Visual Canvas UI    :dev2, after p2, 18d
-  section Quality
-    Integration Tests   :crit, qa1, after dev1, 7d`
+    Backend Services     :active, d1, 2026-08-10, 2026-08-25
+    Frontend Application :active, d2, 2026-08-14, 2026-08-30
+  section QA & Release
+    Integration Testing  :crit, q1, 2026-08-26, 2026-09-05
+    Production Launch    :milestone, m1, 2026-09-06, 0d`
       },
       {
         id: 'pie',
         name: 'Pie Chart',
         badge: 'pie',
-        desc: 'Data distributions and percentage breakdowns',
-        code: `pie title Tech Stack Distribution
-  "TypeScript" : 48
-  "Python" : 24
-  "Go" : 14
-  "Rust" : 10
-  "Other" : 4`
+        desc: 'Proportions and percentage data distributions',
+        code: `pie title Cloud Infrastructure Resource Distribution
+  "Compute Engine (VMs)" : 42
+  "Cloud Storage (GCS)" : 28
+  "BigQuery Analytics" : 18
+  "Networking & CDN" : 12`
       },
       {
         id: 'gitGraph',
@@ -1632,109 +1683,119 @@
         badge: 'gitGraph',
         desc: 'Branches, commits, merges, and release tags',
         code: `gitGraph
-  commit id: "Init v0.1"
-  commit id: "Core Engine"
-  branch feature/editor
-  checkout feature/editor
-  commit id: "Add SVG Canvas"
-  commit id: "Add Undo/Redo"
+  commit id: "Initial Commit"
+  commit id: "Core Foundation"
+  branch feature/canvas
+  checkout feature/canvas
+  commit id: "Add SVG Engine"
+  commit id: "Add Inspector"
   checkout main
-  merge feature/editor id: "v0.9.0"
-  commit id: "Release 1.0" tag: "v1.00.000"`
+  merge feature/canvas id: "Merge Canvas"
+  branch release/v1.0
+  checkout release/v1.0
+  commit id: "Bump v1.0.0" tag: "v1.00.000"
+  checkout main
+  merge release/v1.0 id: "Release 1.0"`
       },
       {
         id: 'journey',
         name: 'User Journey Map',
         badge: 'journey',
-        desc: 'User satisfaction scores across workflow stages',
+        desc: 'Customer satisfaction scores across touchpoints',
         code: `journey
-  title Developer Onboarding Experience
+  title E-Commerce Customer Journey
   section Discovery
-    Search Solution: 5: Dev
-    Read Docs: 4: Dev
-  section Integration
-    Clone Repository: 5: Dev
-    Configure Setup: 4: Dev, DevOps
-  section Production
-    Deploy System: 5: Dev, Team`
+    Search Products: 5: Customer
+    View Product Details: 4: Customer
+  section Purchase
+    Add to Cart: 4: Customer
+    Checkout & Payment: 3: Customer, Stripe
+  section Fulfillment
+    Order Notification: 5: Email Service
+    Package Delivery: 5: Courier, Customer`
       },
       {
         id: 'mindmap',
         name: 'Mindmap',
         badge: 'mindmap',
-        desc: 'Hierarchical concept mapping and brainstorming',
+        desc: 'Hierarchical concept mapping & brainstorming tree',
         code: `mindmap
-  root((Mermaid Viewer))
-    Features
-      Visual Canvas
-      Bidirectional Sync
-      Multi-select
-      Property Inspector
-    Exports
-      SVG Vector
-      PNG Image
-      JSON Project
-      MMD Code
-    Themes
-      Light Mode
-      Dark Slate`
+  root((System Architecture))
+    Client Layer
+      Web Application
+      Mobile App
+      Desktop Electron
+    API Gateway
+      Authentication
+      Rate Limiting
+      Routing
+    Microservices
+      User Service
+      Payment Engine
+      Analytics Engine
+    Data Tier
+      PostgreSQL
+      Redis Cache
+      Object Storage`
       },
       {
         id: 'timeline',
         name: 'Timeline Chart',
         badge: 'timeline',
-        desc: 'Chronological timeline of events & milestones',
+        desc: 'Chronological timeline of milestones and events',
         code: `timeline
-  title Platform Evolution
-  2024 : Initial Prototype : Beta Testing
-  2025 : Real-time Sync : Cloud Storage
-  2026 : Release 1.0 : Full Offline Capability`
+  title Platform Development Timeline
+  2024 : Initial Architecture : Prototype Alpha
+  2025 : Real-time Collab : Multi-format Exporter
+  2026 : Offline Visual Suite : Release 1.0`
       },
       {
         id: 'quadrant',
         name: 'Quadrant Priority Matrix',
         badge: 'quadrantChart',
-        desc: '2x2 matrix for effort vs value prioritization',
+        desc: '2x2 matrix for urgency vs impact prioritization',
         code: `quadrantChart
-  title Feature Prioritization Matrix
-  x-axis Low Effort --> High Effort
-  y-axis Low Value --> High Value
-  quadrant-1 Quick Wins
-  quadrant-2 Strategic Initiatives
+  title Engineering Task Prioritization
+  x-axis Low Urgency --> High Urgency
+  y-axis Low Impact --> High Impact
+  quadrant-1 Strategic Bets
+  quadrant-2 Urgent & Critical
   quadrant-3 Low Priority
-  quadrant-4 Complex Tasks
-  "Inspector Panel": [0.25, 0.85]
-  "Export PNG": [0.30, 0.90]
-  "Multi-select": [0.35, 0.75]
-  "Realtime Collab": [0.85, 0.80]`
+  quadrant-4 Quick Fixes
+  "Offline Engine": [0.85, 0.90]
+  "Export PNG": [0.75, 0.70]
+  "Property Inspector": [0.60, 0.80]
+  "Minor Styling": [0.20, 0.30]`
       },
       {
         id: 'c4context',
         name: 'C4 Context Architecture',
         badge: 'C4Context',
-        desc: 'High-level software systems, actors, and relationships',
+        desc: 'High-level systems, actors, and enterprise context',
         code: `C4Context
-  title System Context for Retail Platform
-  Person(customer, "Customer", "Browses and places orders")
-  System(store_app, "Online Store", "Handles catalog, checkout, and payments")
-  System_Ext(payment_gateway, "Stripe API", "Processes credit cards")
-  System_Ext(shipping, "FedEx API", "Calculates logistics and tracking")
+  title System Context for Banking Platform
+  Person(customer, "Customer", "A client of the bank")
+  System(banking_system, "Internet Banking", "Allows customers to view accounts and make payments")
+  System_Ext(mail_system, "E-mail Subsystem", "Sends confirmation emails")
+  System_Ext(core_banking, "Mainframe Core Banking", "Stores account balances and ledgers")
 
-  Rel(customer, store_app, "Uses", "HTTPS")
-  Rel(store_app, payment_gateway, "Authorizes payments", "JSON/REST")
-  Rel(store_app, shipping, "Schedules delivery", "JSON/REST")`
+  Rel(customer, banking_system, "Views accounts, makes payments using", "HTTPS")
+  Rel(banking_system, mail_system, "Sends e-mails using", "SMTP")
+  Rel(banking_system, core_banking, "Retrieves balances, posts transactions using", "gRPC")`
       },
       {
         id: 'sankey',
         name: 'Sankey Flow Diagram',
         badge: 'sankey-beta',
-        desc: 'Flow magnitude and pathway transitions',
+        desc: 'Traffic volume and user conversion flow paths',
         code: `sankey-beta
-  Website Traffic, Sign Up Page, 4200
-  Website Traffic, Direct Bounce, 1800
-  Sign Up Page, Completed Registration, 3100
-  Sign Up Page, Abandoned, 1100
-  Completed Registration, Active Users, 2400`
+  Organic Search, Landing Page, 4500
+  Social Ads, Landing Page, 3200
+  Referrals, Landing Page, 1300
+  Landing Page, Signup Form, 5800
+  Landing Page, Dropoff, 3200
+  Signup Form, Activated Users, 4200
+  Signup Form, Abandoned, 1600`
       }
     ];
 
@@ -1759,7 +1820,7 @@
         toast.className = 'show ' + type;
         setTimeout(() => {
           toast.className = '';
-        }, 2600);
+        }, 2800);
       }
     };
 
@@ -1836,6 +1897,7 @@
     // --- GRAPH MODEL ---
     class GraphModel {
       constructor() {
+        this.diagramType = 'flowchart_td';
         this.nodes = [];
         this.edges = [];
         this.rules = [
@@ -1887,6 +1949,7 @@
         return {
           version: '2.0',
           theme,
+          diagramType: this.diagramType,
           layout: this.layoutDirection,
           nodes: JSON.parse(JSON.stringify(this.nodes)),
           edges: JSON.parse(JSON.stringify(this.edges)),
@@ -1899,6 +1962,7 @@
       }
 
       fromProject(proj) {
+        this.diagramType = proj.diagramType || 'flowchart_td';
         this.layoutDirection = proj.layout || 'TD';
         this.nodes = proj.nodes || [];
         this.edges = proj.edges || [];
@@ -2034,6 +2098,12 @@
     // --- MERMAID CODE GENERATOR ---
     class MermaidGenerator {
       static generate(graph) {
+        if (graph.diagramType && graph.diagramType !== 'flowchart_td' && graph.diagramType !== 'flowchart_lr') {
+          // If a non-flowchart template is active, keep its code structure
+          const tpl = DIAGRAM_TEMPLATES.find(t => t.id === graph.diagramType);
+          if (tpl) return tpl.code;
+        }
+
         const lines = [];
         lines.push(`flowchart ${graph.layoutDirection}`);
 
@@ -2093,94 +2163,115 @@
 
     // --- MERMAID CODE PARSER ---
     class MermaidParser {
+      static detectDiagramType(code) {
+        const firstLines = code.split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('%%')).slice(0, 3).join(' ');
+        if (/^flowchart\s+LR/i.test(firstLines)) return 'flowchart_lr';
+        if (/^flowchart/i.test(firstLines) || /^graph/i.test(firstLines)) return 'flowchart_td';
+        if (/^sequenceDiagram/i.test(firstLines)) return 'sequence';
+        if (/^classDiagram/i.test(firstLines)) return 'classDiagram';
+        if (/^stateDiagram/i.test(firstLines)) return 'stateDiagram';
+        if (/^erDiagram/i.test(firstLines)) return 'erDiagram';
+        if (/^gantt/i.test(firstLines)) return 'gantt';
+        if (/^pie/i.test(firstLines)) return 'pie';
+        if (/^gitGraph/i.test(firstLines)) return 'gitGraph';
+        if (/^journey/i.test(firstLines)) return 'journey';
+        if (/^mindmap/i.test(firstLines)) return 'mindmap';
+        if (/^timeline/i.test(firstLines)) return 'timeline';
+        if (/^quadrantChart/i.test(firstLines)) return 'quadrant';
+        if (/^C4Context/i.test(firstLines) || /^C4/i.test(firstLines)) return 'c4context';
+        if (/^sankey/i.test(firstLines)) return 'sankey';
+        return 'flowchart_td';
+      }
+
       static parse(code, currentGraph) {
+        const detectedType = MermaidParser.detectDiagramType(code);
         const lines = code.split('\n');
         const newGraph = new GraphModel();
+        newGraph.diagramType = detectedType;
         newGraph.gridSnap = currentGraph.gridSnap;
         newGraph.gridSize = currentGraph.gridSize;
         newGraph.rules = currentGraph.rules;
 
-        let directionFound = false;
-        let lineIdx = 0;
+        // If Flowchart or Graph
+        if (detectedType === 'flowchart_td' || detectedType === 'flowchart_lr') {
+          let lineIdx = 0;
+          try {
+            for (lineIdx = 0; lineIdx < lines.length; lineIdx++) {
+              const rawLine = lines[lineIdx].trim();
+              if (!rawLine || rawLine.startsWith('%%')) continue;
 
-        try {
-          for (lineIdx = 0; lineIdx < lines.length; lineIdx++) {
-            const rawLine = lines[lineIdx].trim();
-            if (!rawLine || rawLine.startsWith('%%')) continue;
-
-            const headerMatch = rawLine.match(/^(?:flowchart|graph)\s+(TD|TB|LR|RL|BT)/i);
-            if (headerMatch) {
-              const dir = headerMatch[1].toUpperCase();
-              newGraph.layoutDirection = (dir === 'LR' || dir === 'RL') ? 'LR' : 'TD';
-              directionFound = true;
-              continue;
-            }
-
-            const styleMatch = rawLine.match(/^style\s+([A-Za-z0-9_]+)\s+(.+)$/i);
-            if (styleMatch) {
-              const targetId = styleMatch[1];
-              const styleProps = styleMatch[2];
-              const node = newGraph.getNode(targetId);
-              if (node) {
-                const fillM = styleProps.match(/fill:([^,;]+)/);
-                const strokeM = styleProps.match(/stroke:([^,;]+)/);
-                const colorM = styleProps.match(/color:([^,;]+)/);
-                if (fillM) node.fillColor = fillM[1].trim();
-                if (strokeM) node.borderColor = strokeM[1].trim();
-                if (colorM) node.fontColor = colorM[1].trim();
+              const headerMatch = rawLine.match(/^(?:flowchart|graph)\s+(TD|TB|LR|RL|BT)/i);
+              if (headerMatch) {
+                const dir = headerMatch[1].toUpperCase();
+                newGraph.layoutDirection = (dir === 'LR' || dir === 'RL') ? 'LR' : 'TD';
+                continue;
               }
-              continue;
+
+              const styleMatch = rawLine.match(/^style\s+([A-Za-z0-9_]+)\s+(.+)$/i);
+              if (styleMatch) {
+                const targetId = styleMatch[1];
+                const styleProps = styleMatch[2];
+                const node = newGraph.getNode(targetId);
+                if (node) {
+                  const fillM = styleProps.match(/fill:([^,;]+)/);
+                  const strokeM = styleProps.match(/stroke:([^,;]+)/);
+                  const colorM = styleProps.match(/color:([^,;]+)/);
+                  if (fillM) node.fillColor = fillM[1].trim();
+                  if (strokeM) node.borderColor = strokeM[1].trim();
+                  if (colorM) node.fontColor = colorM[1].trim();
+                }
+                continue;
+              }
+
+              const edgeRegex = /([A-Za-z0-9_]+(?:\s*[\(\[\{\/][^\)\]\}]+[\)\]\}\/]+)?)\s*(<==>|<-->|==>|-.->|--->|-->)\s*(?:\|"?([^\|"]*)"?\|\s*)?([A-Za-z0-9_]+(?:\s*[\(\[\{\/][^\)\]\}]+[\)\]\}\/]+)?)/;
+              const edgeMatch = rawLine.match(edgeRegex);
+
+              if (edgeMatch) {
+                const srcRaw = edgeMatch[1].trim();
+                const arrowType = edgeMatch[2].trim();
+                const label = edgeMatch[3] ? edgeMatch[3].trim() : undefined;
+                const tgtRaw = edgeMatch[4].trim();
+
+                const srcNode = MermaidParser.parseNodeToken(srcRaw, currentGraph, newGraph);
+                const tgtNode = MermaidParser.parseNodeToken(tgtRaw, currentGraph, newGraph);
+
+                newGraph.addEdge({
+                  id: Utils.uid('edge'),
+                  source: srcNode.id,
+                  target: tgtNode.id,
+                  label,
+                  type: arrowType
+                });
+                continue;
+              }
+
+              const nodeToken = MermaidParser.parseNodeToken(rawLine, currentGraph, newGraph);
+              if (!nodeToken) {
+                return { graph: null, error: `Invalid syntax at line ${lineIdx + 1}: "${rawLine}"`, errorLine: lineIdx + 1 };
+              }
             }
 
-            const edgeRegex = /([A-Za-z0-9_]+(?:\s*[\(\[\{\/][^\)\]\}]+[\)\]\}\/]+)?)\s*(<==>|<-->|==>|-.->|--->|-->)\s*(?:\|"?([^\|"]*)"?\|\s*)?([A-Za-z0-9_]+(?:\s*[\(\[\{\/][^\)\]\}]+[\)\]\}\/]+)?)/;
-            const edgeMatch = rawLine.match(edgeRegex);
+            const existingPos = new Map(currentGraph.nodes.map(n => [n.id, { x: n.x, y: n.y }]));
+            let newCount = 0;
+            newGraph.nodes.forEach(n => {
+              if (existingPos.has(n.id)) {
+                n.x = existingPos.get(n.id).x;
+                n.y = existingPos.get(n.id).y;
+              } else {
+                n.x = 100 + (newCount % 5) * 160;
+                n.y = 100 + Math.floor(newCount / 5) * 120;
+                newCount++;
+              }
+            });
 
-            if (edgeMatch) {
-              const srcRaw = edgeMatch[1].trim();
-              const arrowType = edgeMatch[2].trim();
-              const label = edgeMatch[3] ? edgeMatch[3].trim() : undefined;
-              const tgtRaw = edgeMatch[4].trim();
-
-              const srcNode = MermaidParser.parseNodeToken(srcRaw, currentGraph, newGraph);
-              const tgtNode = MermaidParser.parseNodeToken(tgtRaw, currentGraph, newGraph);
-
-              newGraph.addEdge({
-                id: Utils.uid('edge'),
-                source: srcNode.id,
-                target: tgtNode.id,
-                label,
-                type: arrowType
-              });
-              continue;
-            }
-
-            const nodeToken = MermaidParser.parseNodeToken(rawLine, currentGraph, newGraph);
-            if (!nodeToken) {
-              return { graph: null, error: `Invalid syntax at line ${lineIdx + 1}: "${rawLine}"`, errorLine: lineIdx + 1 };
-            }
+            return { graph: newGraph, error: null };
+          } catch (e) {
+            return { graph: null, error: `Parse error at line ${lineIdx + 1}: ${e.message}`, errorLine: lineIdx + 1 };
           }
-
-          if (!directionFound && newGraph.nodes.length === 0) {
-            return { graph: null, error: 'Missing flowchart header (e.g. flowchart TD)', errorLine: 1 };
-          }
-
-          const existingPos = new Map(currentGraph.nodes.map(n => [n.id, { x: n.x, y: n.y }]));
-          let newCount = 0;
-          newGraph.nodes.forEach(n => {
-            if (existingPos.has(n.id)) {
-              n.x = existingPos.get(n.id).x;
-              n.y = existingPos.get(n.id).y;
-            } else {
-              n.x = 100 + (newCount % 5) * 160;
-              n.y = 100 + Math.floor(newCount / 5) * 120;
-              newCount++;
-            }
-          });
-
-          return { graph: newGraph, error: null };
-        } catch (e) {
-          return { graph: null, error: `Parse error at line ${lineIdx + 1}: ${e.message}`, errorLine: lineIdx + 1 };
         }
+
+        // For other diagram types (State, Class, ER, Sequence, etc.)
+        return { graph: newGraph, error: null };
       }
 
       static parseNodeToken(token, oldGraph, newGraph) {
@@ -2328,7 +2419,7 @@
             maxY = Math.max(maxY, n.y + h);
           });
         } else {
-          minX = 0; minY = 0; maxX = 400; maxY = 300;
+          minX = 0; minY = 0; maxX = 500; maxY = 350;
         }
 
         const padding = 50;
@@ -2484,10 +2575,12 @@
         this.marqueeRect = document.getElementById('marquee-rect');
         this.codeEditor = document.getElementById('code-editor');
         this.codeHighlight = document.getElementById('code-highlight').querySelector('code');
+        this.typeSelect = document.getElementById('diagram-type-select');
       }
 
       setupInitialDiagram() {
-        // Preferred clean architecture layout with side Auth Service
+        // Restored clean initial layout with side Auth Service (Image 1 style)
+        this.graph.diagramType = 'flowchart_td';
         this.graph.addNode({ id: 'Client', text: 'Client App', shape: 'rounded', x: 140, y: 80, fillColor: '#E3F2FD', borderColor: '#90CAF9', fontColor: '#0D47A1' });
         this.graph.addNode({ id: 'API', text: 'API Gateway', shape: 'rectangle', x: 140, y: 220, fillColor: '#E3F2FD', borderColor: '#90CAF9', fontColor: '#0D47A1' });
         this.graph.addNode({ id: 'Auth', text: 'Auth Service', shape: 'diamond', x: 380, y: 220, fillColor: '#FFF3E0', borderColor: '#FFE082', fontColor: '#E65100' });
@@ -2496,6 +2589,8 @@
         this.graph.addEdge({ id: 'e1', source: 'Client', target: 'API', type: '-->', label: 'HTTP Request' });
         this.graph.addEdge({ id: 'e2', source: 'API', target: 'Auth', type: '-->', label: 'Verify' });
         this.graph.addEdge({ id: 'e3', source: 'API', target: 'Database', type: '==>', label: 'Query Data' });
+
+        if (this.typeSelect) this.typeSelect.value = 'flowchart_td';
       }
 
       recordHistory() {
@@ -3080,6 +3175,14 @@
         this.codeHighlight.innerHTML = SyntaxHighlighter.highlight(code);
         document.getElementById('editor-error').textContent = 'Valid Mermaid';
         document.getElementById('editor-error').style.color = 'var(--text-muted)';
+        
+        const detected = MermaidParser.detectDiagramType(code);
+        const typeItem = DIAGRAM_TEMPLATES.find(t => t.id === detected);
+        const label = typeItem ? typeItem.badge : 'Mermaid Diagram';
+        document.getElementById('editor-type-label').textContent = label;
+        if (this.typeSelect && this.typeSelect.value !== detected) {
+          this.typeSelect.value = detected;
+        }
       }
 
       applyCodeToGraph() {
@@ -3110,6 +3213,10 @@
 
         this.codeEditor.addEventListener('input', () => {
           this.codeHighlight.innerHTML = SyntaxHighlighter.highlight(this.codeEditor.value);
+          const detected = MermaidParser.detectDiagramType(this.codeEditor.value);
+          if (this.typeSelect && this.typeSelect.value !== detected) {
+            this.typeSelect.value = detected;
+          }
         });
 
         this.codeEditor.addEventListener('scroll', () => {
@@ -3118,6 +3225,17 @@
         });
 
         document.getElementById('btn-sync-code').addEventListener('click', () => this.applyCodeToGraph());
+
+        // Diagram Type Dropdown listener
+        if (this.typeSelect) {
+          this.typeSelect.addEventListener('change', (e) => {
+            const selectedId = e.target.value;
+            const tpl = DIAGRAM_TEMPLATES.find(t => t.id === selectedId);
+            if (tpl) {
+              this.loadTemplate(tpl);
+            }
+          });
+        }
 
         document.getElementById('btn-new').addEventListener('click', () => this.confirmNew());
         document.getElementById('btn-templates').addEventListener('click', () => this.openTemplatesDialog());
@@ -3205,6 +3323,9 @@
 
       loadTemplate(tpl) {
         this.recordHistory();
+        this.graph.diagramType = tpl.id;
+        if (this.typeSelect) this.typeSelect.value = tpl.id;
+
         this.codeEditor.value = tpl.code;
         this.codeHighlight.innerHTML = SyntaxHighlighter.highlight(tpl.code);
 
@@ -3215,7 +3336,6 @@
           this.renderAll();
           this.zoomToFit();
         } else {
-          // Chart or text-centric diagram without visual node primitives
           this.renderAll();
         }
 
@@ -3328,7 +3448,7 @@
 
         if (this.isPanning) {
           this.panX = e.clientX - this.panStartX;
-          this.panY = e.clientY - this.panStartY;
+          this.panY = e.clientY - this.panY;
           this.updateTransform();
           this.renderMinimap();
         } else if (this.isDraggingNodes) {
@@ -3993,6 +4113,7 @@
               const proj = JSON.parse(content);
               this.graph.fromProject(proj);
               if (proj.theme) this.themeMgr.setTheme(proj.theme);
+              if (this.typeSelect && proj.diagramType) this.typeSelect.value = proj.diagramType;
               this.renderAll();
               this.recordHistory();
               this.zoomToFit();
@@ -4019,6 +4140,8 @@
       }
 
       updateStatusBar() {
+        const typeItem = DIAGRAM_TEMPLATES.find(t => t.id === this.graph.diagramType);
+        document.getElementById('sb-type').textContent = `Type: ${typeItem ? typeItem.name : 'Flowchart'}`;
         document.getElementById('sb-nodes').textContent = `Nodes: ${this.graph.nodes.length}`;
         document.getElementById('sb-edges').textContent = `Links: ${this.graph.edges.length}`;
       }
