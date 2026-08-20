@@ -1156,12 +1156,20 @@
           <div class="prop-group">
             <label>Shape</label>
             <select id="prop-node-shape" class="prop-input">
-              <option value="rectangle">Rectangle [text]</option>
-              <option value="rounded">Rounded (text)</option>
-              <option value="circle">Circle ((text))</option>
-              <option value="diamond">Diamond {text}</option>
-              <option value="hexagon">Hexagon {{text}}</option>
-              <option value="parallelogram">Parallelogram [/text/]</option>
+              <option value="rectangle">Rectangle [Process]</option>
+              <option value="rounded">Rounded Rectangle (State / Item)</option>
+              <option value="stadium">Stadium / Pill ([Start / End])</option>
+              <option value="subroutine">Subroutine [[Subprocess]]</option>
+              <option value="cylinder">Cylinder [(Database / Storage)]</option>
+              <option value="circle">Circle ((Point / Node))</option>
+              <option value="double_circle">Double Circle (((Event / End State)))</option>
+              <option value="asymmetric">Asymmetric &gt;Flag / Banner]</option>
+              <option value="diamond">Diamond / Decision {Condition}</option>
+              <option value="hexagon">Hexagon {{Preparation / Loop}}</option>
+              <option value="parallelogram">Parallelogram [/Input - Output/]</option>
+              <option value="parallelogram_alt">Parallelogram Alt [\Alt In - Out\]</option>
+              <option value="trapezoid">Trapezoid [/Manual Operation\]</option>
+              <option value="trapezoid_alt">Trapezoid Alt [\Manual Task/]</option>
             </select>
           </div>
 
@@ -1286,31 +1294,73 @@
 
       <!-- Tab 2: Shape Palette -->
       <div id="tab-shapes" class="tab-content" style="padding:12px;">
-        <h4 style="font-size:11px; text-transform:uppercase; color:var(--text-muted); margin-bottom:10px;">Click Shape to Add</h4>
+        <h4 style="font-size:11px; text-transform:uppercase; color:var(--text-muted); margin-bottom:10px;">General Flowchart Shapes</h4>
         <div class="shape-palette">
-          <div class="shape-item" data-shape="rectangle" title="Rectangle">
+          <div class="shape-item" data-shape="rectangle" title="Rectangle [Process]">
             <svg viewBox="0 0 44 28"><rect x="2" y="2" width="40" height="24" rx="2" fill="var(--node-fill)" stroke="var(--node-border)" stroke-width="2"/></svg>
-            <span>Rectangle</span>
+            <span>Process</span>
           </div>
-          <div class="shape-item" data-shape="rounded" title="Rounded Rectangle">
+          <div class="shape-item" data-shape="rounded" title="Rounded Rectangle (Item / State)">
             <svg viewBox="0 0 44 28"><rect x="2" y="2" width="40" height="24" rx="8" fill="var(--node-fill)" stroke="var(--node-border)" stroke-width="2"/></svg>
             <span>Rounded</span>
           </div>
-          <div class="shape-item" data-shape="circle" title="Circle">
-            <svg viewBox="0 0 44 28"><ellipse cx="22" cy="14" rx="20" ry="12" fill="var(--node-fill)" stroke="var(--node-border)" stroke-width="2"/></svg>
+          <div class="shape-item" data-shape="stadium" title="Stadium / Pill ([Start / End])">
+            <svg viewBox="0 0 44 28"><rect x="2" y="2" width="40" height="24" rx="12" fill="var(--node-fill)" stroke="var(--node-border)" stroke-width="2"/></svg>
+            <span>Stadium</span>
+          </div>
+          <div class="shape-item" data-shape="subroutine" title="Subroutine [[Predefined Process]]">
+            <svg viewBox="0 0 44 28">
+              <rect x="2" y="2" width="40" height="24" rx="2" fill="var(--node-fill)" stroke="var(--node-border)" stroke-width="2"/>
+              <line x1="8" y1="2" x2="8" y2="26" stroke="var(--node-border)" stroke-width="1.8"/>
+              <line x1="36" y1="2" x2="36" y2="26" stroke="var(--node-border)" stroke-width="1.8"/>
+            </svg>
+            <span>Subroutine</span>
+          </div>
+          <div class="shape-item" data-shape="cylinder" title="Cylinder [(Database / Storage)]">
+            <svg viewBox="0 0 44 28">
+              <path d="M 4,7 L 4,21 A 18,5 0 0,0 40,21 L 40,7 A 18,5 0 0,0 4,7 Z" fill="var(--node-fill)" stroke="var(--node-border)" stroke-width="2"/>
+              <ellipse cx="22" cy="7" rx="18" ry="5" fill="var(--node-fill)" stroke="var(--node-border)" stroke-width="2"/>
+            </svg>
+            <span>Database</span>
+          </div>
+          <div class="shape-item" data-shape="circle" title="Circle ((Node / Junction))">
+            <svg viewBox="0 0 44 28"><ellipse cx="22" cy="14" rx="18" ry="12" fill="var(--node-fill)" stroke="var(--node-border)" stroke-width="2"/></svg>
             <span>Circle</span>
           </div>
-          <div class="shape-item" data-shape="diamond" title="Diamond / Decision">
-            <svg viewBox="0 0 44 28"><polygon points="22,2 42,14 22,26 2,14" fill="var(--node-fill)" stroke="var(--node-border)" stroke-width="2"/></svg>
-            <span>Diamond</span>
+          <div class="shape-item" data-shape="double_circle" title="Double Circle (((Event / End State)))">
+            <svg viewBox="0 0 44 28">
+              <ellipse cx="22" cy="14" rx="18" ry="12" fill="var(--node-fill)" stroke="var(--node-border)" stroke-width="2"/>
+              <ellipse cx="22" cy="14" rx="13" ry="8" fill="none" stroke="var(--node-border)" stroke-width="1.5"/>
+            </svg>
+            <span>Dbl Circle</span>
           </div>
-          <div class="shape-item" data-shape="hexagon" title="Hexagon">
+          <div class="shape-item" data-shape="asymmetric" title="Asymmetric &gt;Flag / Banner]">
+            <svg viewBox="0 0 44 28"><polygon points="2,2 42,2 42,26 2,26 10,14" fill="var(--node-fill)" stroke="var(--node-border)" stroke-width="2"/></svg>
+            <span>Banner</span>
+          </div>
+          <div class="shape-item" data-shape="diamond" title="Diamond / Decision {Condition}">
+            <svg viewBox="0 0 44 28"><polygon points="22,2 42,14 22,26 2,14" fill="var(--node-fill)" stroke="var(--node-border)" stroke-width="2"/></svg>
+            <span>Decision</span>
+          </div>
+          <div class="shape-item" data-shape="hexagon" title="Hexagon {{Preparation / Loop}}">
             <svg viewBox="0 0 44 28"><polygon points="8,2 36,2 42,14 36,26 8,26 2,14" fill="var(--node-fill)" stroke="var(--node-border)" stroke-width="2"/></svg>
             <span>Hexagon</span>
           </div>
-          <div class="shape-item" data-shape="parallelogram" title="Parallelogram">
+          <div class="shape-item" data-shape="parallelogram" title="Parallelogram [/Input - Output/]">
             <svg viewBox="0 0 44 28"><polygon points="8,2 42,2 36,26 2,26" fill="var(--node-fill)" stroke="var(--node-border)" stroke-width="2"/></svg>
-            <span>Parallelogram</span>
+            <span>In / Out</span>
+          </div>
+          <div class="shape-item" data-shape="parallelogram_alt" title="Parallelogram Alt [\Alt In - Out\]">
+            <svg viewBox="0 0 44 28"><polygon points="2,2 36,2 42,26 8,26" fill="var(--node-fill)" stroke="var(--node-border)" stroke-width="2"/></svg>
+            <span>Alt In-Out</span>
+          </div>
+          <div class="shape-item" data-shape="trapezoid" title="Trapezoid [/Manual Operation\]">
+            <svg viewBox="0 0 44 28"><polygon points="8,2 36,2 42,26 2,26" fill="var(--node-fill)" stroke="var(--node-border)" stroke-width="2"/></svg>
+            <span>Trapezoid</span>
+          </div>
+          <div class="shape-item" data-shape="trapezoid_alt" title="Trapezoid Alt [\Manual Task/]">
+            <svg viewBox="0 0 44 28"><polygon points="2,2 42,2 36,26 8,26" fill="var(--node-fill)" stroke="var(--node-border)" stroke-width="2"/></svg>
+            <span>Inv Trapezoid</span>
           </div>
         </div>
       </div>
@@ -1471,12 +1521,20 @@
         <div class="form-group">
           <label>Shape</label>
           <select id="nm-shape" class="form-control">
-            <option value="rectangle">Rectangle [text]</option>
-            <option value="rounded">Rounded Rectangle (text)</option>
-            <option value="circle">Circle ((text))</option>
-            <option value="diamond">Diamond {text}</option>
-            <option value="hexagon">Hexagon {{text}}</option>
-            <option value="parallelogram">Parallelogram [/text/]</option>
+            <option value="rectangle">Rectangle [Process]</option>
+            <option value="rounded">Rounded Rectangle (State / Item)</option>
+            <option value="stadium">Stadium / Pill ([Start / End])</option>
+            <option value="subroutine">Subroutine [[Subprocess]]</option>
+            <option value="cylinder">Cylinder [(Database / Storage)]</option>
+            <option value="circle">Circle ((Point / Node))</option>
+            <option value="double_circle">Double Circle (((Event / End State)))</option>
+            <option value="asymmetric">Asymmetric &gt;Flag / Banner]</option>
+            <option value="diamond">Diamond / Decision {Condition}</option>
+            <option value="hexagon">Hexagon {{Preparation / Loop}}</option>
+            <option value="parallelogram">Parallelogram [/Input - Output/]</option>
+            <option value="parallelogram_alt">Parallelogram Alt [\Alt In - Out\]</option>
+            <option value="trapezoid">Trapezoid [/Manual Operation\]</option>
+            <option value="trapezoid_alt">Trapezoid Alt [\Manual Task/]</option>
           </select>
         </div>
         <div class="color-row">
@@ -2278,10 +2336,18 @@
           switch (n.shape) {
             case 'rectangle': return `${n.id}[${txt}]`;
             case 'rounded': return `${n.id}(${txt})`;
+            case 'stadium': return `${n.id}([${txt}])`;
+            case 'subroutine': return `${n.id}[[${txt}]]`;
+            case 'cylinder': return `${n.id}[(${txt})]`;
             case 'circle': return `${n.id}((${txt}))`;
+            case 'double_circle': return `${n.id}(((${txt})))`;
+            case 'asymmetric': return `${n.id}>${txt}]`;
             case 'diamond': return `${n.id}{${txt}}`;
             case 'hexagon': return `${n.id}{{${txt}}}`;
             case 'parallelogram': return `${n.id}[/${txt}/]`;
+            case 'parallelogram_alt': return `${n.id}[\\${txt}\\]`;
+            case 'trapezoid': return `${n.id}[/${txt}\\]`;
+            case 'trapezoid_alt': return `${n.id}[\\${txt}/]`;
             default: return `${n.id}[${txt}]`;
           }
         };
@@ -4712,12 +4778,20 @@
           <div class="prop-group">
             <label>Shape</label>
             <select id="prop-node-shape" class="prop-input">
-              <option value="rectangle">Rectangle [text]</option>
-              <option value="rounded">Rounded (text)</option>
-              <option value="circle">Circle ((text))</option>
-              <option value="diamond">Diamond {text}</option>
-              <option value="hexagon">Hexagon {{text}}</option>
-              <option value="parallelogram">Parallelogram [/text/]</option>
+              <option value="rectangle">Rectangle [Process]</option>
+              <option value="rounded">Rounded Rectangle (State / Item)</option>
+              <option value="stadium">Stadium / Pill ([Start / End])</option>
+              <option value="subroutine">Subroutine [[Subprocess]]</option>
+              <option value="cylinder">Cylinder [(Database / Storage)]</option>
+              <option value="circle">Circle ((Point / Node))</option>
+              <option value="double_circle">Double Circle (((Event / End State)))</option>
+              <option value="asymmetric">Asymmetric &gt;Flag / Banner]</option>
+              <option value="diamond">Diamond / Decision {Condition}</option>
+              <option value="hexagon">Hexagon {{Preparation / Loop}}</option>
+              <option value="parallelogram">Parallelogram [/Input - Output/]</option>
+              <option value="parallelogram_alt">Parallelogram Alt [\Alt In - Out\]</option>
+              <option value="trapezoid">Trapezoid [/Manual Operation\]</option>
+              <option value="trapezoid_alt">Trapezoid Alt [\Manual Task/]</option>
             </select>
           </div>
 
@@ -4842,31 +4916,73 @@
 
       <!-- Tab 2: Shape Palette -->
       <div id="tab-shapes" class="tab-content" style="padding:12px;">
-        <h4 style="font-size:11px; text-transform:uppercase; color:var(--text-muted); margin-bottom:10px;">Click Shape to Add</h4>
+        <h4 style="font-size:11px; text-transform:uppercase; color:var(--text-muted); margin-bottom:10px;">General Flowchart Shapes</h4>
         <div class="shape-palette">
-          <div class="shape-item" data-shape="rectangle" title="Rectangle">
+          <div class="shape-item" data-shape="rectangle" title="Rectangle [Process]">
             <svg viewBox="0 0 44 28"><rect x="2" y="2" width="40" height="24" rx="2" fill="var(--node-fill)" stroke="var(--node-border)" stroke-width="2"/></svg>
-            <span>Rectangle</span>
+            <span>Process</span>
           </div>
-          <div class="shape-item" data-shape="rounded" title="Rounded Rectangle">
+          <div class="shape-item" data-shape="rounded" title="Rounded Rectangle (Item / State)">
             <svg viewBox="0 0 44 28"><rect x="2" y="2" width="40" height="24" rx="8" fill="var(--node-fill)" stroke="var(--node-border)" stroke-width="2"/></svg>
             <span>Rounded</span>
           </div>
-          <div class="shape-item" data-shape="circle" title="Circle">
-            <svg viewBox="0 0 44 28"><ellipse cx="22" cy="14" rx="20" ry="12" fill="var(--node-fill)" stroke="var(--node-border)" stroke-width="2"/></svg>
+          <div class="shape-item" data-shape="stadium" title="Stadium / Pill ([Start / End])">
+            <svg viewBox="0 0 44 28"><rect x="2" y="2" width="40" height="24" rx="12" fill="var(--node-fill)" stroke="var(--node-border)" stroke-width="2"/></svg>
+            <span>Stadium</span>
+          </div>
+          <div class="shape-item" data-shape="subroutine" title="Subroutine [[Predefined Process]]">
+            <svg viewBox="0 0 44 28">
+              <rect x="2" y="2" width="40" height="24" rx="2" fill="var(--node-fill)" stroke="var(--node-border)" stroke-width="2"/>
+              <line x1="8" y1="2" x2="8" y2="26" stroke="var(--node-border)" stroke-width="1.8"/>
+              <line x1="36" y1="2" x2="36" y2="26" stroke="var(--node-border)" stroke-width="1.8"/>
+            </svg>
+            <span>Subroutine</span>
+          </div>
+          <div class="shape-item" data-shape="cylinder" title="Cylinder [(Database / Storage)]">
+            <svg viewBox="0 0 44 28">
+              <path d="M 4,7 L 4,21 A 18,5 0 0,0 40,21 L 40,7 A 18,5 0 0,0 4,7 Z" fill="var(--node-fill)" stroke="var(--node-border)" stroke-width="2"/>
+              <ellipse cx="22" cy="7" rx="18" ry="5" fill="var(--node-fill)" stroke="var(--node-border)" stroke-width="2"/>
+            </svg>
+            <span>Database</span>
+          </div>
+          <div class="shape-item" data-shape="circle" title="Circle ((Node / Junction))">
+            <svg viewBox="0 0 44 28"><ellipse cx="22" cy="14" rx="18" ry="12" fill="var(--node-fill)" stroke="var(--node-border)" stroke-width="2"/></svg>
             <span>Circle</span>
           </div>
-          <div class="shape-item" data-shape="diamond" title="Diamond / Decision">
-            <svg viewBox="0 0 44 28"><polygon points="22,2 42,14 22,26 2,14" fill="var(--node-fill)" stroke="var(--node-border)" stroke-width="2"/></svg>
-            <span>Diamond</span>
+          <div class="shape-item" data-shape="double_circle" title="Double Circle (((Event / End State)))">
+            <svg viewBox="0 0 44 28">
+              <ellipse cx="22" cy="14" rx="18" ry="12" fill="var(--node-fill)" stroke="var(--node-border)" stroke-width="2"/>
+              <ellipse cx="22" cy="14" rx="13" ry="8" fill="none" stroke="var(--node-border)" stroke-width="1.5"/>
+            </svg>
+            <span>Dbl Circle</span>
           </div>
-          <div class="shape-item" data-shape="hexagon" title="Hexagon">
+          <div class="shape-item" data-shape="asymmetric" title="Asymmetric &gt;Flag / Banner]">
+            <svg viewBox="0 0 44 28"><polygon points="2,2 42,2 42,26 2,26 10,14" fill="var(--node-fill)" stroke="var(--node-border)" stroke-width="2"/></svg>
+            <span>Banner</span>
+          </div>
+          <div class="shape-item" data-shape="diamond" title="Diamond / Decision {Condition}">
+            <svg viewBox="0 0 44 28"><polygon points="22,2 42,14 22,26 2,14" fill="var(--node-fill)" stroke="var(--node-border)" stroke-width="2"/></svg>
+            <span>Decision</span>
+          </div>
+          <div class="shape-item" data-shape="hexagon" title="Hexagon {{Preparation / Loop}}">
             <svg viewBox="0 0 44 28"><polygon points="8,2 36,2 42,14 36,26 8,26 2,14" fill="var(--node-fill)" stroke="var(--node-border)" stroke-width="2"/></svg>
             <span>Hexagon</span>
           </div>
-          <div class="shape-item" data-shape="parallelogram" title="Parallelogram">
+          <div class="shape-item" data-shape="parallelogram" title="Parallelogram [/Input - Output/]">
             <svg viewBox="0 0 44 28"><polygon points="8,2 42,2 36,26 2,26" fill="var(--node-fill)" stroke="var(--node-border)" stroke-width="2"/></svg>
-            <span>Parallelogram</span>
+            <span>In / Out</span>
+          </div>
+          <div class="shape-item" data-shape="parallelogram_alt" title="Parallelogram Alt [\Alt In - Out\]">
+            <svg viewBox="0 0 44 28"><polygon points="2,2 36,2 42,26 8,26" fill="var(--node-fill)" stroke="var(--node-border)" stroke-width="2"/></svg>
+            <span>Alt In-Out</span>
+          </div>
+          <div class="shape-item" data-shape="trapezoid" title="Trapezoid [/Manual Operation\]">
+            <svg viewBox="0 0 44 28"><polygon points="8,2 36,2 42,26 2,26" fill="var(--node-fill)" stroke="var(--node-border)" stroke-width="2"/></svg>
+            <span>Trapezoid</span>
+          </div>
+          <div class="shape-item" data-shape="trapezoid_alt" title="Trapezoid Alt [\Manual Task/]">
+            <svg viewBox="0 0 44 28"><polygon points="2,2 42,2 36,26 8,26" fill="var(--node-fill)" stroke="var(--node-border)" stroke-width="2"/></svg>
+            <span>Inv Trapezoid</span>
           </div>
         </div>
       </div>
@@ -5027,12 +5143,20 @@
         <div class="form-group">
           <label>Shape</label>
           <select id="nm-shape" class="form-control">
-            <option value="rectangle">Rectangle [text]</option>
-            <option value="rounded">Rounded Rectangle (text)</option>
-            <option value="circle">Circle ((text))</option>
-            <option value="diamond">Diamond {text}</option>
-            <option value="hexagon">Hexagon {{text}}</option>
-            <option value="parallelogram">Parallelogram [/text/]</option>
+            <option value="rectangle">Rectangle [Process]</option>
+            <option value="rounded">Rounded Rectangle (State / Item)</option>
+            <option value="stadium">Stadium / Pill ([Start / End])</option>
+            <option value="subroutine">Subroutine [[Subprocess]]</option>
+            <option value="cylinder">Cylinder [(Database / Storage)]</option>
+            <option value="circle">Circle ((Point / Node))</option>
+            <option value="double_circle">Double Circle (((Event / End State)))</option>
+            <option value="asymmetric">Asymmetric &gt;Flag / Banner]</option>
+            <option value="diamond">Diamond / Decision {Condition}</option>
+            <option value="hexagon">Hexagon {{Preparation / Loop}}</option>
+            <option value="parallelogram">Parallelogram [/Input - Output/]</option>
+            <option value="parallelogram_alt">Parallelogram Alt [\Alt In - Out\]</option>
+            <option value="trapezoid">Trapezoid [/Manual Operation\]</option>
+            <option value="trapezoid_alt">Trapezoid Alt [\Manual Task/]</option>
           </select>
         </div>
         <div class="color-row">
@@ -5983,21 +6107,46 @@
         let text = '';
         let shape = 'rectangle';
 
-        if (/^([A-Za-z0-9_]+)\s*\{\{([\s\S]+)\}\}$/.test(token)) {
-          const m = token.match(/^([A-Za-z0-9_]+)\s*\{\{([\s\S]+)\}\}$/);
+        if (/^([A-Za-z0-9_]+)\s*\(\(\(([\s\S]+)\)\)\)$/.test(token)) {
+          const m = token.match(/^([A-Za-z0-9_]+)\s*\(\(\(([\s\S]+)\)\)\)$/);
           id = m[1];
           text = m[2].replace(/^["']|["']$/g, '');
-          shape = 'hexagon';
+          shape = 'double_circle';
         } else if (/^([A-Za-z0-9_]+)\s*\(\(([\s\S]+)\)\)$/.test(token)) {
           const m = token.match(/^([A-Za-z0-9_]+)\s*\(\(([\s\S]+)\)\)$/);
           id = m[1];
           text = m[2].replace(/^["']|["']$/g, '');
           shape = 'circle';
+        } else if (/^([A-Za-z0-9_]+)\s*\(\[([\s\S]+)\]\)$/.test(token)) {
+          const m = token.match(/^([A-Za-z0-9_]+)\s*\(\[([\s\S]+)\]\)$/);
+          id = m[1];
+          text = m[2].replace(/^["']|["']$/g, '');
+          shape = 'stadium';
         } else if (/^([A-Za-z0-9_]+)\s*\(([\s\S]+)\)$/.test(token)) {
           const m = token.match(/^([A-Za-z0-9_]+)\s*\(([\s\S]+)\)$/);
           id = m[1];
           text = m[2].replace(/^["']|["']$/g, '');
           shape = 'rounded';
+        } else if (/^([A-Za-z0-9_]+)\s*\[\[([\s\S]+)\]\]$/.test(token)) {
+          const m = token.match(/^([A-Za-z0-9_]+)\s*\[\[([\s\S]+)\]\]$/);
+          id = m[1];
+          text = m[2].replace(/^["']|["']$/g, '');
+          shape = 'subroutine';
+        } else if (/^([A-Za-z0-9_]+)\s*\[\(([\s\S]+)\)\]$/.test(token)) {
+          const m = token.match(/^([A-Za-z0-9_]+)\s*\[\(([\s\S]+)\)\]$/);
+          id = m[1];
+          text = m[2].replace(/^["']|["']$/g, '');
+          shape = 'cylinder';
+        } else if (/^([A-Za-z0-9_]+)\s*>([\s\S]+)\]$/.test(token)) {
+          const m = token.match(/^([A-Za-z0-9_]+)\s*>([\s\S]+)\]$/);
+          id = m[1];
+          text = m[2].replace(/^["']|["']$/g, '');
+          shape = 'asymmetric';
+        } else if (/^([A-Za-z0-9_]+)\s*\{\{([\s\S]+)\}\}$/.test(token)) {
+          const m = token.match(/^([A-Za-z0-9_]+)\s*\{\{([\s\S]+)\}\}$/);
+          id = m[1];
+          text = m[2].replace(/^["']|["']$/g, '');
+          shape = 'hexagon';
         } else if (/^([A-Za-z0-9_]+)\s*\{([\s\S]+)\}$/.test(token)) {
           const m = token.match(/^([A-Za-z0-9_]+)\s*\{([\s\S]+)\}$/);
           id = m[1];
@@ -6008,6 +6157,21 @@
           id = m[1];
           text = m[2].replace(/^["']|["']$/g, '');
           shape = 'parallelogram';
+        } else if (/^([A-Za-z0-9_]+)\s*\[\\([\s\S]+)\\\]$/.test(token)) {
+          const m = token.match(/^([A-Za-z0-9_]+)\s*\[\\([\s\S]+)\\\]$/);
+          id = m[1];
+          text = m[2].replace(/^["']|["']$/g, '');
+          shape = 'parallelogram_alt';
+        } else if (/^([A-Za-z0-9_]+)\s*\[\/([\s\S]+)\\\]$/.test(token)) {
+          const m = token.match(/^([A-Za-z0-9_]+)\s*\[\/([\s\S]+)\\\]$/);
+          id = m[1];
+          text = m[2].replace(/^["']|["']$/g, '');
+          shape = 'trapezoid';
+        } else if (/^([A-Za-z0-9_]+)\s*\[\\([\s\S]+)\/\]$/.test(token)) {
+          const m = token.match(/^([A-Za-z0-9_]+)\s*\[\\([\s\S]+)\/\]$/);
+          id = m[1];
+          text = m[2].replace(/^["']|["']$/g, '');
+          shape = 'trapezoid_alt';
         } else if (/^([A-Za-z0-9_]+)\s*\[([\s\S]+)\]$/.test(token)) {
           const m = token.match(/^([A-Za-z0-9_]+)\s*\[([\s\S]+)\]$/);
           id = m[1];
@@ -6363,6 +6527,8 @@
 
           const w = node.width || 140;
           const h = node.height || 50;
+          const fill = node.fillColor || 'var(--node-fill)';
+          const stroke = node.borderColor || 'var(--node-border)';
 
           let shapeEl;
           switch (node.shape) {
@@ -6372,9 +6538,80 @@
               shapeEl.setAttribute('y', '0');
               shapeEl.setAttribute('width', `${w}`);
               shapeEl.setAttribute('height', `${h}`);
-              shapeEl.setAttribute('rx', '14');
-              shapeEl.setAttribute('ry', '14');
+              shapeEl.setAttribute('rx', '12');
+              shapeEl.setAttribute('ry', '12');
               break;
+
+            case 'stadium':
+              shapeEl = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+              shapeEl.setAttribute('x', '0');
+              shapeEl.setAttribute('y', '0');
+              shapeEl.setAttribute('width', `${w}`);
+              shapeEl.setAttribute('height', `${h}`);
+              shapeEl.setAttribute('rx', `${h / 2}`);
+              shapeEl.setAttribute('ry', `${h / 2}`);
+              break;
+
+            case 'subroutine': {
+              const subG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+              const mainR = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+              mainR.setAttribute('x', '0');
+              mainR.setAttribute('y', '0');
+              mainR.setAttribute('width', `${w}`);
+              mainR.setAttribute('height', `${h}`);
+              mainR.setAttribute('rx', '3');
+              mainR.setAttribute('fill', fill);
+              mainR.setAttribute('stroke', stroke);
+              mainR.setAttribute('stroke-width', '1.8');
+              mainR.setAttribute('class', 'node-shape');
+              subG.appendChild(mainR);
+
+              const l1 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+              l1.setAttribute('x1', '12');
+              l1.setAttribute('y1', '0');
+              l1.setAttribute('x2', '12');
+              l1.setAttribute('y2', `${h}`);
+              l1.setAttribute('stroke', stroke);
+              l1.setAttribute('stroke-width', '1.8');
+              subG.appendChild(l1);
+
+              const l2 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+              l2.setAttribute('x1', `${w - 12}`);
+              l2.setAttribute('y1', '0');
+              l2.setAttribute('x2', `${w - 12}`);
+              l2.setAttribute('y2', `${h}`);
+              l2.setAttribute('stroke', stroke);
+              l2.setAttribute('stroke-width', '1.8');
+              subG.appendChild(l2);
+
+              shapeEl = subG;
+              break;
+            }
+
+            case 'cylinder': {
+              const cylG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+              const ry = Math.min(10, h * 0.2);
+              const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+              path.setAttribute('d', `M 0,${ry} L 0,${h - ry} A ${w / 2},${ry} 0 0,0 ${w},${h - ry} L ${w},${ry} A ${w / 2},${ry} 0 0,0 0,${ry} Z`);
+              path.setAttribute('fill', fill);
+              path.setAttribute('stroke', stroke);
+              path.setAttribute('stroke-width', '1.8');
+              path.setAttribute('class', 'node-shape');
+              cylG.appendChild(path);
+
+              const topEll = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
+              topEll.setAttribute('cx', `${w / 2}`);
+              topEll.setAttribute('cy', `${ry}`);
+              topEll.setAttribute('rx', `${w / 2}`);
+              topEll.setAttribute('ry', `${ry}`);
+              topEll.setAttribute('fill', fill);
+              topEll.setAttribute('stroke', stroke);
+              topEll.setAttribute('stroke-width', '1.8');
+              cylG.appendChild(topEll);
+
+              shapeEl = cylG;
+              break;
+            }
 
             case 'circle':
               shapeEl = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
@@ -6384,6 +6621,38 @@
               shapeEl.setAttribute('ry', `${h / 2}`);
               break;
 
+            case 'double_circle': {
+              const dcG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+              const outEll = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
+              outEll.setAttribute('cx', `${w / 2}`);
+              outEll.setAttribute('cy', `${h / 2}`);
+              outEll.setAttribute('rx', `${w / 2}`);
+              outEll.setAttribute('ry', `${h / 2}`);
+              outEll.setAttribute('fill', fill);
+              outEll.setAttribute('stroke', stroke);
+              outEll.setAttribute('stroke-width', '1.8');
+              outEll.setAttribute('class', 'node-shape');
+              dcG.appendChild(outEll);
+
+              const inEll = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
+              inEll.setAttribute('cx', `${w / 2}`);
+              inEll.setAttribute('cy', `${h / 2}`);
+              inEll.setAttribute('rx', `${Math.max(6, w / 2 - 5)}`);
+              inEll.setAttribute('ry', `${Math.max(6, h / 2 - 5)}`);
+              inEll.setAttribute('fill', 'none');
+              inEll.setAttribute('stroke', stroke);
+              inEll.setAttribute('stroke-width', '1.5');
+              dcG.appendChild(inEll);
+
+              shapeEl = dcG;
+              break;
+            }
+
+            case 'asymmetric':
+              shapeEl = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+              shapeEl.setAttribute('points', `0,0 ${w},0 ${w},${h} 0,${h} 16,${h / 2}`);
+              break;
+
             case 'diamond':
               shapeEl = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
               shapeEl.setAttribute('points', `${w / 2},0 ${w},${h / 2} ${w / 2},${h} 0,${h / 2}`);
@@ -6391,12 +6660,27 @@
 
             case 'hexagon':
               shapeEl = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
-              shapeEl.setAttribute('points', `20,0 ${w - 20},0 ${w},${h / 2} ${w - 20},${h} 20,${h} 0,${h / 2}`);
+              shapeEl.setAttribute('points', `18,0 ${w - 18},0 ${w},${h / 2} ${w - 18},${h} 18,${h} 0,${h / 2}`);
               break;
 
             case 'parallelogram':
               shapeEl = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
-              shapeEl.setAttribute('points', `16,0 ${w},0 ${w - 16},${h} 0,${h}`);
+              shapeEl.setAttribute('points', `18,0 ${w},0 ${w - 18},${h} 0,${h}`);
+              break;
+
+            case 'parallelogram_alt':
+              shapeEl = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+              shapeEl.setAttribute('points', `0,0 ${w - 18},0 ${w},${h} 18,${h}`);
+              break;
+
+            case 'trapezoid':
+              shapeEl = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+              shapeEl.setAttribute('points', `18,0 ${w - 18},0 ${w},${h} 0,${h}`);
+              break;
+
+            case 'trapezoid_alt':
+              shapeEl = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+              shapeEl.setAttribute('points', `0,0 ${w},0 ${w - 18},${h} 18,${h}`);
               break;
 
             case 'rectangle':
@@ -6411,10 +6695,12 @@
               break;
           }
 
-          shapeEl.setAttribute('class', 'node-shape');
-          shapeEl.setAttribute('fill', node.fillColor || 'var(--node-fill)');
-          shapeEl.setAttribute('stroke', node.borderColor || 'var(--node-border)');
-          shapeEl.setAttribute('stroke-width', '1.8');
+          if (shapeEl.tagName !== 'g') {
+            shapeEl.setAttribute('class', 'node-shape');
+            shapeEl.setAttribute('fill', fill);
+            shapeEl.setAttribute('stroke', stroke);
+            shapeEl.setAttribute('stroke-width', '1.8');
+          }
           g.appendChild(shapeEl);
 
           const textLines = (node.text || node.id).split('\n');

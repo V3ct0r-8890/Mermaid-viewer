@@ -273,21 +273,46 @@
         let text = '';
         let shape = 'rectangle';
 
-        if (/^([A-Za-z0-9_]+)\s*\{\{([\s\S]+)\}\}$/.test(token)) {
-          const m = token.match(/^([A-Za-z0-9_]+)\s*\{\{([\s\S]+)\}\}$/);
+        if (/^([A-Za-z0-9_]+)\s*\(\(\(([\s\S]+)\)\)\)$/.test(token)) {
+          const m = token.match(/^([A-Za-z0-9_]+)\s*\(\(\(([\s\S]+)\)\)\)$/);
           id = m[1];
           text = m[2].replace(/^["']|["']$/g, '');
-          shape = 'hexagon';
+          shape = 'double_circle';
         } else if (/^([A-Za-z0-9_]+)\s*\(\(([\s\S]+)\)\)$/.test(token)) {
           const m = token.match(/^([A-Za-z0-9_]+)\s*\(\(([\s\S]+)\)\)$/);
           id = m[1];
           text = m[2].replace(/^["']|["']$/g, '');
           shape = 'circle';
+        } else if (/^([A-Za-z0-9_]+)\s*\(\[([\s\S]+)\]\)$/.test(token)) {
+          const m = token.match(/^([A-Za-z0-9_]+)\s*\(\[([\s\S]+)\]\)$/);
+          id = m[1];
+          text = m[2].replace(/^["']|["']$/g, '');
+          shape = 'stadium';
         } else if (/^([A-Za-z0-9_]+)\s*\(([\s\S]+)\)$/.test(token)) {
           const m = token.match(/^([A-Za-z0-9_]+)\s*\(([\s\S]+)\)$/);
           id = m[1];
           text = m[2].replace(/^["']|["']$/g, '');
           shape = 'rounded';
+        } else if (/^([A-Za-z0-9_]+)\s*\[\[([\s\S]+)\]\]$/.test(token)) {
+          const m = token.match(/^([A-Za-z0-9_]+)\s*\[\[([\s\S]+)\]\]$/);
+          id = m[1];
+          text = m[2].replace(/^["']|["']$/g, '');
+          shape = 'subroutine';
+        } else if (/^([A-Za-z0-9_]+)\s*\[\(([\s\S]+)\)\]$/.test(token)) {
+          const m = token.match(/^([A-Za-z0-9_]+)\s*\[\(([\s\S]+)\)\]$/);
+          id = m[1];
+          text = m[2].replace(/^["']|["']$/g, '');
+          shape = 'cylinder';
+        } else if (/^([A-Za-z0-9_]+)\s*>([\s\S]+)\]$/.test(token)) {
+          const m = token.match(/^([A-Za-z0-9_]+)\s*>([\s\S]+)\]$/);
+          id = m[1];
+          text = m[2].replace(/^["']|["']$/g, '');
+          shape = 'asymmetric';
+        } else if (/^([A-Za-z0-9_]+)\s*\{\{([\s\S]+)\}\}$/.test(token)) {
+          const m = token.match(/^([A-Za-z0-9_]+)\s*\{\{([\s\S]+)\}\}$/);
+          id = m[1];
+          text = m[2].replace(/^["']|["']$/g, '');
+          shape = 'hexagon';
         } else if (/^([A-Za-z0-9_]+)\s*\{([\s\S]+)\}$/.test(token)) {
           const m = token.match(/^([A-Za-z0-9_]+)\s*\{([\s\S]+)\}$/);
           id = m[1];
@@ -298,6 +323,21 @@
           id = m[1];
           text = m[2].replace(/^["']|["']$/g, '');
           shape = 'parallelogram';
+        } else if (/^([A-Za-z0-9_]+)\s*\[\\([\s\S]+)\\\]$/.test(token)) {
+          const m = token.match(/^([A-Za-z0-9_]+)\s*\[\\([\s\S]+)\\\]$/);
+          id = m[1];
+          text = m[2].replace(/^["']|["']$/g, '');
+          shape = 'parallelogram_alt';
+        } else if (/^([A-Za-z0-9_]+)\s*\[\/([\s\S]+)\\\]$/.test(token)) {
+          const m = token.match(/^([A-Za-z0-9_]+)\s*\[\/([\s\S]+)\\\]$/);
+          id = m[1];
+          text = m[2].replace(/^["']|["']$/g, '');
+          shape = 'trapezoid';
+        } else if (/^([A-Za-z0-9_]+)\s*\[\\([\s\S]+)\/\]$/.test(token)) {
+          const m = token.match(/^([A-Za-z0-9_]+)\s*\[\\([\s\S]+)\/\]$/);
+          id = m[1];
+          text = m[2].replace(/^["']|["']$/g, '');
+          shape = 'trapezoid_alt';
         } else if (/^([A-Za-z0-9_]+)\s*\[([\s\S]+)\]$/.test(token)) {
           const m = token.match(/^([A-Za-z0-9_]+)\s*\[([\s\S]+)\]$/);
           id = m[1];

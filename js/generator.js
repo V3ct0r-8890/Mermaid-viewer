@@ -21,10 +21,18 @@
           switch (n.shape) {
             case 'rectangle': return `${n.id}[${txt}]`;
             case 'rounded': return `${n.id}(${txt})`;
+            case 'stadium': return `${n.id}([${txt}])`;
+            case 'subroutine': return `${n.id}[[${txt}]]`;
+            case 'cylinder': return `${n.id}[(${txt})]`;
             case 'circle': return `${n.id}((${txt}))`;
+            case 'double_circle': return `${n.id}(((${txt})))`;
+            case 'asymmetric': return `${n.id}>${txt}]`;
             case 'diamond': return `${n.id}{${txt}}`;
             case 'hexagon': return `${n.id}{{${txt}}}`;
             case 'parallelogram': return `${n.id}[/${txt}/]`;
+            case 'parallelogram_alt': return `${n.id}[\\${txt}\\]`;
+            case 'trapezoid': return `${n.id}[/${txt}\\]`;
+            case 'trapezoid_alt': return `${n.id}[\\${txt}/]`;
             default: return `${n.id}[${txt}]`;
           }
         };

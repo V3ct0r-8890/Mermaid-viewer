@@ -114,6 +114,8 @@
 
           const w = node.width || 140;
           const h = node.height || 50;
+          const fill = node.fillColor || 'var(--node-fill)';
+          const stroke = node.borderColor || 'var(--node-border)';
 
           let shapeEl;
           switch (node.shape) {
@@ -123,9 +125,80 @@
               shapeEl.setAttribute('y', '0');
               shapeEl.setAttribute('width', `${w}`);
               shapeEl.setAttribute('height', `${h}`);
-              shapeEl.setAttribute('rx', '14');
-              shapeEl.setAttribute('ry', '14');
+              shapeEl.setAttribute('rx', '12');
+              shapeEl.setAttribute('ry', '12');
               break;
+
+            case 'stadium':
+              shapeEl = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+              shapeEl.setAttribute('x', '0');
+              shapeEl.setAttribute('y', '0');
+              shapeEl.setAttribute('width', `${w}`);
+              shapeEl.setAttribute('height', `${h}`);
+              shapeEl.setAttribute('rx', `${h / 2}`);
+              shapeEl.setAttribute('ry', `${h / 2}`);
+              break;
+
+            case 'subroutine': {
+              const subG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+              const mainR = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+              mainR.setAttribute('x', '0');
+              mainR.setAttribute('y', '0');
+              mainR.setAttribute('width', `${w}`);
+              mainR.setAttribute('height', `${h}`);
+              mainR.setAttribute('rx', '3');
+              mainR.setAttribute('fill', fill);
+              mainR.setAttribute('stroke', stroke);
+              mainR.setAttribute('stroke-width', '1.8');
+              mainR.setAttribute('class', 'node-shape');
+              subG.appendChild(mainR);
+
+              const l1 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+              l1.setAttribute('x1', '12');
+              l1.setAttribute('y1', '0');
+              l1.setAttribute('x2', '12');
+              l1.setAttribute('y2', `${h}`);
+              l1.setAttribute('stroke', stroke);
+              l1.setAttribute('stroke-width', '1.8');
+              subG.appendChild(l1);
+
+              const l2 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+              l2.setAttribute('x1', `${w - 12}`);
+              l2.setAttribute('y1', '0');
+              l2.setAttribute('x2', `${w - 12}`);
+              l2.setAttribute('y2', `${h}`);
+              l2.setAttribute('stroke', stroke);
+              l2.setAttribute('stroke-width', '1.8');
+              subG.appendChild(l2);
+
+              shapeEl = subG;
+              break;
+            }
+
+            case 'cylinder': {
+              const cylG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+              const ry = Math.min(10, h * 0.2);
+              const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+              path.setAttribute('d', `M 0,${ry} L 0,${h - ry} A ${w / 2},${ry} 0 0,0 ${w},${h - ry} L ${w},${ry} A ${w / 2},${ry} 0 0,0 0,${ry} Z`);
+              path.setAttribute('fill', fill);
+              path.setAttribute('stroke', stroke);
+              path.setAttribute('stroke-width', '1.8');
+              path.setAttribute('class', 'node-shape');
+              cylG.appendChild(path);
+
+              const topEll = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
+              topEll.setAttribute('cx', `${w / 2}`);
+              topEll.setAttribute('cy', `${ry}`);
+              topEll.setAttribute('rx', `${w / 2}`);
+              topEll.setAttribute('ry', `${ry}`);
+              topEll.setAttribute('fill', fill);
+              topEll.setAttribute('stroke', stroke);
+              topEll.setAttribute('stroke-width', '1.8');
+              cylG.appendChild(topEll);
+
+              shapeEl = cylG;
+              break;
+            }
 
             case 'circle':
               shapeEl = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
@@ -135,6 +208,38 @@
               shapeEl.setAttribute('ry', `${h / 2}`);
               break;
 
+            case 'double_circle': {
+              const dcG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+              const outEll = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
+              outEll.setAttribute('cx', `${w / 2}`);
+              outEll.setAttribute('cy', `${h / 2}`);
+              outEll.setAttribute('rx', `${w / 2}`);
+              outEll.setAttribute('ry', `${h / 2}`);
+              outEll.setAttribute('fill', fill);
+              outEll.setAttribute('stroke', stroke);
+              outEll.setAttribute('stroke-width', '1.8');
+              outEll.setAttribute('class', 'node-shape');
+              dcG.appendChild(outEll);
+
+              const inEll = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
+              inEll.setAttribute('cx', `${w / 2}`);
+              inEll.setAttribute('cy', `${h / 2}`);
+              inEll.setAttribute('rx', `${Math.max(6, w / 2 - 5)}`);
+              inEll.setAttribute('ry', `${Math.max(6, h / 2 - 5)}`);
+              inEll.setAttribute('fill', 'none');
+              inEll.setAttribute('stroke', stroke);
+              inEll.setAttribute('stroke-width', '1.5');
+              dcG.appendChild(inEll);
+
+              shapeEl = dcG;
+              break;
+            }
+
+            case 'asymmetric':
+              shapeEl = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+              shapeEl.setAttribute('points', `0,0 ${w},0 ${w},${h} 0,${h} 16,${h / 2}`);
+              break;
+
             case 'diamond':
               shapeEl = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
               shapeEl.setAttribute('points', `${w / 2},0 ${w},${h / 2} ${w / 2},${h} 0,${h / 2}`);
@@ -142,12 +247,27 @@
 
             case 'hexagon':
               shapeEl = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
-              shapeEl.setAttribute('points', `20,0 ${w - 20},0 ${w},${h / 2} ${w - 20},${h} 20,${h} 0,${h / 2}`);
+              shapeEl.setAttribute('points', `18,0 ${w - 18},0 ${w},${h / 2} ${w - 18},${h} 18,${h} 0,${h / 2}`);
               break;
 
             case 'parallelogram':
               shapeEl = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
-              shapeEl.setAttribute('points', `16,0 ${w},0 ${w - 16},${h} 0,${h}`);
+              shapeEl.setAttribute('points', `18,0 ${w},0 ${w - 18},${h} 0,${h}`);
+              break;
+
+            case 'parallelogram_alt':
+              shapeEl = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+              shapeEl.setAttribute('points', `0,0 ${w - 18},0 ${w},${h} 18,${h}`);
+              break;
+
+            case 'trapezoid':
+              shapeEl = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+              shapeEl.setAttribute('points', `18,0 ${w - 18},0 ${w},${h} 0,${h}`);
+              break;
+
+            case 'trapezoid_alt':
+              shapeEl = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+              shapeEl.setAttribute('points', `0,0 ${w},0 ${w - 18},${h} 18,${h}`);
               break;
 
             case 'rectangle':
@@ -162,10 +282,12 @@
               break;
           }
 
-          shapeEl.setAttribute('class', 'node-shape');
-          shapeEl.setAttribute('fill', node.fillColor || 'var(--node-fill)');
-          shapeEl.setAttribute('stroke', node.borderColor || 'var(--node-border)');
-          shapeEl.setAttribute('stroke-width', '1.8');
+          if (shapeEl.tagName !== 'g') {
+            shapeEl.setAttribute('class', 'node-shape');
+            shapeEl.setAttribute('fill', fill);
+            shapeEl.setAttribute('stroke', stroke);
+            shapeEl.setAttribute('stroke-width', '1.8');
+          }
           g.appendChild(shapeEl);
 
           const textLines = (node.text || node.id).split('\n');
