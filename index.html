@@ -2161,14 +2161,16 @@
       }
 
       setupInitialDiagram() {
-        this.graph.addNode({ id: 'Client', text: 'Client App', shape: 'rounded', x: 140, y: 80, fillColor: '#E3F2FD', borderColor: '#90CAF9', fontColor: '#0D47A1' });
-        this.graph.addNode({ id: 'API', text: 'API Gateway', shape: 'rectangle', x: 140, y: 220, fillColor: '#E3F2FD', borderColor: '#90CAF9', fontColor: '#0D47A1' });
-        this.graph.addNode({ id: 'Auth', text: 'Auth Service', shape: 'diamond', x: 380, y: 220, fillColor: '#FFF3E0', borderColor: '#FFE082', fontColor: '#E65100' });
-        this.graph.addNode({ id: 'Database', text: 'PostgreSQL DB', shape: 'circle', x: 140, y: 360, fillColor: '#E8F5E9', borderColor: '#A5D6A7', fontColor: '#1B5E20' });
+        this.graph.addNode({ id: 'Client', text: 'Client App', shape: 'rounded', x: 0, y: 0, fillColor: '#E3F2FD', borderColor: '#90CAF9', fontColor: '#0D47A1' });
+        this.graph.addNode({ id: 'API', text: 'API Gateway', shape: 'rectangle', x: 0, y: 0, fillColor: '#E3F2FD', borderColor: '#90CAF9', fontColor: '#0D47A1' });
+        this.graph.addNode({ id: 'Auth', text: 'Auth Service', shape: 'diamond', x: 0, y: 0, fillColor: '#FFF3E0', borderColor: '#FFE082', fontColor: '#E65100' });
+        this.graph.addNode({ id: 'Database', text: 'PostgreSQL DB', shape: 'circle', x: 0, y: 0, fillColor: '#E8F5E9', borderColor: '#A5D6A7', fontColor: '#1B5E20' });
 
         this.graph.addEdge({ id: 'e1', source: 'Client', target: 'API', type: '-->', label: 'HTTP Request' });
         this.graph.addEdge({ id: 'e2', source: 'API', target: 'Auth', type: '-->', label: 'Verify' });
         this.graph.addEdge({ id: 'e3', source: 'API', target: 'Database', type: '==>', label: 'Query Data' });
+
+        AutoLayoutEngine.layout(this.graph, 'TD');
       }
 
       recordHistory() {
