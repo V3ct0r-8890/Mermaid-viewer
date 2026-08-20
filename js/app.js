@@ -709,6 +709,8 @@
                     f.value = draftValues[f.key];
                     initialValues[f.key] = draftValues[f.key];
                   });
+                  this.renderAll();
+                  this.recordHistory();
                   Utils.showToast('Properties updated and applied', 'success');
                 }
               });
