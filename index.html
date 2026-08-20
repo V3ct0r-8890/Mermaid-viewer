@@ -2236,29 +2236,66 @@
         const primaryBorder = isDark ? '#4FC3F7' : '#90CAF9';
         const textColor = isDark ? '#D4D4D4' : '#212121';
         const linkColor = isDark ? '#BBBBBB' : '#616161';
-        const subBg = isDark ? '#1E1E1E' : '#FFFFFF';
         const cardBg = isDark ? '#2B2D30' : '#FFFFFF';
         const cardBorder = isDark ? '#4E5157' : '#CFD8DC';
 
         switch (type) {
           case 'sequence': {
-            const participants = [
-              { id: 'User', name: 'User (Actor)', isActor: true, x: 100 },
-              { id: 'App', name: 'Web App', x: 280 },
-              { id: 'API', name: 'API Server', x: 460 },
-              { id: 'DB', name: 'Database', x: 640 }
-            ];
-            const messages = [
-              { from: 'User', to: 'App', text: 'Click Checkout', num: 1, type: 'solid' },
-              { from: 'App', to: 'API', text: 'POST /api/orders', num: 2, type: 'solid' },
-              { from: 'API', to: 'DB', text: 'INSERT INTO orders', num: 3, type: 'solid' },
-              { from: 'DB', to: 'API', text: '1 row affected (ID: 1042)', num: 4, type: 'dashed' },
-              { from: 'API', to: 'App', text: '201 Created (Order #1042)', num: 5, type: 'dashed' },
-              { from: 'App', to: 'User', text: 'Show Order Confirmation', num: 6, type: 'dashed' }
-            ];
+            const rawLines = (code || '').split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('%%') && !l.startsWith('sequenceDiagram'));
+            const autoNumber = (code || '').toLowerCase().includes('autonumber');
+            const participants = [];
+            const participantMap = new Map();
+            const messages = [];
+
+            const addParticipant = (id, name, isActor = false) => {
+              if (!participantMap.has(id)) {
+                const p = { id, name: name || id, isActor, x: 0 };
+                participants.push(p);
+                participantMap.set(id, p);
+              }
+            };
+
+            rawLines.forEach(line => {
+              const actorMatch = line.match(/^actor\s+([A-Za-z0-9_]+)(?:\s+as\s+(.+))?/i);
+              if (actorMatch) {
+                addParticipant(actorMatch[1], actorMatch[2] ? actorMatch[2].trim() : actorMatch[1], true);
+                return;
+              }
+              const partMatch = line.match(/^participant\s+([A-Za-z0-9_]+)(?:\s+as\s+(.+))?/i);
+              if (partMatch) {
+                addParticipant(partMatch[1], partMatch[2] ? partMatch[2].trim() : partMatch[1], false);
+                return;
+              }
+              const msgMatch = line.match(/^([A-Za-z0-9_]+)\s*(-->>|->>|-->|->)\s*([A-Za-z0-9_]+)\s*:\s*(.+)$/);
+              if (msgMatch) {
+                const from = msgMatch[1].trim();
+                const arrow = msgMatch[2].trim();
+                const to = msgMatch[3].trim();
+                const text = msgMatch[4].trim();
+                addParticipant(from, from);
+                addParticipant(to, to);
+                messages.push({
+                  from,
+                  to,
+                  text,
+                  type: arrow.startsWith('--') ? 'dashed' : 'solid'
+                });
+              }
+            });
+
+            if (participants.length === 0) {
+              addParticipant('Client', 'Client App');
+              addParticipant('Server', 'API Server');
+            }
+
+            const count = participants.length;
+            const pSpacing = Math.max(160, Math.min(260, 800 / (count || 1)));
+            participants.forEach((p, idx) => {
+              p.x = 100 + idx * pSpacing;
+            });
 
             const topY = 60;
-            const bottomY = 480;
+            const bottomY = Math.max(380, topY + 70 + messages.length * 60 + 30);
 
             // Draw lifelines
             participants.forEach(p => {
@@ -2274,10 +2311,11 @@
 
               // Participant box
               const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+              const boxW = Math.max(100, p.name.length * 8 + 24);
               const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-              rect.setAttribute('x', `${p.x - 60}`);
+              rect.setAttribute('x', `${p.x - boxW / 2}`);
               rect.setAttribute('y', `${topY}`);
-              rect.setAttribute('width', '120');
+              rect.setAttribute('width', `${boxW}`);
               rect.setAttribute('height', '36');
               rect.setAttribute('rx', p.isActor ? '18' : '4');
               rect.setAttribute('fill', primaryFill);
@@ -2301,8 +2339,8 @@
             // Draw sequence message arrows
             messages.forEach((m, idx) => {
               const y = topY + 70 + idx * 55;
-              const pFrom = participants.find(p => p.id === m.from);
-              const pTo = participants.find(p => p.id === m.to);
+              const pFrom = participantMap.get(m.from);
+              const pTo = participantMap.get(m.to);
               if (!pFrom || !pTo) return;
 
               const x1 = pFrom.x;
@@ -2322,8 +2360,9 @@
               // Step Badge
               const badgeG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
               const midX = (x1 + x2) / 2;
+              const badgeTextStr = autoNumber ? `${idx + 1}. ${m.text}` : m.text;
+              const badgeW = badgeTextStr.length * 6.8 + 24;
               const badgeBg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-              const badgeW = m.text.length * 6.5 + 32;
               badgeBg.setAttribute('x', `${midX - badgeW / 2}`);
               badgeBg.setAttribute('y', `${y - 18}`);
               badgeBg.setAttribute('width', `${badgeW}`);
@@ -2342,7 +2381,7 @@
               badgeText.setAttribute('fill', textColor);
               badgeText.setAttribute('font-size', '10.5px');
               badgeText.setAttribute('font-weight', '500');
-              badgeText.textContent = `${m.num}. ${m.text}`;
+              badgeText.textContent = badgeTextStr;
               badgeG.appendChild(badgeText);
               nodesLayer.appendChild(badgeG);
             });
@@ -2350,20 +2389,35 @@
           }
 
           case 'pie': {
-            const data = [
-              { label: 'Compute Engine (VMs)', val: 42, color: '#2196F3' },
-              { label: 'Cloud Storage (GCS)', val: 28, color: '#4CAF50' },
-              { label: 'BigQuery Analytics', val: 18, color: '#FF9800' },
-              { label: 'Networking & CDN', val: 12, color: '#9C27B0' }
-            ];
+            const rawLines = (code || '').split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('%%'));
+            let title = 'Distribution';
+            const data = [];
+            const colors = ['#2196F3', '#4CAF50', '#FF9800', '#9C27B0', '#00BCD4', '#E91E63', '#FFEB3B', '#795548'];
 
-            const cx = 260;
-            const cy = 240;
-            const r = 140;
-            const holeR = 60;
-            const total = 100;
+            rawLines.forEach(line => {
+              const titleMatch = line.match(/^pie(?:\s+title\s+(.+))?$/i) || line.match(/^title\s+(.+)$/i);
+              if (titleMatch && titleMatch[1]) {
+                title = titleMatch[1].trim();
+                return;
+              }
+              const valMatch = line.match(/^"([^"]+)"\s*:\s*([0-9.]+)/) || line.match(/^([^:]+)\s*:\s*([0-9.]+)/);
+              if (valMatch && !line.toLowerCase().startsWith('pie')) {
+                const label = valMatch[1].replace(/"/g, '').trim();
+                const val = parseFloat(valMatch[2]);
+                if (!isNaN(val) && val > 0) {
+                  data.push({ label, val, color: colors[data.length % colors.length] });
+                }
+              }
+            });
 
-            // Title
+            if (data.length === 0) {
+              data.push({ label: 'Item A', val: 50, color: colors[0] });
+              data.push({ label: 'Item B', val: 50, color: colors[1] });
+            }
+
+            const total = data.reduce((acc, d) => acc + d.val, 0) || 1;
+            const cx = 260, cy = 240, r = 140, holeR = 60;
+
             const titleEl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
             titleEl.setAttribute('x', '350');
             titleEl.setAttribute('y', '50');
@@ -2371,13 +2425,14 @@
             titleEl.setAttribute('fill', textColor);
             titleEl.setAttribute('font-size', '15px');
             titleEl.setAttribute('font-weight', '700');
-            titleEl.textContent = 'Cloud Infrastructure Resource Distribution';
+            titleEl.textContent = title;
             nodesLayer.appendChild(titleEl);
 
             let curAngle = -Math.PI / 2;
             data.forEach((d, idx) => {
               const sliceAngle = (d.val / total) * Math.PI * 2;
               const nextAngle = curAngle + sliceAngle;
+              const pct = Math.round((d.val / total) * 100);
 
               const x1 = cx + r * Math.cos(curAngle);
               const y1 = cy + r * Math.sin(curAngle);
@@ -2399,25 +2454,26 @@
               path.setAttribute('stroke-width', '2');
               nodesLayer.appendChild(path);
 
-              // Percentage label on slice
-              const midA = curAngle + sliceAngle / 2;
-              const lblR = (r + holeR) / 2;
-              const lx = cx + lblR * Math.cos(midA);
-              const ly = cy + lblR * Math.sin(midA);
+              if (sliceAngle > 0.15) {
+                const midA = curAngle + sliceAngle / 2;
+                const lblR = (r + holeR) / 2;
+                const lx = cx + lblR * Math.cos(midA);
+                const ly = cy + lblR * Math.sin(midA);
 
-              const pText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-              pText.setAttribute('x', `${lx}`);
-              pText.setAttribute('y', `${ly}`);
-              pText.setAttribute('text-anchor', 'middle');
-              pText.setAttribute('dominant-baseline', 'central');
-              pText.setAttribute('fill', '#FFFFFF');
-              pText.setAttribute('font-size', '12px');
-              pText.setAttribute('font-weight', 'bold');
-              pText.textContent = `${d.val}%`;
-              nodesLayer.appendChild(pText);
+                const pText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                pText.setAttribute('x', `${lx}`);
+                pText.setAttribute('y', `${ly}`);
+                pText.setAttribute('text-anchor', 'middle');
+                pText.setAttribute('dominant-baseline', 'central');
+                pText.setAttribute('fill', '#FFFFFF');
+                pText.setAttribute('font-size', '12px');
+                pText.setAttribute('font-weight', 'bold');
+                pText.textContent = `${pct}%`;
+                nodesLayer.appendChild(pText);
+              }
 
-              // Legend Table on Right
-              const legY = 140 + idx * 38;
+              // Legend
+              const legY = 120 + idx * 32;
               const legG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
 
               const legBox = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
@@ -2436,7 +2492,7 @@
               legTxt.setAttribute('fill', textColor);
               legTxt.setAttribute('font-size', '12px');
               legTxt.setAttribute('font-weight', '500');
-              legTxt.textContent = `${d.label} (${d.val}%)`;
+              legTxt.textContent = `${d.label} (${d.val} - ${pct}%)`;
               legG.appendChild(legTxt);
 
               nodesLayer.appendChild(legG);
@@ -2446,36 +2502,48 @@
           }
 
           case 'gantt': {
-            const sections = [
-              {
-                title: 'Planning',
-                tasks: [
-                  { name: 'Architecture Design', start: 0, dur: 7, status: 'done', color: '#4CAF50' },
-                  { name: 'UX Specifications', start: 4, dur: 8, status: 'done', color: '#4CAF50' }
-                ]
-              },
-              {
-                title: 'Development',
-                tasks: [
-                  { name: 'Backend Services', start: 9, dur: 15, status: 'active', color: '#2196F3' },
-                  { name: 'Frontend Application', start: 13, dur: 16, status: 'active', color: '#2196F3' }
-                ]
-              },
-              {
-                title: 'QA & Release',
-                tasks: [
-                  { name: 'Integration Testing', start: 25, dur: 10, status: 'crit', color: '#F44336' },
-                  { name: 'Production Launch', start: 36, dur: 1, status: 'milestone', color: '#FF9800' }
-                ]
+            const rawLines = (code || '').split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('%%'));
+            let title = 'Project Roadmap';
+            const sections = [];
+            let currentSec = { title: 'General', tasks: [] };
+            sections.push(currentSec);
+
+            let dayOffset = 0;
+            rawLines.forEach(line => {
+              const titleMatch = line.match(/^title\s+(.+)$/i);
+              if (titleMatch) { title = titleMatch[1].trim(); return; }
+
+              const secMatch = line.match(/^section\s+(.+)$/i);
+              if (secMatch) {
+                currentSec = { title: secMatch[1].trim(), tasks: [] };
+                sections.push(currentSec);
+                return;
               }
-            ];
 
-            const startX = 220;
-            const startY = 80;
-            const rowH = 36;
-            const dayW = 14;
+              if (line.toLowerCase().startsWith('gantt') || line.toLowerCase().startsWith('dateformat')) return;
 
-            // Title
+              const taskParts = line.split(':');
+              if (taskParts.length >= 2) {
+                const taskName = taskParts[0].trim();
+                const meta = taskParts.slice(1).join(':').trim();
+                let status = 'done';
+                let dur = 6;
+                if (meta.includes('crit')) status = 'crit';
+                else if (meta.includes('active')) status = 'active';
+                else if (meta.includes('milestone')) { status = 'milestone'; dur = 1; }
+
+                const durMatch = meta.match(/([0-9]+)d/);
+                if (durMatch) dur = parseInt(durMatch[1], 10);
+
+                const color = status === 'done' ? '#4CAF50' : status === 'active' ? '#2196F3' : status === 'crit' ? '#F44336' : '#FF9800';
+                currentSec.tasks.push({ name: taskName, start: dayOffset, dur, status, color });
+                dayOffset += Math.max(2, Math.round(dur * 0.7));
+              }
+            });
+
+            const validSections = sections.filter(s => s.tasks.length > 0);
+            const startX = 220, startY = 80, rowH = 34, dayW = 12;
+
             const titleEl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
             titleEl.setAttribute('x', '400');
             titleEl.setAttribute('y', '45');
@@ -2483,57 +2551,42 @@
             titleEl.setAttribute('fill', textColor);
             titleEl.setAttribute('font-size', '15px');
             titleEl.setAttribute('font-weight', '700');
-            titleEl.textContent = 'Project Sprint Roadmap (Gantt)';
+            titleEl.textContent = title;
             nodesLayer.appendChild(titleEl);
 
-            // Time axis line
-            const timeAxis = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-            timeAxis.setAttribute('x1', `${startX}`);
-            timeAxis.setAttribute('y1', `${startY}`);
-            timeAxis.setAttribute('x2', `${startX + 40 * dayW}`);
-            timeAxis.setAttribute('y2', `${startY}`);
-            timeAxis.setAttribute('stroke', linkColor);
-            timeAxis.setAttribute('stroke-width', '1.5');
-            edgesLayer.appendChild(timeAxis);
-
             let curY = startY + 20;
-            sections.forEach(sec => {
-              // Section Header
+            validSections.forEach(sec => {
               const secTxt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-              secTxt.setAttribute('x', '60');
-              secTxt.setAttribute('y', `${curY + 14}`);
+              secTxt.setAttribute('x', '50');
+              secTxt.setAttribute('y', `${curY + 12}`);
               secTxt.setAttribute('fill', primaryText);
               secTxt.setAttribute('font-size', '12px');
               secTxt.setAttribute('font-weight', 'bold');
-              secTxt.textContent = sec.title.toUpperCase();
+              secTxt.textContent = sec.title;
               nodesLayer.appendChild(secTxt);
 
-              curY += 24;
-
               sec.tasks.forEach(t => {
-                const tx = startX + t.start * dayW;
-                const tw = Math.max(16, t.dur * dayW);
-
-                // Task Name
-                const taskLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                taskLabel.setAttribute('x', '80');
-                taskLabel.setAttribute('y', `${curY + 12}`);
-                taskLabel.setAttribute('fill', textColor);
-                taskLabel.setAttribute('font-size', '11.5px');
-                taskLabel.textContent = t.name;
-                nodesLayer.appendChild(taskLabel);
+                const tTxt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                tTxt.setAttribute('x', '70');
+                tTxt.setAttribute('y', `${curY + 12}`);
+                tTxt.setAttribute('fill', textColor);
+                tTxt.setAttribute('font-size', '11px');
+                tTxt.textContent = t.name;
+                nodesLayer.appendChild(tTxt);
 
                 if (t.status === 'milestone') {
-                  const diamond = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
-                  diamond.setAttribute('points', `${tx},${curY + 12} ${tx + 10},${curY + 2} ${tx + 20},${curY + 12} ${tx + 10},${curY + 22}`);
-                  diamond.setAttribute('fill', t.color);
-                  nodesLayer.appendChild(diamond);
+                  const mDia = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+                  const mx = startX + t.start * dayW;
+                  const my = curY + 10;
+                  mDia.setAttribute('points', `${mx},${my - 8} ${mx + 8},${my} ${mx},${my + 8} ${mx - 8},${my}`);
+                  mDia.setAttribute('fill', t.color);
+                  nodesLayer.appendChild(mDia);
                 } else {
                   const bar = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-                  bar.setAttribute('x', `${tx}`);
+                  bar.setAttribute('x', `${startX + t.start * dayW}`);
                   bar.setAttribute('y', `${curY}`);
-                  bar.setAttribute('width', `${tw}`);
-                  bar.setAttribute('height', '20');
+                  bar.setAttribute('width', `${Math.max(16, t.dur * dayW)}`);
+                  bar.setAttribute('height', '18');
                   bar.setAttribute('rx', '4');
                   bar.setAttribute('fill', t.color);
                   nodesLayer.appendChild(bar);
@@ -2546,113 +2599,125 @@
           }
 
           case 'gitGraph': {
-            const commits = [
-              { id: 'c1', branch: 'main', msg: 'Initial Commit', x: 80, y: 120 },
-              { id: 'c2', branch: 'main', msg: 'Core Foundation', x: 180, y: 120 },
-              { id: 'c3', branch: 'feature', msg: 'Add SVG Engine', x: 280, y: 220 },
-              { id: 'c4', branch: 'feature', msg: 'Add Inspector', x: 380, y: 220 },
-              { id: 'c5', branch: 'main', msg: 'Merge Canvas', x: 480, y: 120 },
-              { id: 'c6', branch: 'release', msg: 'Bump v1.0.0', x: 580, y: 300, tag: 'v1.00.000' },
-              { id: 'c7', branch: 'main', msg: 'Release 1.0', x: 680, y: 120 }
-            ];
+            const rawLines = (code || '').split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('%%') && !l.startsWith('gitGraph'));
+            const branchColors = { main: '#2196F3', dev: '#4CAF50', feature: '#FF9800', release: '#9C27B0' };
+            const branches = [{ name: 'main', y: 120, color: '#2196F3' }];
+            let curBranch = 'main';
+            const commits = [];
 
-            // Branch rails
-            const rails = [
-              { name: 'main', y: 120, color: '#2196F3' },
-              { name: 'feature/canvas', y: 220, color: '#4CAF50' },
-              { name: 'release/v1.0', y: 300, color: '#FF9800' }
-            ];
-
-            rails.forEach(r => {
-              const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-              line.setAttribute('x1', '40');
-              line.setAttribute('y1', `${r.y}`);
-              line.setAttribute('x2', '760');
-              line.setAttribute('y2', `${r.y}`);
-              line.setAttribute('stroke', r.color);
-              line.setAttribute('stroke-width', '3');
-              edgesLayer.appendChild(line);
-
-              const badge = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-              badge.setAttribute('x', '40');
-              badge.setAttribute('y', `${r.y - 12}`);
-              badge.setAttribute('fill', r.color);
-              badge.setAttribute('font-size', '11px');
-              badge.setAttribute('font-weight', 'bold');
-              badge.textContent = r.name;
-              nodesLayer.appendChild(badge);
+            rawLines.forEach((line, idx) => {
+              const bMatch = line.match(/^branch\s+([A-Za-z0-9_-]+)/i);
+              if (bMatch) {
+                const bName = bMatch[1];
+                if (!branches.find(b => b.name === bName)) {
+                  const colorKeys = Object.keys(branchColors);
+                  const color = branchColors[bName] || colorKeys[branches.length % colorKeys.length];
+                  branches.push({ name: bName, y: 120 + branches.length * 70, color });
+                }
+                curBranch = bName;
+                return;
+              }
+              const chMatch = line.match(/^checkout\s+([A-Za-z0-9_-]+)/i);
+              if (chMatch) {
+                curBranch = chMatch[1];
+                return;
+              }
+              const mMatch = line.match(/^merge\s+([A-Za-z0-9_-]+)/i);
+              if (mMatch) {
+                const targetB = curBranch;
+                const sourceB = mMatch[1];
+                commits.push({ type: 'merge', sourceB, targetB, id: `Merge ${sourceB}`, tag: null });
+                return;
+              }
+              const cMatch = line.match(/^commit(?:\s+id:\s*"([^"]+)")?(?:\s+tag:\s*"([^"]+)")?/i);
+              if (cMatch || line.startsWith('commit')) {
+                const id = (cMatch && cMatch[1]) ? cMatch[1] : `c${commits.length + 1}`;
+                const tag = (cMatch && cMatch[2]) ? cMatch[2] : null;
+                commits.push({ type: 'commit', branch: curBranch, id, tag });
+              }
             });
 
-            // Branch & merge connecting curves
-            const bCurve = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-            bCurve.setAttribute('d', 'M 180 120 C 230 120, 230 220, 280 220');
-            bCurve.setAttribute('fill', 'none');
-            bCurve.setAttribute('stroke', '#4CAF50');
-            bCurve.setAttribute('stroke-width', '2.5');
-            edgesLayer.appendChild(bCurve);
+            if (commits.length === 0) {
+              commits.push({ type: 'commit', branch: 'main', id: 'init', tag: 'v0.1' });
+              commits.push({ type: 'commit', branch: 'main', id: 'feat', tag: null });
+            }
 
-            const mCurve = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-            mCurve.setAttribute('d', 'M 380 220 C 430 220, 430 120, 480 120');
-            mCurve.setAttribute('fill', 'none');
-            mCurve.setAttribute('stroke', '#4CAF50');
-            mCurve.setAttribute('stroke-width', '2.5');
-            edgesLayer.appendChild(mCurve);
+            branches.forEach(b => {
+              const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+              line.setAttribute('x1', '60');
+              line.setAttribute('y1', `${b.y}`);
+              line.setAttribute('x2', `${Math.max(600, 100 + commits.length * 80)}`);
+              line.setAttribute('y2', `${b.y}`);
+              line.setAttribute('stroke', b.color);
+              line.setAttribute('stroke-width', '3');
+              line.setAttribute('opacity', '0.35');
+              edgesLayer.appendChild(line);
 
-            const rCurve = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-            rCurve.setAttribute('d', 'M 480 120 C 530 120, 530 300, 580 300');
-            rCurve.setAttribute('fill', 'none');
-            rCurve.setAttribute('stroke', '#FF9800');
-            rCurve.setAttribute('stroke-width', '2.5');
-            edgesLayer.appendChild(rCurve);
+              const lbl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+              lbl.setAttribute('x', '45');
+              lbl.setAttribute('y', `${b.y + 4}`);
+              lbl.setAttribute('text-anchor', 'end');
+              lbl.setAttribute('fill', b.color);
+              lbl.setAttribute('font-size', '11.5px');
+              lbl.setAttribute('font-weight', 'bold');
+              lbl.textContent = b.name;
+              nodesLayer.appendChild(lbl);
+            });
 
-            const rmCurve = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-            rmCurve.setAttribute('d', 'M 580 300 C 630 300, 630 120, 680 120');
-            rmCurve.setAttribute('fill', 'none');
-            rmCurve.setAttribute('stroke', '#FF9800');
-            rmCurve.setAttribute('stroke-width', '2.5');
-            edgesLayer.appendChild(rmCurve);
+            commits.forEach((c, idx) => {
+              const cx = 100 + idx * 75;
+              const bObj = branches.find(b => b.name === (c.branch || c.targetB)) || branches[0];
+              const cy = bObj.y;
 
-            // Commits
-            commits.forEach(c => {
-              const circ = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-              circ.setAttribute('cx', `${c.x}`);
-              circ.setAttribute('cy', `${c.y}`);
-              circ.setAttribute('r', '9');
-              circ.setAttribute('fill', cardBg);
-              circ.setAttribute('stroke', c.branch === 'main' ? '#2196F3' : (c.branch === 'feature' ? '#4CAF50' : '#FF9800'));
-              circ.setAttribute('stroke-width', '3');
-              nodesLayer.appendChild(circ);
+              if (c.type === 'merge') {
+                const srcB = branches.find(b => b.name === c.sourceB) || branches[0];
+                const arc = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                arc.setAttribute('d', `M ${cx - 50} ${srcB.y} C ${cx - 20} ${srcB.y}, ${cx - 20} ${cy}, ${cx} ${cy}`);
+                arc.setAttribute('fill', 'none');
+                arc.setAttribute('stroke', srcB.color);
+                arc.setAttribute('stroke-width', '2.5');
+                edgesLayer.appendChild(arc);
+              }
 
-              const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-              label.setAttribute('x', `${c.x}`);
-              label.setAttribute('y', `${c.y + 24}`);
-              label.setAttribute('text-anchor', 'middle');
-              label.setAttribute('fill', textColor);
-              label.setAttribute('font-size', '10.5px');
-              label.textContent = c.msg;
-              nodesLayer.appendChild(label);
+              const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+              dot.setAttribute('cx', `${cx}`);
+              dot.setAttribute('cy', `${cy}`);
+              dot.setAttribute('r', '8');
+              dot.setAttribute('fill', bObj.color);
+              dot.setAttribute('stroke', '#FFFFFF');
+              dot.setAttribute('stroke-width', '2');
+              nodesLayer.appendChild(dot);
+
+              const idTxt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+              idTxt.setAttribute('x', `${cx}`);
+              idTxt.setAttribute('y', `${cy + 22}`);
+              idTxt.setAttribute('text-anchor', 'middle');
+              idTxt.setAttribute('fill', textColor);
+              idTxt.setAttribute('font-size', '10px');
+              idTxt.textContent = c.id;
+              nodesLayer.appendChild(idTxt);
 
               if (c.tag) {
                 const tagG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                const tagW = c.tag.length * 6.5 + 14;
                 const tagBg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-                tagBg.setAttribute('x', `${c.x - 34}`);
-                tagBg.setAttribute('y', `${c.y - 32}`);
-                tagBg.setAttribute('width', '68');
-                tagBg.setAttribute('height', '18');
-                tagBg.setAttribute('rx', '9');
+                tagBg.setAttribute('x', `${cx - tagW / 2}`);
+                tagBg.setAttribute('y', `${cy - 28}`);
+                tagBg.setAttribute('width', `${tagW}`);
+                tagBg.setAttribute('height', '16');
+                tagBg.setAttribute('rx', '3');
                 tagBg.setAttribute('fill', '#FF9800');
                 tagG.appendChild(tagBg);
 
-                const tagText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                tagText.setAttribute('x', `${c.x}`);
-                tagText.setAttribute('y', `${c.y - 23}`);
-                tagText.setAttribute('text-anchor', 'middle');
-                tagText.setAttribute('dominant-baseline', 'central');
-                tagText.setAttribute('fill', '#FFFFFF');
-                tagText.setAttribute('font-size', '9.5px');
-                tagText.setAttribute('font-weight', 'bold');
-                tagText.textContent = c.tag;
-                tagG.appendChild(tagText);
+                const tagTxt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                tagTxt.setAttribute('x', `${cx}`);
+                tagTxt.setAttribute('y', `${cy - 18}`);
+                tagTxt.setAttribute('text-anchor', 'middle');
+                tagTxt.setAttribute('fill', '#FFFFFF');
+                tagTxt.setAttribute('font-size', '9.5px');
+                tagTxt.setAttribute('font-weight', 'bold');
+                tagTxt.textContent = c.tag;
+                tagG.appendChild(tagTxt);
                 nodesLayer.appendChild(tagG);
               }
             });
@@ -2660,71 +2725,103 @@
           }
 
           case 'journey': {
-            const stages = [
-              { stage: 'Discovery', tasks: [{ name: 'Search Products', score: '😃 5/5', actor: 'Customer' }, { name: 'View Details', score: '🙂 4/5', actor: 'Customer' }] },
-              { stage: 'Purchase', tasks: [{ name: 'Add to Cart', score: '🙂 4/5', actor: 'Customer' }, { name: 'Checkout', score: '😐 3/5', actor: 'Stripe' }] },
-              { stage: 'Fulfillment', tasks: [{ name: 'Order Notification', score: '😃 5/5', actor: 'Email Service' }, { name: 'Delivery', score: '😃 5/5', actor: 'Courier' }] }
-            ];
+            const rawLines = (code || '').split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('%%'));
+            let title = 'User Journey Map';
+            const stages = [];
+            let curStage = { name: 'Flow', tasks: [] };
+            stages.push(curStage);
 
-            const startX = 60;
-            const stageW = 220;
+            rawLines.forEach(line => {
+              const titleMatch = line.match(/^title\s+(.+)$/i);
+              if (titleMatch) { title = titleMatch[1].trim(); return; }
 
-            stages.forEach((st, sIdx) => {
-              const x = startX + sIdx * (stageW + 20);
+              const secMatch = line.match(/^section\s+(.+)$/i);
+              if (secMatch) {
+                curStage = { name: secMatch[1].trim(), tasks: [] };
+                stages.push(curStage);
+                return;
+              }
 
-              // Stage Column Box
-              const colBox = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-              colBox.setAttribute('x', `${x}`);
-              colBox.setAttribute('y', '50');
-              colBox.setAttribute('width', `${stageW}`);
-              colBox.setAttribute('height', '320');
-              colBox.setAttribute('rx', '8');
-              colBox.setAttribute('fill', cardBg);
-              colBox.setAttribute('stroke', cardBorder);
-              colBox.setAttribute('stroke-width', '1');
-              nodesLayer.appendChild(colBox);
+              if (line.toLowerCase().startsWith('journey')) return;
 
-              const stTitle = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-              stTitle.setAttribute('x', `${x + stageW / 2}`);
-              stTitle.setAttribute('y', '76');
-              stTitle.setAttribute('text-anchor', 'middle');
-              stTitle.setAttribute('fill', primaryText);
-              stTitle.setAttribute('font-size', '13px');
-              stTitle.setAttribute('font-weight', 'bold');
-              stTitle.textContent = st.stage;
-              nodesLayer.appendChild(stTitle);
+              const parts = line.split(':');
+              if (parts.length >= 2) {
+                const name = parts[0].trim();
+                const score = parseInt(parts[1].trim(), 10) || 4;
+                const actor = parts[2] ? parts[2].trim() : 'User';
+                curStage.tasks.push({ name, score, actor });
+              }
+            });
+
+            const validStages = stages.filter(s => s.tasks.length > 0);
+            const stageW = Math.max(180, Math.min(260, 750 / (validStages.length || 1)));
+
+            const titleEl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            titleEl.setAttribute('x', '380');
+            titleEl.setAttribute('y', '45');
+            titleEl.setAttribute('text-anchor', 'middle');
+            titleEl.setAttribute('fill', textColor);
+            titleEl.setAttribute('font-size', '15px');
+            titleEl.setAttribute('font-weight', '700');
+            titleEl.textContent = title;
+            nodesLayer.appendChild(titleEl);
+
+            const emojis = { 5: '😄', 4: '🙂', 3: '😐', 2: '🙁', 1: '😫' };
+
+            validStages.forEach((st, sIdx) => {
+              const x = 50 + sIdx * stageW;
+              const sHeader = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+              sHeader.setAttribute('x', `${x}`);
+              sHeader.setAttribute('y', '80');
+              sHeader.setAttribute('width', `${stageW - 16}`);
+              sHeader.setAttribute('height', '30');
+              sHeader.setAttribute('rx', '4');
+              sHeader.setAttribute('fill', primaryFill);
+              nodesLayer.appendChild(sHeader);
+
+              const sTxt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+              sTxt.setAttribute('x', `${x + (stageW - 16) / 2}`);
+              sTxt.setAttribute('y', '96');
+              sTxt.setAttribute('text-anchor', 'middle');
+              sTxt.setAttribute('dominant-baseline', 'central');
+              sTxt.setAttribute('fill', primaryText);
+              sTxt.setAttribute('font-size', '11.5px');
+              sTxt.setAttribute('font-weight', 'bold');
+              sTxt.textContent = st.name;
+              nodesLayer.appendChild(sTxt);
 
               st.tasks.forEach((t, tIdx) => {
-                const ty = 110 + tIdx * 100;
+                const ty = 125 + tIdx * 90;
                 const card = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-                card.setAttribute('x', `${x + 12}`);
+                card.setAttribute('x', `${x}`);
                 card.setAttribute('y', `${ty}`);
-                card.setAttribute('width', `${stageW - 24}`);
+                card.setAttribute('width', `${stageW - 16}`);
                 card.setAttribute('height', '80');
                 card.setAttribute('rx', '6');
-                card.setAttribute('fill', primaryFill);
-                card.setAttribute('stroke', primaryBorder);
+                card.setAttribute('fill', cardBg);
+                card.setAttribute('stroke', cardBorder);
                 nodesLayer.appendChild(card);
 
                 const tName = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                tName.setAttribute('x', `${x + 22}`);
-                tName.setAttribute('y', `${ty + 22}`);
+                tName.setAttribute('x', `${x + 10}`);
+                tName.setAttribute('y', `${ty + 20}`);
                 tName.setAttribute('fill', primaryText);
                 tName.setAttribute('font-size', '11.5px');
                 tName.setAttribute('font-weight', '600');
                 tName.textContent = t.name;
                 nodesLayer.appendChild(tName);
 
+                const emoji = emojis[t.score] || '🙂';
                 const tScore = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                tScore.setAttribute('x', `${x + 22}`);
+                tScore.setAttribute('x', `${x + 10}`);
                 tScore.setAttribute('y', `${ty + 44}`);
                 tScore.setAttribute('fill', textColor);
                 tScore.setAttribute('font-size', '11px');
-                tScore.textContent = `Score: ${t.score}`;
+                tScore.textContent = `${emoji} Satisfaction: ${t.score}/5`;
                 nodesLayer.appendChild(tScore);
 
                 const tActor = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                tActor.setAttribute('x', `${x + 22}`);
+                tActor.setAttribute('x', `${x + 10}`);
                 tActor.setAttribute('y', `${ty + 64}`);
                 tActor.setAttribute('fill', linkColor);
                 tActor.setAttribute('font-size', '10px');
@@ -2736,19 +2833,37 @@
           }
 
           case 'mindmap': {
-            const root = { x: 380, y: 220, text: 'System Architecture' };
-            const branches = [
-              { text: 'Client Layer', x: 160, y: 120, children: ['Web Application', 'Mobile App'] },
-              { text: 'API Gateway', x: 160, y: 320, children: ['Authentication', 'Rate Limiting'] },
-              { text: 'Microservices', x: 600, y: 120, children: ['User Service', 'Payment Engine'] },
-              { text: 'Data Tier', x: 600, y: 320, children: ['PostgreSQL', 'Redis Cache'] }
-            ];
+            const rawLines = (code || '').split('\n').filter(l => l.trim() && !l.trim().startsWith('%%') && !l.trim().startsWith('mindmap'));
+            let rootText = 'Central Topic';
+            const branches = [];
+            let curBranch = null;
 
-            // Root Node
+            rawLines.forEach(l => {
+              const indent = l.search(/\S/);
+              const trimmed = l.trim().replace(/^root[\(\[\{]+/, '').replace(/[\)\]\}]+$/, '');
+
+              if (indent <= 2 && !curBranch) {
+                rootText = trimmed;
+              } else if (indent <= 4) {
+                curBranch = { text: trimmed, children: [] };
+                branches.push(curBranch);
+              } else if (curBranch) {
+                curBranch.children.push(trimmed);
+              }
+            });
+
+            if (branches.length === 0) {
+              branches.push({ text: 'Branch A', children: ['Sub-topic 1', 'Sub-topic 2'] });
+              branches.push({ text: 'Branch B', children: ['Sub-topic 3', 'Sub-topic 4'] });
+            }
+
+            const root = { x: 380, y: 240, text: rootText };
+
             const rootEllipse = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
+            const rootRx = Math.max(75, root.text.length * 5.5 + 24);
             rootEllipse.setAttribute('cx', `${root.x}`);
             rootEllipse.setAttribute('cy', `${root.y}`);
-            rootEllipse.setAttribute('rx', '85');
+            rootEllipse.setAttribute('rx', `${rootRx}`);
             rootEllipse.setAttribute('ry', '34');
             rootEllipse.setAttribute('fill', primaryFill);
             rootEllipse.setAttribute('stroke', primaryBorder);
@@ -2766,20 +2881,25 @@
             rootTxt.textContent = root.text;
             nodesLayer.appendChild(rootTxt);
 
-            branches.forEach(b => {
-              // Curve from root to branch
+            const half = Math.ceil(branches.length / 2);
+            branches.forEach((b, idx) => {
+              const isLeft = idx < half;
+              const slot = isLeft ? idx : idx - half;
+              const bx = isLeft ? 160 : 600;
+              const by = 100 + slot * 140;
+
               const curve = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-              curve.setAttribute('d', `M ${root.x} ${root.y} C ${(root.x + b.x) / 2} ${root.y}, ${(root.x + b.x) / 2} ${b.y}, ${b.x} ${b.y}`);
+              curve.setAttribute('d', `M ${root.x} ${root.y} C ${(root.x + bx) / 2} ${root.y}, ${(root.x + bx) / 2} ${by}, ${bx} ${by}`);
               curve.setAttribute('fill', 'none');
               curve.setAttribute('stroke', primaryBorder);
               curve.setAttribute('stroke-width', '2');
               edgesLayer.appendChild(curve);
 
-              // Branch Node
+              const bW = Math.max(110, b.text.length * 7 + 20);
               const bRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-              bRect.setAttribute('x', `${b.x - 60}`);
-              bRect.setAttribute('y', `${b.y - 18}`);
-              bRect.setAttribute('width', '120');
+              bRect.setAttribute('x', `${bx - bW / 2}`);
+              bRect.setAttribute('y', `${by - 18}`);
+              bRect.setAttribute('width', `${bW}`);
               bRect.setAttribute('height', '36');
               bRect.setAttribute('rx', '6');
               bRect.setAttribute('fill', cardBg);
@@ -2788,8 +2908,8 @@
               nodesLayer.appendChild(bRect);
 
               const bTxt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-              bTxt.setAttribute('x', `${b.x}`);
-              bTxt.setAttribute('y', `${b.y}`);
+              bTxt.setAttribute('x', `${bx}`);
+              bTxt.setAttribute('y', `${by}`);
               bTxt.setAttribute('text-anchor', 'middle');
               bTxt.setAttribute('dominant-baseline', 'central');
               bTxt.setAttribute('fill', textColor);
@@ -2798,14 +2918,12 @@
               bTxt.textContent = b.text;
               nodesLayer.appendChild(bTxt);
 
-              // Children leaves
               b.children.forEach((child, cIdx) => {
-                const isLeft = b.x < root.x;
-                const cx = isLeft ? b.x - 120 : b.x + 120;
-                const cy = b.y - 20 + cIdx * 40;
+                const cx = isLeft ? bx - 110 : bx + 110;
+                const cy = by - 20 + cIdx * 34;
 
                 const cLine = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-                cLine.setAttribute('d', `M ${b.x} ${b.y} C ${(b.x + cx) / 2} ${b.y}, ${(b.x + cx) / 2} ${cy}, ${cx} ${cy}`);
+                cLine.setAttribute('d', `M ${bx} ${by} C ${(bx + cx) / 2} ${by}, ${(bx + cx) / 2} ${cy}, ${cx} ${cy}`);
                 cLine.setAttribute('fill', 'none');
                 cLine.setAttribute('stroke', linkColor);
                 cLine.setAttribute('stroke-width', '1.2');
@@ -2826,28 +2944,55 @@
           }
 
           case 'timeline': {
-            const events = [
-              { year: '2024', items: ['Initial Architecture', 'Prototype Alpha'], x: 150 },
-              { year: '2025', items: ['Real-time Collab', 'Multi-format Exporter'], x: 380 },
-              { year: '2026', items: ['Offline Visual Suite', 'Release 1.0'], x: 610 }
-            ];
+            const rawLines = (code || '').split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('%%'));
+            let title = 'Timeline';
+            const events = [];
 
+            rawLines.forEach(line => {
+              const titleMatch = line.match(/^title\s+(.+)$/i);
+              if (titleMatch) { title = titleMatch[1].trim(); return; }
+              if (line.toLowerCase().startsWith('timeline')) return;
+
+              const parts = line.split(':').map(p => p.trim());
+              if (parts.length >= 2) {
+                const year = parts[0];
+                const items = parts.slice(1).filter(Boolean);
+                events.push({ year, items });
+              }
+            });
+
+            if (events.length === 0) {
+              events.push({ year: '2024', items: ['Phase 1', 'Kickoff'] });
+              events.push({ year: '2025', items: ['Phase 2', 'Rollout'] });
+            }
+
+            const count = events.length;
+            const spacing = Math.max(180, Math.min(260, 700 / (count || 1)));
             const axisY = 200;
 
-            // Main horizontal line
+            const titleEl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            titleEl.setAttribute('x', '380');
+            titleEl.setAttribute('y', '45');
+            titleEl.setAttribute('text-anchor', 'middle');
+            titleEl.setAttribute('fill', textColor);
+            titleEl.setAttribute('font-size', '15px');
+            titleEl.setAttribute('font-weight', '700');
+            titleEl.textContent = title;
+            nodesLayer.appendChild(titleEl);
+
             const axisLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
             axisLine.setAttribute('x1', '60');
             axisLine.setAttribute('y1', `${axisY}`);
-            axisLine.setAttribute('x2', '720');
+            axisLine.setAttribute('x2', `${60 + count * spacing}`);
             axisLine.setAttribute('y2', `${axisY}`);
             axisLine.setAttribute('stroke', primaryBorder);
             axisLine.setAttribute('stroke-width', '3');
             edgesLayer.appendChild(axisLine);
 
             events.forEach((ev, idx) => {
-              // Milestone circle
+              const ex = 100 + idx * spacing;
               const circ = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-              circ.setAttribute('cx', `${ev.x}`);
+              circ.setAttribute('cx', `${ex}`);
               circ.setAttribute('cy', `${axisY}`);
               circ.setAttribute('r', '10');
               circ.setAttribute('fill', primaryFill);
@@ -2855,19 +3000,19 @@
               circ.setAttribute('stroke-width', '3');
               nodesLayer.appendChild(circ);
 
-              // Year badge
               const badgeG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+              const badgeW = Math.max(60, ev.year.length * 8 + 20);
               const badgeBg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-              badgeBg.setAttribute('x', `${ev.x - 30}`);
+              badgeBg.setAttribute('x', `${ex - badgeW / 2}`);
               badgeBg.setAttribute('y', `${axisY - 45}`);
-              badgeBg.setAttribute('width', '60');
+              badgeBg.setAttribute('width', `${badgeW}`);
               badgeBg.setAttribute('height', '24');
               badgeBg.setAttribute('rx', '12');
               badgeBg.setAttribute('fill', '#2196F3');
               badgeG.appendChild(badgeBg);
 
               const badgeText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-              badgeText.setAttribute('x', `${ev.x}`);
+              badgeText.setAttribute('x', `${ex}`);
               badgeText.setAttribute('y', `${axisY - 33}`);
               badgeText.setAttribute('text-anchor', 'middle');
               badgeText.setAttribute('dominant-baseline', 'central');
@@ -2878,13 +3023,14 @@
               badgeG.appendChild(badgeText);
               nodesLayer.appendChild(badgeG);
 
-              // Event card below
               const cardG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+              const cardW = Math.max(140, spacing - 30);
+              const cardH = Math.max(60, 26 + ev.items.length * 22);
               const cardRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-              cardRect.setAttribute('x', `${ev.x - 80}`);
+              cardRect.setAttribute('x', `${ex - cardW / 2}`);
               cardRect.setAttribute('y', `${axisY + 30}`);
-              cardRect.setAttribute('width', '160');
-              cardRect.setAttribute('height', '75');
+              cardRect.setAttribute('width', `${cardW}`);
+              cardRect.setAttribute('height', `${cardH}`);
               cardRect.setAttribute('rx', '6');
               cardRect.setAttribute('fill', cardBg);
               cardRect.setAttribute('stroke', cardBorder);
@@ -2892,8 +3038,8 @@
 
               ev.items.forEach((it, iIdx) => {
                 const itemTxt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                itemTxt.setAttribute('x', `${ev.x - 70}`);
-                itemTxt.setAttribute('y', `${axisY + 54 + iIdx * 24}`);
+                itemTxt.setAttribute('x', `${ex - cardW / 2 + 12}`);
+                itemTxt.setAttribute('y', `${axisY + 52 + iIdx * 22}`);
                 itemTxt.setAttribute('fill', textColor);
                 itemTxt.setAttribute('font-size', '11px');
                 itemTxt.textContent = '✔ ' + it;
@@ -2905,26 +3051,64 @@
           }
 
           case 'quadrant': {
-            const items = [
-              { name: 'Offline Engine', x: 0.85, y: 0.90, color: '#2196F3' },
-              { name: 'Export PNG', x: 0.75, y: 0.70, color: '#4CAF50' },
-              { name: 'Property Inspector', x: 0.60, y: 0.80, color: '#FF9800' },
-              { name: 'Minor Styling', x: 0.20, y: 0.30, color: '#9C27B0' }
+            const rawLines = (code || '').split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('%%'));
+            let title = 'Priority Matrix';
+            const qNames = {
+              'quadrant-1': 'Quadrant 1',
+              'quadrant-2': 'Quadrant 2',
+              'quadrant-3': 'Quadrant 3',
+              'quadrant-4': 'Quadrant 4'
+            };
+            const items = [];
+            const colors = ['#2196F3', '#4CAF50', '#FF9800', '#9C27B0', '#00BCD4', '#E91E63'];
+
+            rawLines.forEach(line => {
+              const titleMatch = line.match(/^title\s+(.+)$/i);
+              if (titleMatch) { title = titleMatch[1].trim(); return; }
+
+              const qMatch = line.match(/^quadrant-([1-4])\s+(.+)$/i);
+              if (qMatch) {
+                qNames[`quadrant-${qMatch[1]}`] = qMatch[2].trim();
+                return;
+              }
+
+              const itemMatch = line.match(/^"([^"]+)"\s*:\s*\[\s*([0-9.]+)\s*,\s*([0-9.]+)\s*\]/) ||
+                                line.match(/^([^:]+)\s*:\s*\[\s*([0-9.]+)\s*,\s*([0-9.]+)\s*\]/);
+              if (itemMatch && !line.toLowerCase().startsWith('quadrant') && !line.toLowerCase().startsWith('x-axis') && !line.toLowerCase().startsWith('y-axis')) {
+                const name = itemMatch[1].replace(/"/g, '').trim();
+                const x = parseFloat(itemMatch[2]);
+                const y = parseFloat(itemMatch[3]);
+                if (!isNaN(x) && !isNaN(y)) {
+                  items.push({ name, x, y, color: colors[items.length % colors.length] });
+                }
+              }
+            });
+
+            if (items.length === 0) {
+              items.push({ name: 'Task A', x: 0.75, y: 0.85, color: colors[0] });
+              items.push({ name: 'Task B', x: 0.30, y: 0.40, color: colors[1] });
+            }
+
+            const ox = 120, oy = 70, qw = 220, qh = 160;
+
+            const titleEl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            titleEl.setAttribute('x', `${ox + qw}`);
+            titleEl.setAttribute('y', '45');
+            titleEl.setAttribute('text-anchor', 'middle');
+            titleEl.setAttribute('fill', textColor);
+            titleEl.setAttribute('font-size', '15px');
+            titleEl.setAttribute('font-weight', '700');
+            titleEl.textContent = title;
+            nodesLayer.appendChild(titleEl);
+
+            const quads = [
+              { name: qNames['quadrant-2'], rx: ox, ry: oy, bg: 'rgba(244, 67, 54, 0.08)' },
+              { name: qNames['quadrant-1'], rx: ox + qw, ry: oy, bg: 'rgba(33, 150, 243, 0.08)' },
+              { name: qNames['quadrant-3'], rx: ox, ry: oy + qh, bg: 'rgba(158, 158, 158, 0.08)' },
+              { name: qNames['quadrant-4'], rx: ox + qw, ry: oy + qh, bg: 'rgba(76, 175, 80, 0.08)' }
             ];
 
-            const ox = 120;
-            const oy = 60;
-            const qw = 220;
-            const qh = 160;
-
-            const quadrants = [
-              { name: 'Urgent & Critical', rx: ox + qw, ry: oy, bg: 'rgba(244, 67, 54, 0.08)' },
-              { name: 'Strategic Bets', rx: ox, ry: oy, bg: 'rgba(33, 150, 243, 0.08)' },
-              { name: 'Low Priority', rx: ox, ry: oy + qh, bg: 'rgba(158, 158, 158, 0.08)' },
-              { name: 'Quick Fixes', rx: ox + qw, ry: oy + qh, bg: 'rgba(76, 175, 80, 0.08)' }
-            ];
-
-            quadrants.forEach(q => {
+            quads.forEach(q => {
               const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
               rect.setAttribute('x', `${q.rx}`);
               rect.setAttribute('y', `${q.ry}`);
@@ -2945,11 +3129,6 @@
               nodesLayer.appendChild(lbl);
             });
 
-            // Axes
-            const cx = ox + qw;
-            const cy = oy + qh;
-
-            // Plotted Points
             items.forEach(it => {
               const px = ox + it.x * (qw * 2);
               const py = oy + (1 - it.y) * (qh * 2);
@@ -2976,73 +3155,97 @@
           }
 
           case 'sankey': {
-            const sources = [
-              { name: 'Organic Search', val: 4500, y: 80, color: '#2196F3' },
-              { name: 'Social Ads', val: 3200, y: 180, color: '#4CAF50' },
-              { name: 'Referrals', val: 1300, y: 280, color: '#FF9800' }
-            ];
-            const middle = [
-              { name: 'Landing Page', val: 9000, y: 150, color: '#9C27B0' }
-            ];
-            const targets = [
-              { name: 'Signup Form', val: 5800, y: 110, color: '#00BCD4' },
-              { name: 'Dropoff', val: 3200, y: 240, color: '#F44336' }
-            ];
+            const rawLines = (code || '').split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('%%') && !l.startsWith('sankey'));
+            const flows = [];
+            const nodeSet = new Set();
+            const colors = ['#2196F3', '#4CAF50', '#FF9800', '#9C27B0', '#00BCD4', '#E91E63', '#607D8B'];
 
-            const drawBox = (name, val, x, y, color) => {
+            rawLines.forEach(line => {
+              const parts = line.split(',').map(p => p.trim());
+              if (parts.length >= 3) {
+                const src = parts[0];
+                const tgt = parts[1];
+                const val = parseFloat(parts[2]);
+                if (src && tgt && !isNaN(val)) {
+                  flows.push({ src, tgt, val });
+                  nodeSet.add(src);
+                  nodeSet.add(tgt);
+                }
+              }
+            });
+
+            if (flows.length === 0) {
+              flows.push({ src: 'Traffic', tgt: 'Home', val: 5000 });
+              flows.push({ src: 'Home', tgt: 'Signup', val: 2000 });
+            }
+
+            const sources = Array.from(new Set(flows.map(f => f.src)));
+            const targets = Array.from(new Set(flows.map(f => f.tgt)));
+
+            const leftNodes = sources.filter(s => !targets.includes(s));
+            const rightNodes = targets.filter(t => !sources.includes(t));
+            const midNodes = sources.filter(s => targets.includes(s));
+
+            const leftYMap = new Map();
+            const midYMap = new Map();
+            const rightYMap = new Map();
+
+            const drawBox = (name, x, y, color) => {
               const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
               rect.setAttribute('x', `${x}`);
               rect.setAttribute('y', `${y}`);
               rect.setAttribute('width', '130');
-              rect.setAttribute('height', '50');
+              rect.setAttribute('height', '45');
               rect.setAttribute('rx', '4');
               rect.setAttribute('fill', color);
               rect.setAttribute('opacity', '0.85');
               nodesLayer.appendChild(rect);
 
-              const txt1 = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-              txt1.setAttribute('x', `${x + 65}`);
-              txt1.setAttribute('y', `${y + 20}`);
-              txt1.setAttribute('text-anchor', 'middle');
-              txt1.setAttribute('fill', '#FFFFFF');
-              txt1.setAttribute('font-size', '11px');
-              txt1.setAttribute('font-weight', 'bold');
-              txt1.textContent = name;
-              nodesLayer.appendChild(txt1);
-
-              const txt2 = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-              txt2.setAttribute('x', `${x + 65}`);
-              txt2.setAttribute('y', `${y + 36}`);
-              txt2.setAttribute('text-anchor', 'middle');
-              txt2.setAttribute('fill', '#FFFFFF');
-              txt2.setAttribute('font-size', '10px');
-              txt2.textContent = `${val.toLocaleString()} users`;
-              nodesLayer.appendChild(txt2);
+              const txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+              txt.setAttribute('x', `${x + 65}`);
+              txt.setAttribute('y', `${y + 22}`);
+              txt.setAttribute('text-anchor', 'middle');
+              txt.setAttribute('dominant-baseline', 'central');
+              txt.setAttribute('fill', '#FFFFFF');
+              txt.setAttribute('font-size', '11.5px');
+              txt.setAttribute('font-weight', 'bold');
+              txt.textContent = name;
+              nodesLayer.appendChild(txt);
             };
 
-            sources.forEach(s => {
-              drawBox(s.name, s.val, 80, s.y, s.color);
-              const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-              path.setAttribute('d', `M 210 ${s.y + 25} C 280 ${s.y + 25}, 280 175, 350 175`);
-              path.setAttribute('fill', 'none');
-              path.setAttribute('stroke', s.color);
-              path.setAttribute('stroke-width', `${Math.max(4, s.val / 250)}`);
-              path.setAttribute('opacity', '0.4');
-              edgesLayer.appendChild(path);
+            leftNodes.forEach((n, idx) => {
+              const y = 80 + idx * 75;
+              leftYMap.set(n, { x: 80, y, color: colors[idx % colors.length] });
+              drawBox(n, 80, y, colors[idx % colors.length]);
             });
 
-            middle.forEach(m => {
-              drawBox(m.name, m.val, 350, m.y, m.color);
+            midNodes.forEach((n, idx) => {
+              const y = 100 + idx * 85;
+              midYMap.set(n, { x: 350, y, color: colors[(idx + 3) % colors.length] });
+              drawBox(n, 350, y, colors[(idx + 3) % colors.length]);
             });
 
-            targets.forEach(t => {
-              drawBox(t.name, t.val, 600, t.y, t.color);
+            rightNodes.forEach((n, idx) => {
+              const y = 80 + idx * 75;
+              rightYMap.set(n, { x: 620, y, color: colors[(idx + 5) % colors.length] });
+              drawBox(n, 620, y, colors[(idx + 5) % colors.length]);
+            });
+
+            flows.forEach(f => {
+              const sInfo = leftYMap.get(f.src) || midYMap.get(f.src) || { x: 80, y: 100, color: '#2196F3' };
+              const tInfo = rightYMap.get(f.tgt) || midYMap.get(f.tgt) || { x: 620, y: 100, color: '#4CAF50' };
+
+              const x1 = sInfo.x + 130;
+              const y1 = sInfo.y + 22;
+              const x2 = tInfo.x;
+              const y2 = tInfo.y + 22;
+
               const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-              path.setAttribute('d', `M 480 175 C 540 175, 540 ${t.y + 25}, 600 ${t.y + 25}`);
+              path.setAttribute('d', `M ${x1} ${y1} C ${(x1 + x2) / 2} ${y1}, ${(x1 + x2) / 2} ${y2}, ${x2} ${y2}`);
               path.setAttribute('fill', 'none');
-              path.setAttribute('stroke', t.color);
-              path.setAttribute('stroke-width', `${Math.max(4, t.val / 250)}`);
-              path.setAttribute('opacity', '0.4');
+              path.setAttribute('stroke', sInfo.color);
+              path.setAttribute('stroke-width', `${Math.max(3, Math.min(24, f.val / 250))}`);
+              path.setAttribute('opacity', '0.45');
               edgesLayer.appendChild(path);
             });
             break;
