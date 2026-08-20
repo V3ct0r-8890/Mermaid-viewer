@@ -909,17 +909,17 @@
       stroke-width: 1.5;
       cursor: crosshair;
       opacity: 0;
-      transition: opacity 0.15s, transform 0.15s;
+      transition: opacity 0.12s, fill 0.12s;
     }
 
-    .canvas-node:hover .node-port, .canvas-node.selected .node-port {
-      opacity: 0.9;
+    .canvas-node:hover .node-port, .canvas-node.selected .node-port, #canvas-panel.connecting .node-port {
+      opacity: 0.95;
     }
 
-    .node-port:hover {
+    .node-port:hover, #canvas-panel.connecting .node-port:hover {
       opacity: 1;
-      transform: scale(1.3);
       fill: var(--selection-color);
+      stroke-width: 2.2;
     }
 
     .canvas-edge {
@@ -4227,21 +4227,27 @@
         }
       }
 
-      applyCodeToGraph() {
+      applyCodeToGraph(isAuto = false) {
         const code = this.codeEditor.value;
         const res = MermaidParser.parse(code, this.graph);
         if (res.error) {
           document.getElementById('editor-error').textContent = res.error;
           document.getElementById('editor-error').style.color = 'var(--btn-danger)';
-          Utils.showToast(res.error, 'error');
+          if (!isAuto) Utils.showToast(res.error, 'error');
           return;
         }
 
         if (res.graph) {
           this.graph.fromProject(res.graph.toProject(this.themeMgr.currentTheme));
+          const isFlow = (this.graph.diagramType === 'flowchart_td' || this.graph.diagramType === 'flowchart_lr');
+          this.graph.customRawCode = isFlow ? null : code;
+          document.getElementById('editor-error').textContent = 'Valid Mermaid';
+          document.getElementById('editor-error').style.color = 'var(--text-muted)';
           this.renderAll();
-          this.recordHistory();
-          Utils.showToast('Diagram updated from code', 'success');
+          if (!isAuto) {
+            this.recordHistory();
+            Utils.showToast('Diagram updated from code', 'success');
+          }
         }
       }
 
@@ -4253,12 +4259,22 @@
         window.addEventListener('mouseup', (e) => this.handleMouseUp(e));
         this.svg.addEventListener('wheel', (e) => this.handleWheel(e), { passive: false });
 
+        let editorDebounceTimer = null;
         this.codeEditor.addEventListener('input', () => {
           this.codeHighlight.innerHTML = SyntaxHighlighter.highlight(this.codeEditor.value);
           const detected = MermaidParser.detectDiagramType(this.codeEditor.value);
           if (this.typeSelect && this.typeSelect.value !== detected) {
             this.typeSelect.value = detected;
           }
+          clearTimeout(editorDebounceTimer);
+          editorDebounceTimer = setTimeout(() => {
+            this.applyCodeToGraph(true);
+          }, 200);
+        });
+
+        this.codeEditor.addEventListener('blur', () => {
+          this.applyCodeToGraph(true);
+          this.recordHistory();
         });
 
         this.codeEditor.addEventListener('scroll', () => {
@@ -4266,7 +4282,7 @@
           document.getElementById('code-highlight').scrollLeft = this.codeEditor.scrollLeft;
         });
 
-        document.getElementById('btn-sync-code').addEventListener('click', () => this.applyCodeToGraph());
+        document.getElementById('btn-sync-code').addEventListener('click', () => this.applyCodeToGraph(false));
 
         if (this.typeSelect) {
           this.typeSelect.addEventListener('change', (e) => {
@@ -4580,6 +4596,7 @@
         if (this.isConnecting) {
           this.isConnecting = false;
           this.tempLayer.innerHTML = '';
+          document.getElementById('canvas-panel')?.classList.remove('connecting');
 
           const pt = this.getCanvasPoint(e);
           const targetNode = this.graph.nodes.find(n => {
@@ -4732,6 +4749,7 @@
         this.isConnecting = true;
         this.connectingSourceId = nodeId;
         this.connectingSourcePort = portPos;
+        document.getElementById('canvas-panel')?.classList.add('connecting');
       }
 
       handleWheel(e) {
