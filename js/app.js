@@ -1132,7 +1132,15 @@
       }
 
       openExportDialog() {
-        document.getElementById('export-modal')?.classList.add('open');
+        const modal = document.getElementById('export-modal');
+        if (modal) {
+          const fnInp = document.getElementById('export-filename');
+          if (fnInp) {
+            const typeName = (this.graph && this.graph.diagramType) ? this.graph.diagramType.replace('_', '-') : 'diagram';
+            fnInp.value = `${typeName}-diagram`;
+          }
+          modal.classList.add('open');
+        }
       }
 
       handleCanvasMouseDown(e) {

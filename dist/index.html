@@ -1613,6 +1613,8 @@
         <button class="btn btn-secondary" id="templates-modal-cancel">Close</button>
       </div>
     </div>
+  </div>
+
   <!-- Export Options Modal -->
   <div class="modal-overlay" id="export-modal">
     <div class="modal-card" style="width:420px; max-width:92vw;">
@@ -5176,6 +5178,8 @@
         <button class="btn btn-secondary" id="templates-modal-cancel">Close</button>
       </div>
     </div>
+  </div>
+
   <!-- Export Options Modal -->
   <div class="modal-overlay" id="export-modal">
     <div class="modal-card" style="width:420px; max-width:92vw;">
@@ -7393,7 +7397,15 @@
       }
 
       openExportDialog() {
-        document.getElementById('export-modal')?.classList.add('open');
+        const modal = document.getElementById('export-modal');
+        if (modal) {
+          const fnInp = document.getElementById('export-filename');
+          if (fnInp) {
+            const typeName = (this.graph && this.graph.diagramType) ? this.graph.diagramType.replace('_', '-') : 'diagram';
+            fnInp.value = `${typeName}-diagram`;
+          }
+          modal.classList.add('open');
+        }
       }
 
       handleCanvasMouseDown(e) {
