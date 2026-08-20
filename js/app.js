@@ -1445,8 +1445,25 @@
 
       handleWheel(e) {
         e.preventDefault();
-        const factor = e.deltaY < 0 ? 1.1 : 0.9;
-        this.zoomAtPoint(factor, e.clientX, e.clientY);
+        // Zoom only when Cmd (Mac) or Ctrl (Windows/Linux) is pressed
+        if (e.ctrlKey || e.metaKey) {
+          const factor = e.deltaY < 0 ? 1.1 : 0.9;
+          this.zoomAtPoint(factor, e.clientX, e.clientY);
+        } else {
+          // Normal mouse scroll: pan canvas vertically and horizontally (e.g. shiftKey, trackpad or 2D wheel)
+          let dx = e.deltaX;
+          let dy = e.deltaY;
+
+          // If Shift is pressed and no horizontal delta, shift vertical scroll to horizontal scroll
+          if (e.shiftKey && dx === 0) {
+            dx = dy;
+            dy = 0;
+          }
+
+          this.panX -= dx;
+          this.panY -= dy;
+          this.renderAll();
+        }
       }
 
       zoomAtPoint(factor, clientX, clientY) {
