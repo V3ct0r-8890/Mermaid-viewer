@@ -1,0 +1,267 @@
+/**
+     * Mermaid Visual Editor & Offline Viewer
+     * Complete Offline Single-File Implementation with Multi-Diagram Visual Suite
+     */
+
+    // --- VERIFIED OFFICIAL MERMAID DIAGRAM TEMPLATES ---
+    const DIAGRAM_TEMPLATES = [
+      {
+        id: 'flowchart_td',
+        name: 'Flowchart (Top-Down)',
+        badge: 'flowchart TD',
+        desc: 'Multi-tier system architecture & workflow',
+        code: `flowchart TD
+  Client["Client App"] -->|"HTTP Request"| API["API Gateway"]
+  API -->|"Verify"| Auth{"Auth Service"}
+  API ==>|"Query Data"| Database(("PostgreSQL DB"))`
+      },
+      {
+        id: 'flowchart_lr',
+        name: 'Flowchart (Left-Right)',
+        badge: 'flowchart LR',
+        desc: 'Horizontal sequential data processing pipeline',
+        code: `flowchart LR
+  Start([Start]) --> Process["Process Input"]
+  Process --> Validate{"Is Valid?"}
+  Validate -->|Yes| Output[("Save Record")]
+  Validate -->|No| Reject["Reject with Error"]`
+      },
+      {
+        id: 'sequence',
+        name: 'Sequence Diagram',
+        badge: 'sequenceDiagram',
+        desc: 'Actor & microservice request/response flow over time',
+        code: `sequenceDiagram
+  autonumber
+  actor User as User
+  participant App as Web App
+  participant API as API Server
+  participant DB as Database
+
+  User->>App: Click Checkout
+  App->>API: POST /api/orders
+  API->>DB: INSERT INTO orders
+  DB-->>API: 1 row affected (ID: 1042)
+  API-->>App: 201 Created (Order #1042)
+  App-->>User: Show Order Confirmation`
+      },
+      {
+        id: 'classDiagram',
+        name: 'Class Diagram',
+        badge: 'classDiagram',
+        desc: 'OOP class models, attributes, methods, inheritance',
+        code: `classDiagram
+  class BankAccount {
+    +String owner
+    +Decimal balance
+    +deposit(amount)
+    +withdraw(amount)
+  }
+  class SavingsAccount {
+    +Decimal interestRate
+    +addInterest()
+  }
+  class CheckingAccount {
+    +Decimal overdraftLimit
+  }
+  BankAccount <|-- SavingsAccount
+  BankAccount <|-- CheckingAccount`
+      },
+      {
+        id: 'stateDiagram',
+        name: 'State Diagram (v2)',
+        badge: 'stateDiagram-v2',
+        desc: 'State machine states, transitions, error retries',
+        code: `stateDiagram-v2
+  [*] --> Idle
+  Idle --> Processing : New Task
+  Processing --> Succeeded : Complete
+  Processing --> Failed : Error
+  Failed --> Retrying : Retry Allowed
+  Retrying --> Processing : Attempt Again
+  Retrying --> DeadLetter : Max Retries Exceeded
+  Succeeded --> [*]
+  DeadLetter --> [*]`
+      },
+      {
+        id: 'erDiagram',
+        name: 'Entity Relationship (ER)',
+        badge: 'erDiagram',
+        desc: 'Database schemas, keys, foreign cardinality',
+        code: `erDiagram
+  CUSTOMER ||--o{ ORDER : places
+  ORDER ||--|{ ORDER_ITEM : contains
+  PRODUCT ||--o{ ORDER_ITEM : included_in
+  CUSTOMER {
+    int id PK
+    string name
+    string email
+  }
+  ORDER {
+    int id PK
+    int customer_id FK
+    date order_date
+    decimal total_amount
+  }
+  ORDER_ITEM {
+    int id PK
+    int order_id FK
+    int product_id FK
+    int quantity
+  }
+  PRODUCT {
+    int id PK
+    string name
+    decimal price
+  }`
+      },
+      {
+        id: 'gantt',
+        name: 'Gantt Roadmap',
+        badge: 'gantt',
+        desc: 'Sprint schedules, task timelines, and milestones',
+        code: `gantt
+  title Project Sprint Roadmap
+  dateFormat YYYY-MM-DD
+  section Planning
+    Architecture Design  :done, p1, 2026-08-01, 2026-08-07
+    UX Specifications    :done, p2, 2026-08-05, 2026-08-12
+  section Development
+    Backend Services     :active, d1, 2026-08-10, 2026-08-25
+    Frontend Application :active, d2, 2026-08-14, 2026-08-30
+  section QA & Release
+    Integration Testing  :crit, q1, 2026-08-26, 2026-09-05
+    Production Launch    :milestone, m1, 2026-09-06, 0d`
+      },
+      {
+        id: 'pie',
+        name: 'Pie Chart',
+        badge: 'pie',
+        desc: 'Proportions and percentage data distributions',
+        code: `pie title Cloud Infrastructure Resource Distribution
+  "Compute Engine (VMs)" : 42
+  "Cloud Storage (GCS)" : 28
+  "BigQuery Analytics" : 18
+  "Networking & CDN" : 12`
+      },
+      {
+        id: 'gitGraph',
+        name: 'Git Version Graph',
+        badge: 'gitGraph',
+        desc: 'Branches, commits, merges, and release tags',
+        code: `gitGraph
+  commit id: "Initial Commit"
+  commit id: "Core Foundation"
+  branch feature/canvas
+  checkout feature/canvas
+  commit id: "Add SVG Engine"
+  commit id: "Add Inspector"
+  checkout main
+  merge feature/canvas id: "Merge Canvas"
+  branch release/v1.0
+  checkout release/v1.0
+  commit id: "Bump v1.0.0" tag: "v1.00.000"
+  checkout main
+  merge release/v1.0 id: "Release 1.0"`
+      },
+      {
+        id: 'journey',
+        name: 'User Journey Map',
+        badge: 'journey',
+        desc: 'Customer satisfaction scores across touchpoints',
+        code: `journey
+  title E-Commerce Customer Journey
+  section Discovery
+    Search Products: 5: Customer
+    View Product Details: 4: Customer
+  section Purchase
+    Add to Cart: 4: Customer
+    Checkout & Payment: 3: Customer, Stripe
+  section Fulfillment
+    Order Notification: 5: Email Service
+    Package Delivery: 5: Courier, Customer`
+      },
+      {
+        id: 'mindmap',
+        name: 'Mindmap',
+        badge: 'mindmap',
+        desc: 'Hierarchical concept mapping & brainstorming tree',
+        code: `mindmap
+  root((System Architecture))
+    Client Layer
+      Web Application
+      Mobile App
+      Desktop Electron
+    API Gateway
+      Authentication
+      Rate Limiting
+      Routing
+    Microservices
+      User Service
+      Payment Engine
+      Analytics Engine
+    Data Tier
+      PostgreSQL
+      Redis Cache
+      Object Storage`
+      },
+      {
+        id: 'timeline',
+        name: 'Timeline Chart',
+        badge: 'timeline',
+        desc: 'Chronological timeline of milestones and events',
+        code: `timeline
+  title Platform Development Timeline
+  2024 : Initial Architecture : Prototype Alpha
+  2025 : Real-time Collab : Multi-format Exporter
+  2026 : Offline Visual Suite : Release 1.0`
+      },
+      {
+        id: 'quadrant',
+        name: 'Quadrant Priority Matrix',
+        badge: 'quadrantChart',
+        desc: '2x2 matrix for urgency vs impact prioritization',
+        code: `quadrantChart
+  title Engineering Task Prioritization
+  x-axis Low Urgency --> High Urgency
+  y-axis Low Impact --> High Impact
+  quadrant-1 Strategic Bets
+  quadrant-2 Urgent & Critical
+  quadrant-3 Low Priority
+  quadrant-4 Quick Fixes
+  "Offline Engine": [0.85, 0.90]
+  "Export PNG": [0.75, 0.70]
+  "Property Inspector": [0.60, 0.80]
+  "Minor Styling": [0.20, 0.30]`
+      },
+      {
+        id: 'c4context',
+        name: 'C4 Context Architecture',
+        badge: 'C4Context',
+        desc: 'High-level systems, actors, and enterprise context',
+        code: `C4Context
+  title System Context for Banking Platform
+  Person(customer, "Customer", "A client of the bank")
+  System(banking_system, "Internet Banking", "Allows customers to view accounts and make payments")
+  System_Ext(mail_system, "E-mail Subsystem", "Sends confirmation emails")
+  System_Ext(core_banking, "Mainframe Core Banking", "Stores account balances and ledgers")
+
+  Rel(customer, banking_system, "Views accounts, makes payments using", "HTTPS")
+  Rel(banking_system, mail_system, "Sends e-mails using", "SMTP")
+  Rel(banking_system, core_banking, "Retrieves balances, posts transactions using", "gRPC")`
+      },
+      {
+        id: 'sankey',
+        name: 'Sankey Flow Diagram',
+        badge: 'sankey-beta',
+        desc: 'Traffic volume and user conversion flow paths',
+        code: `sankey-beta
+  Organic Search, Landing Page, 4500
+  Social Ads, Landing Page, 3200
+  Referrals, Landing Page, 1300
+  Landing Page, Signup Form, 5800
+  Landing Page, Dropoff, 3200
+  Signup Form, Activated Users, 4200
+  Signup Form, Abandoned, 1600`
+      }
+    ];
