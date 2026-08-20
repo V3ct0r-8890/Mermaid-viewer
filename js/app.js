@@ -924,9 +924,11 @@
 
         if (e.button === 1 || e.spaceKey || (e.button === 0 && isBg)) {
           if (e.button === 0 && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
-            this.selectedNodeIds.clear();
-            this.selectedEdgeId = null;
-            this.renderAll();
+            if (this.selectedNodeIds.size > 0 || this.selectedEdgeId !== null) {
+              this.selectedNodeIds.clear();
+              this.selectedEdgeId = null;
+              this.renderAll();
+            }
           }
 
           if (e.shiftKey) {
@@ -981,7 +983,7 @@
 
         if (this.isPanning) {
           this.panX = e.clientX - this.panStartX;
-          this.panY = e.clientY - this.panY;
+          this.panY = e.clientY - this.panStartY;
           this.updateTransform();
           this.renderMinimap();
         } else if (this.isDraggingNodes) {
