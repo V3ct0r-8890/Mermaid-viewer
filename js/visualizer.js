@@ -607,112 +607,203 @@
 
           case 'mindmap': {
             const rawLines = (code || '').split('\n').filter(l => l.trim() && !l.trim().startsWith('%%') && !l.trim().startsWith('mindmap'));
-            let rootText = 'Central Topic';
-            const branches = [];
-            let curBranch = null;
 
-            rawLines.forEach(l => {
-              const indent = l.search(/\S/);
-              const trimmed = l.trim().replace(/^root[\(\[\{]+/, '').replace(/[\)\]\}]+$/, '');
-
-              if (indent <= 2 && !curBranch) {
-                rootText = trimmed;
-              } else if (indent <= 4) {
-                curBranch = { text: trimmed, children: [] };
-                branches.push(curBranch);
-              } else if (curBranch) {
-                curBranch.children.push(trimmed);
+            const parseNodeLine = (raw) => {
+              let text = raw.trim();
+              let shape = 'rounded';
+              if (text.startsWith('root')) {
+                text = text.replace(/^root/, '').trim();
               }
+              if (text.startsWith('((') && text.endsWith('))')) {
+                shape = 'circle';
+                text = text.slice(2, -2).trim();
+              } else if (text.startsWith('(') && text.endsWith(')')) {
+                shape = 'rounded';
+                text = text.slice(1, -1).trim();
+              } else if (text.startsWith('[') && text.endsWith(']')) {
+                shape = 'rect';
+                text = text.slice(1, -1).trim();
+              } else if (text.startsWith('))') && text.endsWith('((')) {
+                shape = 'bang';
+                text = text.slice(2, -2).trim();
+              } else if (text.startsWith(')') && text.endsWith('(')) {
+                shape = 'cloud';
+                text = text.slice(1, -1).trim();
+              }
+              text = text.replace(/::icon\([^\)]+\)/g, '').trim();
+              return { text: text || 'Node', shape };
+            };
+
+            const rootNode = { id: 'root', text: 'Central Topic', shape: 'circle', children: [], level: 0, x: 450, y: 300, width: 140, height: 44 };
+            const stack = [{ indent: -1, node: rootNode }];
+
+            rawLines.forEach((line) => {
+              const leadingSpaces = line.search(/\S/);
+              if (leadingSpaces === -1) return;
+              const { text, shape } = parseNodeLine(line);
+
+              if (stack.length === 1 && stack[0].node.children.length === 0 && (line.trim().startsWith('root') || leadingSpaces === 0)) {
+                rootNode.text = text;
+                rootNode.shape = shape;
+                stack[0].indent = leadingSpaces;
+                return;
+              }
+
+              while (stack.length > 1 && stack[stack.length - 1].indent >= leadingSpaces) {
+                stack.pop();
+              }
+
+              const parent = stack[stack.length - 1].node;
+              const newNode = {
+                id: (typeof Utils !== 'undefined' && Utils.uid) ? Utils.uid('mm') : 'mm_' + Math.random().toString(36).substring(2, 7),
+                text,
+                shape,
+                children: [],
+                level: parent.level + 1,
+                x: 0,
+                y: 0,
+                width: Math.max(90, Math.min(220, text.length * 7.5 + 24)),
+                height: 32
+              };
+              parent.children.push(newNode);
+              stack.push({ indent: leadingSpaces, node: newNode });
             });
 
-            if (branches.length === 0) {
-              branches.push({ text: 'Branch A', children: ['Sub-topic 1', 'Sub-topic 2'] });
-              branches.push({ text: 'Branch B', children: ['Sub-topic 3', 'Sub-topic 4'] });
+            if (rootNode.children.length === 0) {
+              rootNode.children = [
+                { id: 'b1', text: 'Branch 1', shape: 'rounded', level: 1, children: [{ id: 'b1_1', text: 'Sub-topic A', shape: 'rounded', level: 2, children: [] }, { id: 'b1_2', text: 'Sub-topic B', shape: 'rounded', level: 2, children: [] }], width: 110, height: 32 },
+                { id: 'b2', text: 'Branch 2', shape: 'rounded', level: 1, children: [{ id: 'b2_1', text: 'Sub-topic C', shape: 'rounded', level: 2, children: [] }], width: 110, height: 32 }
+              ];
             }
 
-            const root = { x: 380, y: 240, text: rootText };
+            rootNode.width = Math.max(130, rootNode.text.length * 8 + 36);
 
-            const rootEllipse = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
-            const rootRx = Math.max(75, root.text.length * 5.5 + 24);
-            rootEllipse.setAttribute('cx', `${root.x}`);
-            rootEllipse.setAttribute('cy', `${root.y}`);
-            rootEllipse.setAttribute('rx', `${rootRx}`);
-            rootEllipse.setAttribute('ry', '34');
-            rootEllipse.setAttribute('fill', primaryFill);
-            rootEllipse.setAttribute('stroke', primaryBorder);
-            rootEllipse.setAttribute('stroke-width', '2.5');
-            nodesLayer.appendChild(rootEllipse);
+            const calcSubtreeHeight = (n) => {
+              if (n.children.length === 0) {
+                n.treeHeight = n.height + 14;
+                return n.treeHeight;
+              }
+              let sum = 0;
+              n.children.forEach(c => {
+                sum += calcSubtreeHeight(c);
+              });
+              n.treeHeight = Math.max(n.height + 14, sum);
+              return n.treeHeight;
+            };
+
+            const leftBranches = [];
+            const rightBranches = [];
+            const tier1 = rootNode.children;
+            const half = Math.ceil(tier1.length / 2);
+            tier1.forEach((b, idx) => {
+              if (idx < half) leftBranches.push(b);
+              else rightBranches.push(b);
+            });
+
+            const leftHeight = leftBranches.reduce((acc, b) => acc + calcSubtreeHeight(b), 0);
+            const rightHeight = rightBranches.reduce((acc, b) => acc + calcSubtreeHeight(b), 0);
+            const totalTreeHeight = Math.max(leftHeight, rightHeight, 400);
+
+            rootNode.y = Math.max(220, totalTreeHeight / 2 + 50);
+
+            const layoutSubtree = (node, parentX, startY, isLeft) => {
+              const hStep = node.level === 1 ? 160 : (node.width > 120 ? node.width + 30 : 135);
+              node.x = isLeft ? parentX - hStep : parentX + hStep;
+              node.y = startY + node.treeHeight / 2;
+
+              let curChildY = startY;
+              node.children.forEach(child => {
+                layoutSubtree(child, node.x, curChildY, isLeft);
+                curChildY += child.treeHeight;
+              });
+            };
+
+            let curLeftY = rootNode.y - leftHeight / 2;
+            leftBranches.forEach(b => {
+              layoutSubtree(b, rootNode.x, curLeftY, true);
+              curLeftY += b.treeHeight;
+            });
+
+            let curRightY = rootNode.y - rightHeight / 2;
+            rightBranches.forEach(b => {
+              layoutSubtree(b, rootNode.x, curRightY, false);
+              curRightY += b.treeHeight;
+            });
+
+            // Draw Root
+            const rootG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+            const rootEl = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+            rootEl.setAttribute('x', `${rootNode.x - rootNode.width / 2}`);
+            rootEl.setAttribute('y', `${rootNode.y - rootNode.height / 2}`);
+            rootEl.setAttribute('width', `${rootNode.width}`);
+            rootEl.setAttribute('height', `${rootNode.height}`);
+            rootEl.setAttribute('rx', rootNode.shape === 'circle' ? `${rootNode.height / 2}` : '8');
+            rootEl.setAttribute('fill', primaryFill);
+            rootEl.setAttribute('stroke', primaryBorder);
+            rootEl.setAttribute('stroke-width', '2.5');
+            rootG.appendChild(rootEl);
 
             const rootTxt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-            rootTxt.setAttribute('x', `${root.x}`);
-            rootTxt.setAttribute('y', `${root.y}`);
+            rootTxt.setAttribute('x', `${rootNode.x}`);
+            rootTxt.setAttribute('y', `${rootNode.y}`);
             rootTxt.setAttribute('text-anchor', 'middle');
             rootTxt.setAttribute('dominant-baseline', 'central');
             rootTxt.setAttribute('fill', primaryText);
-            rootTxt.setAttribute('font-size', '12px');
+            rootTxt.setAttribute('font-size', '13px');
             rootTxt.setAttribute('font-weight', 'bold');
-            rootTxt.textContent = root.text;
-            nodesLayer.appendChild(rootTxt);
+            rootTxt.textContent = rootNode.text;
+            rootG.appendChild(rootTxt);
+            nodesLayer.appendChild(rootG);
 
-            const half = Math.ceil(branches.length / 2);
-            branches.forEach((b, idx) => {
-              const isLeft = idx < half;
-              const slot = isLeft ? idx : idx - half;
-              const bx = isLeft ? 160 : 600;
-              const by = 100 + slot * 140;
+            // Draw Nodes & Curves across all tiers
+            const renderNodeRecursive = (node, parentNode, isLeft) => {
+              if (parentNode) {
+                const px = parentNode === rootNode ? (isLeft ? parentNode.x - parentNode.width / 2 : parentNode.x + parentNode.width / 2) : (isLeft ? parentNode.x - parentNode.width / 2 : parentNode.x + parentNode.width / 2);
+                const py = parentNode.y;
+                const cx = isLeft ? node.x + node.width / 2 : node.x - node.width / 2;
+                const cy = node.y;
 
-              const curve = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-              curve.setAttribute('d', `M ${root.x} ${root.y} C ${(root.x + bx) / 2} ${root.y}, ${(root.x + bx) / 2} ${by}, ${bx} ${by}`);
-              curve.setAttribute('fill', 'none');
-              curve.setAttribute('stroke', primaryBorder);
-              curve.setAttribute('stroke-width', '2');
-              edgesLayer.appendChild(curve);
+                const curve = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                const midX = (px + cx) / 2;
+                curve.setAttribute('d', `M ${px} ${py} C ${midX} ${py}, ${midX} ${cy}, ${cx} ${cy}`);
+                curve.setAttribute('fill', 'none');
+                curve.setAttribute('stroke', node.level === 1 ? primaryBorder : linkColor);
+                curve.setAttribute('stroke-width', node.level === 1 ? '2.2' : (node.level === 2 ? '1.6' : '1.2'));
+                edgesLayer.appendChild(curve);
+              }
 
-              const bW = Math.max(110, b.text.length * 7 + 20);
-              const bRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-              bRect.setAttribute('x', `${bx - bW / 2}`);
-              bRect.setAttribute('y', `${by - 18}`);
-              bRect.setAttribute('width', `${bW}`);
-              bRect.setAttribute('height', '36');
-              bRect.setAttribute('rx', '6');
-              bRect.setAttribute('fill', cardBg);
-              bRect.setAttribute('stroke', primaryBorder);
-              bRect.setAttribute('stroke-width', '1.5');
-              nodesLayer.appendChild(bRect);
+              const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+              const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+              rect.setAttribute('x', `${node.x - node.width / 2}`);
+              rect.setAttribute('y', `${node.y - node.height / 2}`);
+              rect.setAttribute('width', `${node.width}`);
+              rect.setAttribute('height', `${node.height}`);
+              rect.setAttribute('rx', node.level === 1 ? '6' : '4');
+              rect.setAttribute('fill', node.level === 1 ? cardBg : (isDark ? '#232527' : '#F8F9FA'));
+              rect.setAttribute('stroke', node.level === 1 ? primaryBorder : cardBorder);
+              rect.setAttribute('stroke-width', node.level === 1 ? '1.5' : '1');
+              g.appendChild(rect);
 
-              const bTxt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-              bTxt.setAttribute('x', `${bx}`);
-              bTxt.setAttribute('y', `${by}`);
-              bTxt.setAttribute('text-anchor', 'middle');
-              bTxt.setAttribute('dominant-baseline', 'central');
-              bTxt.setAttribute('fill', textColor);
-              bTxt.setAttribute('font-size', '11.5px');
-              bTxt.setAttribute('font-weight', '600');
-              bTxt.textContent = b.text;
-              nodesLayer.appendChild(bTxt);
+              const txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+              txt.setAttribute('x', `${node.x}`);
+              txt.setAttribute('y', `${node.y}`);
+              txt.setAttribute('text-anchor', 'middle');
+              txt.setAttribute('dominant-baseline', 'central');
+              txt.setAttribute('fill', node.level === 1 ? primaryText : textColor);
+              txt.setAttribute('font-size', node.level === 1 ? '11.5px' : (node.level === 2 ? '11px' : '10px'));
+              txt.setAttribute('font-weight', node.level <= 2 ? '600' : 'normal');
+              txt.textContent = node.text;
+              g.appendChild(txt);
 
-              b.children.forEach((child, cIdx) => {
-                const cx = isLeft ? bx - 110 : bx + 110;
-                const cy = by - 20 + cIdx * 34;
+              nodesLayer.appendChild(g);
 
-                const cLine = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-                cLine.setAttribute('d', `M ${bx} ${by} C ${(bx + cx) / 2} ${by}, ${(bx + cx) / 2} ${cy}, ${cx} ${cy}`);
-                cLine.setAttribute('fill', 'none');
-                cLine.setAttribute('stroke', linkColor);
-                cLine.setAttribute('stroke-width', '1.2');
-                edgesLayer.appendChild(cLine);
-
-                const cLeaf = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                cLeaf.setAttribute('x', `${cx}`);
-                cLeaf.setAttribute('y', `${cy}`);
-                cLeaf.setAttribute('text-anchor', isLeft ? 'end' : 'start');
-                cLeaf.setAttribute('dominant-baseline', 'central');
-                cLeaf.setAttribute('fill', textColor);
-                cLeaf.setAttribute('font-size', '10.5px');
-                cLeaf.textContent = '• ' + child;
-                nodesLayer.appendChild(cLeaf);
+              node.children.forEach((child) => {
+                renderNodeRecursive(child, node, isLeft);
               });
-            });
+            };
+
+            leftBranches.forEach((b) => renderNodeRecursive(b, rootNode, true));
+            rightBranches.forEach((b) => renderNodeRecursive(b, rootNode, false));
             break;
           }
 

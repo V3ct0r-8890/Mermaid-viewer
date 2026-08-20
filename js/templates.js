@@ -185,25 +185,31 @@
         id: 'mindmap',
         name: 'Mindmap',
         badge: 'mindmap',
-        desc: 'Hierarchical concept mapping & brainstorming tree',
+        desc: 'Hierarchical concept mapping & multi-tier tree',
         code: `mindmap
   root((System Architecture))
     Client Layer
       Web Application
+        React Frontend
+        Vite Bundler
       Mobile App
-      Desktop Electron
+        iOS Swift
+        Android Kotlin
     API Gateway
       Authentication
+        OAuth2 Flow
+        JWT Tokens
       Rate Limiting
-      Routing
     Microservices
       User Service
+        Auth DB
       Payment Engine
-      Analytics Engine
+        Stripe API
     Data Tier
       PostgreSQL
-      Redis Cache
-      Object Storage`
+        Primary DB
+        Read Replica
+      Redis Cache`
       },
       {
         id: 'timeline',
