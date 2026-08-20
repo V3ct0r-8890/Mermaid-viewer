@@ -282,7 +282,11 @@
             let currentSec = { title: 'General', tasks: [] };
             sections.push(currentSec);
 
-            let dayOffset = 0;
+            let minTimestamp = Infinity;
+            let maxTimestamp = -Infinity;
+            let hasRealDates = false;
+            let fallbackDay = 0;
+
             rawLines.forEach(line => {
               const titleMatch = line.match(/^title\s+(.+)$/i);
               if (titleMatch) { title = titleMatch[1].trim(); return; }
@@ -297,33 +301,76 @@
                 return;
               }
 
-              if (line.toLowerCase().startsWith('gantt')) return;
+              if (line.toLowerCase().startsWith('gantt') || line.toLowerCase().startsWith('axisformat') || line.toLowerCase().startsWith('excludes') || line.toLowerCase().startsWith('todaymarker')) return;
 
               const taskParts = line.split(':');
               if (taskParts.length >= 2) {
                 const taskName = taskParts[0].trim();
                 const meta = taskParts.slice(1).join(':').trim();
                 let status = 'done';
-                let dur = 6;
                 if (meta.includes('crit')) status = 'crit';
                 else if (meta.includes('active')) status = 'active';
-                else if (meta.includes('milestone')) { status = 'milestone'; dur = 1; }
-
-                const durMatch = meta.match(/([0-9]+)d/);
-                if (durMatch) dur = parseInt(durMatch[1], 10);
+                else if (meta.includes('milestone')) status = 'milestone';
 
                 const color = status === 'done' ? '#4CAF50' : status === 'active' ? '#2196F3' : status === 'crit' ? '#F44336' : '#FF9800';
-                currentSec.tasks.push({ name: taskName, start: dayOffset, dur, status, color });
-                dayOffset += Math.max(2, Math.round(dur * 0.75));
+
+                const dateMatches = meta.match(/([0-9]{4}[-/][0-9]{1,2}[-/][0-9]{1,2})/g) || [];
+                const durMatch = meta.match(/([0-9]+)\s*([dwmy]?)/i);
+
+                let startTs = null;
+                let endTs = null;
+                let durationDays = 6;
+
+                if (durMatch && durMatch[1]) {
+                  const num = parseInt(durMatch[1], 10);
+                  const unit = (durMatch[2] || 'd').toLowerCase();
+                  durationDays = unit === 'w' ? num * 7 : (unit === 'm' ? num * 30 : num);
+                }
+
+                if (dateMatches.length >= 2) {
+                  startTs = new Date(dateMatches[0]).getTime();
+                  endTs = new Date(dateMatches[1]).getTime();
+                  if (!isNaN(startTs) && !isNaN(endTs) && endTs >= startTs) {
+                    durationDays = Math.max(1, Math.round((endTs - startTs) / (1000 * 3600 * 24)));
+                    hasRealDates = true;
+                  }
+                } else if (dateMatches.length === 1) {
+                  startTs = new Date(dateMatches[0]).getTime();
+                  if (!isNaN(startTs)) {
+                    if (status === 'milestone') durationDays = 0;
+                    endTs = startTs + durationDays * (1000 * 3600 * 24);
+                    hasRealDates = true;
+                  }
+                }
+
+                if (startTs !== null && !isNaN(startTs)) {
+                  if (startTs < minTimestamp) minTimestamp = startTs;
+                  if (endTs > maxTimestamp) maxTimestamp = endTs;
+                }
+
+                currentSec.tasks.push({
+                  name: taskName,
+                  status,
+                  color,
+                  startTs,
+                  endTs,
+                  dur: durationDays,
+                  fallbackStart: fallbackDay
+                });
+
+                fallbackDay += Math.max(1, Math.round(durationDays * 0.8));
               }
             });
 
             const validSections = sections.filter(s => s.tasks.length > 0);
-            const totalDays = Math.max(dayOffset + 8, 35);
+            const totalSpanDays = hasRealDates
+              ? Math.max(7, Math.round((maxTimestamp - minTimestamp) / (1000 * 3600 * 24)) + 4)
+              : Math.max(fallbackDay + 6, 28);
+
             const taskColW = 200;
             const timelineX = 240;
             const timelineW = 560;
-            const dayW = timelineW / totalDays;
+            const dayW = timelineW / totalSpanDays;
             const rowH = 34;
             const secH = 28;
 
@@ -363,10 +410,10 @@
             nodesLayer.appendChild(taskColHeader);
 
             // Time column ticks
-            const stepDays = 7;
-            for (let d = 0; d <= totalDays; d += stepDays) {
+            const stepDays = totalSpanDays > 60 ? 14 : (totalSpanDays > 25 ? 7 : 4);
+            for (let d = 0; d <= totalSpanDays; d += stepDays) {
               const gx = timelineX + d * dayW;
-              
+
               // Grid line
               const gridLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
               gridLine.setAttribute('x1', `${gx}`);
@@ -379,13 +426,21 @@
               edgesLayer.appendChild(gridLine);
 
               // Date tick label
+              let tickLabel = `Day ${d + 1}`;
+              if (hasRealDates && !isNaN(minTimestamp)) {
+                const tickDate = new Date(minTimestamp + d * 86400000);
+                const month = tickDate.toLocaleString('default', { month: 'short' });
+                const day = String(tickDate.getDate()).padStart(2, '0');
+                tickLabel = `${month} ${day}`;
+              }
+
               const tickTxt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-              tickTxt.setAttribute('x', `${gx + 12}`);
+              tickTxt.setAttribute('x', `${gx + 4}`);
               tickTxt.setAttribute('y', `${headerY + 17}`);
               tickTxt.setAttribute('fill', textColor);
               tickTxt.setAttribute('font-size', '10px');
               tickTxt.setAttribute('opacity', '0.85');
-              tickTxt.textContent = `Week ${Math.floor(d / 7) + 1}`;
+              tickTxt.textContent = tickLabel;
               nodesLayer.appendChild(tickTxt);
             }
 
@@ -417,7 +472,6 @@
 
               // Task Rows
               sec.tasks.forEach((t, tIdx) => {
-                // Zebra row background
                 if (tIdx % 2 === 1) {
                   const rowBg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
                   rowBg.setAttribute('x', '30');
@@ -439,13 +493,18 @@
                 tTxt.textContent = t.name;
                 nodesLayer.appendChild(tTxt);
 
-                // Gantt Bar / Milestone
-                const bx = timelineX + t.start * dayW;
-                const bw = Math.max(18, t.dur * dayW);
+                // Start day calculation
+                let taskStartDay = t.fallbackStart;
+                if (hasRealDates && t.startTs !== null && !isNaN(t.startTs)) {
+                  taskStartDay = Math.max(0, Math.round((t.startTs - minTimestamp) / 86400000));
+                }
+
+                const bx = timelineX + taskStartDay * dayW;
+                const bw = Math.max(14, t.dur * dayW);
 
                 if (t.status === 'milestone') {
                   const mDia = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
-                  const mx = bx + 10;
+                  const mx = bx + 8;
                   const my = curY + 15;
                   mDia.setAttribute('points', `${mx},${my - 9} ${mx + 9},${my} ${mx},${my + 9} ${mx - 9},${my}`);
                   mDia.setAttribute('fill', t.color);
@@ -460,7 +519,6 @@
                   mTag.textContent = 'Milestone';
                   nodesLayer.appendChild(mTag);
                 } else {
-                  // Track bar
                   const bar = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
                   bar.setAttribute('x', `${bx}`);
                   bar.setAttribute('y', `${curY + 6}`);
@@ -470,7 +528,6 @@
                   bar.setAttribute('fill', t.color);
                   nodesLayer.appendChild(bar);
 
-                  // Duration text inside/next to bar
                   const durText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
                   durText.setAttribute('x', bw > 30 ? `${bx + bw / 2}` : `${bx + bw + 6}`);
                   durText.setAttribute('y', `${curY + 19}`);
