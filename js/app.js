@@ -404,6 +404,7 @@
         const inspectorTab = document.querySelector('.left-tab[data-tab="properties"]');
         if (inspectorTab) inspectorTab.click();
 
+        this.renderAll();
         this.updatePropertiesPanel();
       }
 

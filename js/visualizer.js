@@ -25,6 +25,9 @@
         const linkColor = isDark ? '#BBBBBB' : '#616161';
         const cardBg = isDark ? '#2B2D30' : '#FFFFFF';
         const cardBorder = isDark ? '#4E5157' : '#CFD8DC';
+        const app = (typeof AppController !== 'undefined' && AppController.instance) ? AppController.instance : null;
+        const selTitle = app && app.selectedVisualObject ? app.selectedVisualObject.title : null;
+        const selGlow = 'drop-shadow(0 0 6px rgba(33, 150, 243, 0.8))';
 
         switch (type) {
           case 'sequence': {
@@ -107,9 +110,11 @@
               rect.setAttribute('width', `${boxW}`);
               rect.setAttribute('height', '36');
               rect.setAttribute('rx', p.isActor ? '18' : '4');
+              const isSelP = (p.name === selTitle);
               rect.setAttribute('fill', primaryFill);
-              rect.setAttribute('stroke', primaryBorder);
-              rect.setAttribute('stroke-width', '1.8');
+              rect.setAttribute('stroke', isSelP ? 'var(--selection-color)' : primaryBorder);
+              rect.setAttribute('stroke-width', isSelP ? '2.5' : '1.8');
+              if (isSelP) rect.style.filter = selGlow;
               g.appendChild(rect);
 
               const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
@@ -179,9 +184,11 @@
               badgeBg.setAttribute('width', `${badgeW}`);
               badgeBg.setAttribute('height', '18');
               badgeBg.setAttribute('rx', '4');
+              const isSelM = (m.text === selTitle || `${m.from} → ${m.to}` === selTitle);
               badgeBg.setAttribute('fill', cardBg);
-              badgeBg.setAttribute('stroke', cardBorder);
-              badgeBg.setAttribute('stroke-width', '1');
+              badgeBg.setAttribute('stroke', isSelM ? 'var(--selection-color)' : cardBorder);
+              badgeBg.setAttribute('stroke-width', isSelM ? '2' : '1');
+              if (isSelM) badgeBg.style.filter = selGlow;
               badgeG.appendChild(badgeBg);
 
               const badgeText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
@@ -280,9 +287,11 @@
 
               const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
               path.setAttribute('d', pathData);
+              const isSelPie = (d.label === selTitle);
               path.setAttribute('fill', d.color);
-              path.setAttribute('stroke', cardBg);
-              path.setAttribute('stroke-width', '2');
+              path.setAttribute('stroke', isSelPie ? 'var(--selection-color)' : cardBg);
+              path.setAttribute('stroke-width', isSelPie ? '3.5' : '2');
+              if (isSelPie) path.style.filter = selGlow;
               path.style.cursor = 'pointer';
 
               const attachPieClick = (targetEl) => {
@@ -613,7 +622,13 @@
                   bar.setAttribute('width', `${bw}`);
                   bar.setAttribute('height', '18');
                   bar.setAttribute('rx', '4');
+                  const isSelGantt = (t.name === selTitle);
                   bar.setAttribute('fill', t.color);
+                  if (isSelGantt) {
+                    bar.setAttribute('stroke', 'var(--selection-color)');
+                    bar.setAttribute('stroke-width', '2.5');
+                    bar.style.filter = selGlow;
+                  }
                   taskRowG.appendChild(bar);
 
                   const durText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
@@ -781,9 +796,11 @@
               circle.setAttribute('cx', `${x}`);
               circle.setAttribute('cy', `${y}`);
               circle.setAttribute('r', '10');
+              const isSelGit = (c.id === selTitle);
               circle.setAttribute('fill', bInfo.color);
-              circle.setAttribute('stroke', cardBg);
-              circle.setAttribute('stroke-width', '2.5');
+              circle.setAttribute('stroke', isSelGit ? 'var(--selection-color)' : cardBg);
+              circle.setAttribute('stroke-width', isSelGit ? '3.5' : '2.5');
+              if (isSelGit) circle.style.filter = selGlow;
               commitG.appendChild(circle);
 
               const cLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
@@ -922,8 +939,13 @@
                 card.setAttribute('width', `${stageW - 16}`);
                 card.setAttribute('height', '80');
                 card.setAttribute('rx', '6');
+                const isSelJourney = (t.name === selTitle);
                 card.setAttribute('fill', cardBg);
-                card.setAttribute('stroke', cardBorder);
+                card.setAttribute('stroke', isSelJourney ? 'var(--selection-color)' : cardBorder);
+                if (isSelJourney) {
+                  card.setAttribute('stroke-width', '2.5');
+                  card.style.filter = selGlow;
+                }
                 cardG.appendChild(card);
 
                 const tName = document.createElementNS('http://www.w3.org/2000/svg', 'text');
@@ -1114,9 +1136,11 @@
             rootEl.setAttribute('width', `${rootNode.width}`);
             rootEl.setAttribute('height', `${rootNode.height}`);
             rootEl.setAttribute('rx', rootNode.shape === 'circle' ? `${rootNode.height / 2}` : '8');
+            const isSelRoot = (rootNode.text === selTitle);
             rootEl.setAttribute('fill', primaryFill);
-            rootEl.setAttribute('stroke', primaryBorder);
-            rootEl.setAttribute('stroke-width', '2.5');
+            rootEl.setAttribute('stroke', isSelRoot ? 'var(--selection-color)' : primaryBorder);
+            rootEl.setAttribute('stroke-width', isSelRoot ? '3.5' : '2.5');
+            if (isSelRoot) rootEl.style.filter = selGlow;
             rootG.appendChild(rootEl);
 
             const rootTxt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
@@ -1175,9 +1199,11 @@
               rect.setAttribute('width', `${node.width}`);
               rect.setAttribute('height', `${node.height}`);
               rect.setAttribute('rx', node.level === 1 ? '6' : '4');
+              const isSelMM = (node.text === selTitle);
               rect.setAttribute('fill', node.level === 1 ? cardBg : (isDark ? '#232527' : '#F8F9FA'));
-              rect.setAttribute('stroke', node.level === 1 ? primaryBorder : cardBorder);
-              rect.setAttribute('stroke-width', node.level === 1 ? '1.5' : '1');
+              rect.setAttribute('stroke', isSelMM ? 'var(--selection-color)' : (node.level === 1 ? primaryBorder : cardBorder));
+              rect.setAttribute('stroke-width', isSelMM ? '2.5' : (node.level === 1 ? '1.5' : '1'));
+              if (isSelMM) rect.style.filter = selGlow;
               g.appendChild(rect);
 
               const txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
@@ -1313,8 +1339,13 @@
               cardRect.setAttribute('width', `${cardW}`);
               cardRect.setAttribute('height', `${cardH}`);
               cardRect.setAttribute('rx', '6');
+              const isSelTime = (ev.era === selTitle);
               cardRect.setAttribute('fill', cardBg);
-              cardRect.setAttribute('stroke', cardBorder);
+              cardRect.setAttribute('stroke', isSelTime ? 'var(--selection-color)' : cardBorder);
+              if (isSelTime) {
+                cardRect.setAttribute('stroke-width', '2.5');
+                cardRect.style.filter = selGlow;
+              }
               cardG.appendChild(cardRect);
 
               ev.items.forEach((it, iIdx) => {
@@ -1496,9 +1527,11 @@
               circle.setAttribute('cx', `${px}`);
               circle.setAttribute('cy', `${py}`);
               circle.setAttribute('r', '8');
+              const isSelQuad = (it.name === selTitle);
               circle.setAttribute('fill', it.color);
-              circle.setAttribute('stroke', cardBg);
-              circle.setAttribute('stroke-width', '2');
+              circle.setAttribute('stroke', isSelQuad ? 'var(--selection-color)' : cardBg);
+              circle.setAttribute('stroke-width', isSelQuad ? '3.5' : '2');
+              if (isSelQuad) circle.style.filter = selGlow;
               itemG.appendChild(circle);
 
               const txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
@@ -1582,8 +1615,14 @@
               rect.setAttribute('width', '130');
               rect.setAttribute('height', '45');
               rect.setAttribute('rx', '4');
+              const isSelSankey = (name === selTitle);
               rect.setAttribute('fill', color);
-              rect.setAttribute('opacity', '0.85');
+              rect.setAttribute('opacity', isSelSankey ? '1' : '0.85');
+              if (isSelSankey) {
+                rect.setAttribute('stroke', 'var(--selection-color)');
+                rect.setAttribute('stroke-width', '3');
+                rect.style.filter = selGlow;
+              }
               g.appendChild(rect);
 
               const txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
