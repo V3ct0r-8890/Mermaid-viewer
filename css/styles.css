@@ -330,6 +330,21 @@
       background: var(--hover-color);
       border-color: var(--selection-color);
     }
+    .prop-action-btn.primary {
+      background: var(--btn-primary);
+      color: #FFFFFF;
+      border-color: var(--btn-primary);
+    }
+    .prop-action-btn.primary:hover {
+      opacity: 0.9;
+    }
+    .prop-action-btn.danger {
+      color: var(--btn-danger);
+      border-color: var(--btn-danger);
+    }
+    .prop-action-btn.danger:hover {
+      background: rgba(244, 67, 54, 0.1);
+    }
 
     .shape-palette {
       display: grid;

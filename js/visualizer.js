@@ -132,11 +132,9 @@
                     fields: [
                       { key: 'name', label: 'Display Name', type: 'text', value: p.name }
                     ],
-                    onUpdate: (k, v) => {
-                      if (k === 'name') {
-                        const regex = new RegExp(`(actor|participant)\\s+${p.id}(?:\\s+as\\s+[^\n]+)?`, 'i');
-                        MultiDiagramVisualizer.updateCodeLine(regex, `$1 ${p.id} as ${v}`);
-                      }
+                    onSave: (vals) => {
+                      const regex = new RegExp(`(actor|participant)\\s+${p.id}(?:\\s+as\\s+[^\n]+)?`, 'i');
+                      MultiDiagramVisualizer.updateCodeLine(regex, `$1 ${p.id} as ${vals.name}`);
                     }
                   });
                 }
@@ -203,10 +201,10 @@
                     fields: [
                       { key: 'text', label: 'Message Text', type: 'text', value: m.text }
                     ],
-                    onUpdate: (k, v) => {
+                    onSave: (vals) => {
                       const escaped = m.text.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
                       const regex = new RegExp(`(${m.from}\\s*(?:-->>|->>|-->|->)\\s*${m.to}\\s*:\\s*)${escaped}`, 'i');
-                      MultiDiagramVisualizer.updateCodeLine(regex, `$1${v}`);
+                      MultiDiagramVisualizer.updateCodeLine(regex, `$1${vals.text}`);
                     }
                   });
                 }
@@ -294,15 +292,10 @@
                         { key: 'label', label: 'Slice Label', type: 'text', value: d.label },
                         { key: 'val', label: 'Value / Proportion', type: 'number', value: d.val }
                       ],
-                      onUpdate: (k, v) => {
+                      onSave: (vals) => {
                         const escaped = d.label.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
-                        if (k === 'label') {
-                          const regex = new RegExp(`(["']?)${escaped}(["']?\\s*:\\s*${d.val})`, 'i');
-                          MultiDiagramVisualizer.updateCodeLine(regex, `"$1${v}$2"`);
-                        } else if (k === 'val') {
-                          const regex = new RegExp(`((?:["']?)${escaped}(?:["']?)\\s*:\\s*)[0-9.]+`, 'i');
-                          MultiDiagramVisualizer.updateCodeLine(regex, `$1${v}`);
-                        }
+                        const regex = new RegExp(`(["']?)${escaped}(["']?\\s*:\\s*)[0-9.]+`, 'i');
+                        MultiDiagramVisualizer.updateCodeLine(regex, `"${vals.label}" : ${vals.val}`);
                       }
                     });
                   }
@@ -640,12 +633,10 @@
                         { key: 'dur', label: 'Duration (Days)', type: 'number', value: t.dur },
                         { key: 'status', label: 'Status', type: 'select', options: ['done', 'active', 'crit', 'milestone'], value: t.status }
                       ],
-                      onUpdate: (k, v) => {
+                      onSave: (vals) => {
                         const escaped = t.name.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
-                        if (k === 'name') {
-                          const regex = new RegExp(`^(\\s*)${escaped}(\\s*:)`, 'm');
-                          MultiDiagramVisualizer.updateCodeLine(regex, `$1${v}$2`);
-                        }
+                        const regex = new RegExp(`^(\\s*)${escaped}(\\s*:)`, 'm');
+                        MultiDiagramVisualizer.updateCodeLine(regex, `$1${vals.name}$2`);
                       }
                     });
                   }
@@ -833,12 +824,10 @@
                       { key: 'id', label: 'Commit Message / ID', type: 'text', value: c.id },
                       { key: 'tag', label: 'Release Tag', type: 'text', value: c.tag || '' }
                     ],
-                    onUpdate: (k, v) => {
+                    onSave: (vals) => {
                       const escaped = c.id.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
-                      if (k === 'id') {
-                        const regex = new RegExp(`(commit\\s+id:\\s*["'])${escaped}(["'])`, 'i');
-                        MultiDiagramVisualizer.updateCodeLine(regex, `$1${v}$2`);
-                      }
+                      const regex = new RegExp(`(commit\\s+id:\\s*["'])${escaped}(["'])`, 'i');
+                      MultiDiagramVisualizer.updateCodeLine(regex, `$1${vals.id}$2`);
                     }
                   });
                 }
@@ -967,15 +956,10 @@
                         { key: 'score', label: 'Satisfaction (1-5)', type: 'select', options: [1, 2, 3, 4, 5], value: t.score },
                         { key: 'actor', label: 'Actor', type: 'text', value: t.actor }
                       ],
-                      onUpdate: (k, v) => {
+                      onSave: (vals) => {
                         const escaped = t.name.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
-                        if (k === 'score') {
-                          const regex = new RegExp(`(${escaped}\\s*:\\s*)[0-9]+(\\s*:\\s*${t.actor})`, 'i');
-                          MultiDiagramVisualizer.updateCodeLine(regex, `$1${v}$2`);
-                        } else if (k === 'name') {
-                          const regex = new RegExp(`^(\\s*)${escaped}(\\s*:\\s*${t.score})`, 'm');
-                          MultiDiagramVisualizer.updateCodeLine(regex, `$1${v}$2`);
-                        }
+                        const regex = new RegExp(`^(\\s*)${escaped}(\\s*:\\s*)[0-9]+(\\s*:\\s*)${t.actor}`, 'm');
+                        MultiDiagramVisualizer.updateCodeLine(regex, `$1${vals.name}$2${vals.score}$3${vals.actor}`);
                       }
                     });
                   }
@@ -1146,10 +1130,10 @@
                   fields: [
                     { key: 'text', label: 'Central Topic', type: 'text', value: rootNode.text }
                   ],
-                  onUpdate: (k, v) => {
+                  onSave: (vals) => {
                     const escaped = rootNode.text.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
                     const regex = new RegExp(`(root[\\(\\[{]*)${escaped}([\\)\\]}]*)`);
-                    MultiDiagramVisualizer.updateCodeLine(regex, `$1${v}$2`);
+                    MultiDiagramVisualizer.updateCodeLine(regex, `$1${vals.text}$2`);
                   }
                 });
               }
@@ -1206,10 +1190,10 @@
                     fields: [
                       { key: 'text', label: 'Branch Topic', type: 'text', value: node.text }
                     ],
-                    onUpdate: (k, v) => {
+                    onSave: (vals) => {
                       const escaped = node.text.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
                       const regex = new RegExp(`^(\\s*)${escaped}$`, 'm');
-                      MultiDiagramVisualizer.updateCodeLine(regex, `$1${v}`);
+                      MultiDiagramVisualizer.updateCodeLine(regex, `$1${vals.text}`);
                     }
                   });
                 }
@@ -1343,13 +1327,11 @@
                       { key: 'era', label: 'Era / Year', type: 'text', value: ev.era },
                       { key: 'items', label: 'Milestone Events (Comma Separated)', type: 'text', value: ev.items.join(', ') }
                     ],
-                    onUpdate: (k, v) => {
+                    onSave: (vals) => {
                       const escaped = ev.era.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
-                      if (k === 'items') {
-                        const newItems = v.split(',').map(s => s.trim()).filter(Boolean).join(' : ');
-                        const regex = new RegExp(`(${escaped}\\s*:\\s*)[^\n]+`, 'i');
-                        MultiDiagramVisualizer.updateCodeLine(regex, `$1${newItems}`);
-                      }
+                      const newItems = vals.items.split(',').map(s => s.trim()).filter(Boolean).join(' : ');
+                      const regex = new RegExp(`(${escaped}\\s*:\\s*)[^\n]+`, 'i');
+                      MultiDiagramVisualizer.updateCodeLine(regex, `$1${newItems}`);
                     }
                   });
                 }
@@ -1484,12 +1466,10 @@
                       { key: 'x', label: 'X Axis (0.0 - 1.0)', type: 'number', step: 0.05, min: 0, max: 1, value: it.x },
                       { key: 'y', label: 'Y Axis (0.0 - 1.0)', type: 'number', step: 0.05, min: 0, max: 1, value: it.y }
                     ],
-                    onUpdate: (k, v) => {
+                    onSave: (vals) => {
                       const escaped = it.name.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
-                      if (k === 'name') {
-                        const regex = new RegExp(`(["']?)${escaped}(["']?\\s*:\\s*\\[)`, 'i');
-                        MultiDiagramVisualizer.updateCodeLine(regex, `"$1${v}$2"`);
-                      }
+                      const regex = new RegExp(`(["']?)${escaped}(["']?\\s*:\\s*\\[)\\s*[0-9.]+\\s*,\\s*[0-9.]+\\s*\\]`, 'i');
+                      MultiDiagramVisualizer.updateCodeLine(regex, `"${vals.name}" : [${vals.x}, ${vals.y}]`);
                     }
                   });
                 }
@@ -1570,10 +1550,10 @@
                     fields: [
                       { key: 'name', label: 'Node Label', type: 'text', value: name }
                     ],
-                    onUpdate: (k, v) => {
+                    onSave: (vals) => {
                       const escaped = name.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
                       const regex = new RegExp(`^(\\s*)${escaped}(\\s*,)`, 'gm');
-                      MultiDiagramVisualizer.updateCodeLine(regex, `$1${v}$2`);
+                      MultiDiagramVisualizer.updateCodeLine(regex, `$1${vals.name}$2`);
                     }
                   });
                 }

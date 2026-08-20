@@ -445,7 +445,14 @@
 
             if (visualFields) {
               visualFields.innerHTML = '';
+              const initialValues = {};
+              const draftValues = {};
+              const inputElements = {};
+
               (this.selectedVisualObject.fields || []).forEach(f => {
+                initialValues[f.key] = f.value;
+                draftValues[f.key] = f.value;
+
                 const grp = document.createElement('div');
                 grp.className = 'prop-group';
 
@@ -464,11 +471,9 @@
                     sel.appendChild(optEl);
                   });
                   sel.addEventListener('change', () => {
-                    f.value = sel.value;
-                    if (this.selectedVisualObject.onUpdate) {
-                      this.selectedVisualObject.onUpdate(f.key, sel.value);
-                    }
+                    draftValues[f.key] = sel.value;
                   });
+                  inputElements[f.key] = sel;
                   grp.appendChild(sel);
                 } else if (f.type === 'number') {
                   const inp = document.createElement('input');
@@ -479,11 +484,9 @@
                   if (f.max !== undefined) inp.max = f.max;
                   if (f.step !== undefined) inp.step = f.step;
                   inp.addEventListener('input', () => {
-                    f.value = parseFloat(inp.value) || 0;
-                    if (this.selectedVisualObject.onUpdate) {
-                      this.selectedVisualObject.onUpdate(f.key, f.value);
-                    }
+                    draftValues[f.key] = parseFloat(inp.value) || 0;
                   });
+                  inputElements[f.key] = inp;
                   grp.appendChild(inp);
                 } else {
                   const inp = document.createElement('input');
@@ -491,16 +494,67 @@
                   inp.className = 'prop-input';
                   inp.value = f.value || '';
                   inp.addEventListener('input', () => {
-                    f.value = inp.value;
-                    if (this.selectedVisualObject.onUpdate) {
-                      this.selectedVisualObject.onUpdate(f.key, inp.value);
-                    }
+                    draftValues[f.key] = inp.value;
                   });
+                  inputElements[f.key] = inp;
                   grp.appendChild(inp);
                 }
 
                 visualFields.appendChild(grp);
               });
+
+              // Action Buttons Row (Save / Reset / Deselect)
+              const btnRow = document.createElement('div');
+              btnRow.style.display = 'flex';
+              btnRow.style.gap = '8px';
+              btnRow.style.marginTop = '16px';
+
+              const btnSave = document.createElement('button');
+              btnSave.className = 'prop-action-btn primary';
+              btnSave.style.flex = '1';
+              btnSave.textContent = 'Save / Apply';
+              btnSave.title = 'Apply changes to diagram and code';
+              btnSave.addEventListener('click', () => {
+                if (this.selectedVisualObject && this.selectedVisualObject.onSave) {
+                  this.selectedVisualObject.onSave(draftValues);
+                  (this.selectedVisualObject.fields || []).forEach(f => {
+                    f.value = draftValues[f.key];
+                    initialValues[f.key] = draftValues[f.key];
+                  });
+                  Utils.showToast('Properties updated and applied', 'success');
+                }
+              });
+
+              const btnReset = document.createElement('button');
+              btnReset.className = 'prop-action-btn';
+              btnReset.style.flex = '1';
+              btnReset.textContent = 'Reset';
+              btnReset.title = 'Revert unapplied changes';
+              btnReset.addEventListener('click', () => {
+                (this.selectedVisualObject.fields || []).forEach(f => {
+                  draftValues[f.key] = initialValues[f.key];
+                  if (inputElements[f.key]) {
+                    inputElements[f.key].value = initialValues[f.key];
+                  }
+                });
+                Utils.showToast('Properties reset', 'info');
+              });
+
+              const btnDeselect = document.createElement('button');
+              btnDeselect.className = 'prop-action-btn danger';
+              btnDeselect.style.padding = '6px 10px';
+              btnDeselect.textContent = '✕';
+              btnDeselect.title = 'Deselect object';
+              btnDeselect.addEventListener('click', () => {
+                this.selectedVisualObject = null;
+                this.renderAll();
+                this.updatePropertiesPanel();
+              });
+
+              btnRow.appendChild(btnSave);
+              btnRow.appendChild(btnReset);
+              btnRow.appendChild(btnDeselect);
+              visualFields.appendChild(btnRow);
             }
           }
           return;
@@ -1035,10 +1089,12 @@
 
         if (e.button === 1 || e.spaceKey || (e.button === 0 && isBg)) {
           if (e.button === 0 && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
-            if (this.selectedNodeIds.size > 0 || this.selectedEdgeId !== null) {
+            if (this.selectedNodeIds.size > 0 || this.selectedEdgeId !== null || this.selectedVisualObject !== null) {
               this.selectedNodeIds.clear();
               this.selectedEdgeId = null;
+              this.selectedVisualObject = null;
               this.renderAll();
+              this.updatePropertiesPanel();
             }
           }
 
@@ -1402,6 +1458,11 @@
         if (e.key === 'Escape') {
           this.closeAllModals();
           this.toggleSearchBox(false);
+          this.selectedNodeIds.clear();
+          this.selectedEdgeId = null;
+          this.selectedVisualObject = null;
+          this.renderAll();
+          this.updatePropertiesPanel();
           return;
         }
 
