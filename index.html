@@ -352,6 +352,50 @@
       height: 28px;
     }
 
+    /* Template Cards in Modal */
+    .template-card {
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 10px;
+      background: var(--bg-color);
+      cursor: pointer;
+      transition: all 0.15s;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .template-card:hover {
+      border-color: var(--btn-primary);
+      background: var(--hover-color);
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .template-badge {
+      display: inline-block;
+      align-self: flex-start;
+      font-size: 10px;
+      font-family: var(--code-font);
+      background: var(--hover-color);
+      color: var(--btn-primary);
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-weight: 600;
+    }
+
+    .template-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-color);
+    }
+
+    .template-desc {
+      font-size: 11px;
+      color: var(--text-muted);
+      line-height: 1.3;
+    }
+
     /* Rules Engine List */
     .rules-list {
       display: flex;
@@ -912,6 +956,10 @@
         <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
         <span>New</span>
       </button>
+      <button class="tb-btn" id="btn-templates" title="Load Diagram Templates & All Mermaid Types">
+        <svg viewBox="0 0 24 24"><path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H8V4h12v12z"/></svg>
+        <span>Templates</span>
+      </button>
       <button class="tb-btn" id="btn-open" title="Open Project (Ctrl+O)">
         <svg viewBox="0 0 24 24"><path d="M20 6h-8l-2-2H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm0 12H4V8h16v10z"/></svg>
         <span>Open</span>
@@ -955,10 +1003,10 @@
         <svg viewBox="0 0 24 24"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/></svg>
         <span>Link</span>
       </button>
-      <button class="tb-btn" id="btn-autolayout-td" title="Auto Layout Top-Down">
+      <button class="tb-btn" id="btn-autolayout-td" title="Auto Layout Top-Down (Ctrl+Z to Undo)">
         <span>Layout TD</span>
       </button>
-      <button class="tb-btn" id="btn-autolayout-lr" title="Auto Layout Left-Right">
+      <button class="tb-btn" id="btn-autolayout-lr" title="Auto Layout Left-Right (Ctrl+Z to Undo)">
         <span>Layout LR</span>
       </button>
     </div>
@@ -1257,7 +1305,7 @@
         </div>
         <div id="editor-status-bar">
           <span id="editor-error">Valid Mermaid</span>
-          <span>Flowchart TD / LR</span>
+          <span>Mermaid Diagram</span>
         </div>
       </div>
     </div>
@@ -1403,6 +1451,25 @@
     </div>
   </div>
 
+  <!-- Templates Chooser Modal (All Mermaid Diagram Types) -->
+  <div class="modal-overlay" id="templates-modal">
+    <div class="modal-card" style="width:620px; max-width:92vw;">
+      <div class="modal-header">
+        <span>Mermaid Diagram Types & Starter Templates</span>
+        <button class="float-btn" id="templates-modal-close" style="width:24px;height:24px;">✕</button>
+      </div>
+      <div class="modal-body" style="max-height:68vh; overflow-y:auto;">
+        <p style="color:var(--text-muted); font-size:11px;">Select any Mermaid diagram type below to load an interactive starter template.</p>
+        <div style="display:grid; grid-template-columns: repeat(2, 1fr); gap:10px;" id="templates-grid">
+          <!-- Dynamically populated from DIAGRAM_TEMPLATES -->
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="templates-modal-cancel">Close</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Delete Confirm Modal -->
   <div class="modal-overlay" id="confirm-modal">
     <div class="modal-card" style="width:340px;">
@@ -1428,6 +1495,248 @@
      * Mermaid Visual Editor & Offline Viewer
      * Complete Offline Single-File Implementation
      */
+
+    // --- ALL MERMAID DIAGRAM TYPE TEMPLATES ---
+    const DIAGRAM_TEMPLATES = [
+      {
+        id: 'flowchart_td',
+        name: 'Flowchart (Top-Down)',
+        badge: 'flowchart TD',
+        desc: 'Standard multi-tier architecture & workflow',
+        code: `flowchart TD
+  Client["Client App"] -->|"HTTP Request"| API["API Gateway"]
+  API -->|"Verify"| Auth{"Auth Service"}
+  API ==>|"Query Data"| Database(("PostgreSQL DB"))`
+      },
+      {
+        id: 'flowchart_lr',
+        name: 'Flowchart (Left-Right)',
+        badge: 'flowchart LR',
+        desc: 'Horizontal sequential pipeline process',
+        code: `flowchart LR
+  Start([Start]) --> Process["Process Input"]
+  Process --> Validate{"Valid?"}
+  Validate -->|Yes| Output[("Save Record")]
+  Validate -->|No| Reject["Reject with Error"]`
+      },
+      {
+        id: 'sequence',
+        name: 'Sequence Diagram',
+        badge: 'sequenceDiagram',
+        desc: 'Time-ordered actor & service interactions',
+        code: `sequenceDiagram
+  autonumber
+  actor User
+  participant App as Web App
+  participant API as API Server
+  participant DB as Database
+
+  User->>App: Click Checkout
+  App->>API: POST /orders
+  API->>DB: INSERT order
+  DB-->>API: Order ID #1042
+  API-->>App: 201 Created
+  App-->>User: Show Confirmation`
+      },
+      {
+        id: 'classDiagram',
+        name: 'Class Diagram',
+        badge: 'classDiagram',
+        desc: 'OOP structure, classes, fields, and inheritance',
+        code: `classDiagram
+  class Vehicle {
+    +String brand
+    +int year
+    +startEngine()
+  }
+  class Car {
+    +int numberOfDoors
+    +drive()
+  }
+  class ElectricCar {
+    +int batteryCapacity
+    +charge()
+  }
+  Vehicle <|-- Car
+  Car <|-- ElectricCar`
+      },
+      {
+        id: 'stateDiagram',
+        name: 'State Diagram (v2)',
+        badge: 'stateDiagram-v2',
+        desc: 'Finite state machine states & transitions',
+        code: `stateDiagram-v2
+  [*] --> Idle
+  Idle --> Processing: New Job
+  Processing --> Succeeded: Completed
+  Processing --> Failed: Error
+  Failed --> Retrying: Backoff
+  Retrying --> Processing: Retry
+  Retrying --> DeadLetter: Max Retries
+  Succeeded --> [*]
+  DeadLetter --> [*]`
+      },
+      {
+        id: 'erDiagram',
+        name: 'Entity Relationship (ER)',
+        badge: 'erDiagram',
+        desc: 'Relational database entities, keys, and foreign links',
+        code: `erDiagram
+  USER ||--o{ ORDER : places
+  ORDER ||--|{ ORDER_ITEM : contains
+  PRODUCT ||--o{ ORDER_ITEM : ordered_in
+  USER {
+    int id PK
+    string email
+    string name
+  }
+  ORDER {
+    int id PK
+    int user_id FK
+    decimal total
+    string status
+  }`
+      },
+      {
+        id: 'gantt',
+        name: 'Gantt Project Roadmap',
+        badge: 'gantt',
+        desc: 'Timelines, milestones, and project sprints',
+        code: `gantt
+  title Q3 Product Roadmap
+  dateFormat YYYY-MM-DD
+  section Planning
+    Architecture Design :done, p1, 2026-08-01, 2026-08-07
+    UX Wireframing      :done, p2, 2026-08-05, 2026-08-14
+  section Development
+    Core Engine API     :active, dev1, 2026-08-12, 2026-08-28
+    Visual Canvas UI    :dev2, after p2, 18d
+  section Quality
+    Integration Tests   :crit, qa1, after dev1, 7d`
+      },
+      {
+        id: 'pie',
+        name: 'Pie Chart',
+        badge: 'pie',
+        desc: 'Data distributions and percentage breakdowns',
+        code: `pie title Tech Stack Distribution
+  "TypeScript" : 48
+  "Python" : 24
+  "Go" : 14
+  "Rust" : 10
+  "Other" : 4`
+      },
+      {
+        id: 'gitGraph',
+        name: 'Git Version Graph',
+        badge: 'gitGraph',
+        desc: 'Branches, commits, merges, and release tags',
+        code: `gitGraph
+  commit id: "Init v0.1"
+  commit id: "Core Engine"
+  branch feature/editor
+  checkout feature/editor
+  commit id: "Add SVG Canvas"
+  commit id: "Add Undo/Redo"
+  checkout main
+  merge feature/editor id: "v0.9.0"
+  commit id: "Release 1.0" tag: "v1.00.000"`
+      },
+      {
+        id: 'journey',
+        name: 'User Journey Map',
+        badge: 'journey',
+        desc: 'User satisfaction scores across workflow stages',
+        code: `journey
+  title Developer Onboarding Experience
+  section Discovery
+    Search Solution: 5: Dev
+    Read Docs: 4: Dev
+  section Integration
+    Clone Repository: 5: Dev
+    Configure Setup: 4: Dev, DevOps
+  section Production
+    Deploy System: 5: Dev, Team`
+      },
+      {
+        id: 'mindmap',
+        name: 'Mindmap',
+        badge: 'mindmap',
+        desc: 'Hierarchical concept mapping and brainstorming',
+        code: `mindmap
+  root((Mermaid Viewer))
+    Features
+      Visual Canvas
+      Bidirectional Sync
+      Multi-select
+      Property Inspector
+    Exports
+      SVG Vector
+      PNG Image
+      JSON Project
+      MMD Code
+    Themes
+      Light Mode
+      Dark Slate`
+      },
+      {
+        id: 'timeline',
+        name: 'Timeline Chart',
+        badge: 'timeline',
+        desc: 'Chronological timeline of events & milestones',
+        code: `timeline
+  title Platform Evolution
+  2024 : Initial Prototype : Beta Testing
+  2025 : Real-time Sync : Cloud Storage
+  2026 : Release 1.0 : Full Offline Capability`
+      },
+      {
+        id: 'quadrant',
+        name: 'Quadrant Priority Matrix',
+        badge: 'quadrantChart',
+        desc: '2x2 matrix for effort vs value prioritization',
+        code: `quadrantChart
+  title Feature Prioritization Matrix
+  x-axis Low Effort --> High Effort
+  y-axis Low Value --> High Value
+  quadrant-1 Quick Wins
+  quadrant-2 Strategic Initiatives
+  quadrant-3 Low Priority
+  quadrant-4 Complex Tasks
+  "Inspector Panel": [0.25, 0.85]
+  "Export PNG": [0.30, 0.90]
+  "Multi-select": [0.35, 0.75]
+  "Realtime Collab": [0.85, 0.80]`
+      },
+      {
+        id: 'c4context',
+        name: 'C4 Context Architecture',
+        badge: 'C4Context',
+        desc: 'High-level software systems, actors, and relationships',
+        code: `C4Context
+  title System Context for Retail Platform
+  Person(customer, "Customer", "Browses and places orders")
+  System(store_app, "Online Store", "Handles catalog, checkout, and payments")
+  System_Ext(payment_gateway, "Stripe API", "Processes credit cards")
+  System_Ext(shipping, "FedEx API", "Calculates logistics and tracking")
+
+  Rel(customer, store_app, "Uses", "HTTPS")
+  Rel(store_app, payment_gateway, "Authorizes payments", "JSON/REST")
+  Rel(store_app, shipping, "Schedules delivery", "JSON/REST")`
+      },
+      {
+        id: 'sankey',
+        name: 'Sankey Flow Diagram',
+        badge: 'sankey-beta',
+        desc: 'Flow magnitude and pathway transitions',
+        code: `sankey-beta
+  Website Traffic, Sign Up Page, 4200
+  Website Traffic, Direct Bounce, 1800
+  Sign Up Page, Completed Registration, 3100
+  Sign Up Page, Abandoned, 1100
+  Completed Registration, Active Users, 2400`
+      }
+    ];
 
     // --- UTILITIES ---
     const Utils = {
@@ -1472,7 +1781,7 @@
       }
     }
 
-    // --- HISTORY MANAGER (Undo/Redo) ---
+    // --- HISTORY MANAGER (Undo/Redo with 100-step depth) ---
     class HistoryManager {
       constructor() {
         this.undoStack = [];
@@ -1941,7 +2250,7 @@
       }
     }
 
-    // --- SYNTAX HIGHLIGHTER ---
+    // --- SYNTAX HIGHLIGHTER (Supports All Mermaid Types) ---
     class SyntaxHighlighter {
       static highlight(code) {
         const lines = code.split('\n');
@@ -1951,11 +2260,27 @@
           }
 
           let formatted = Utils.escapeHtml(line);
-          formatted = formatted.replace(/\b(flowchart|graph)\b/g, '<span class="hl-keyword">$1</span>');
+          // Diagram Type Headers
+          formatted = formatted.replace(/\b(flowchart|graph|sequenceDiagram|classDiagram|stateDiagram-v2|stateDiagram|erDiagram|gantt|pie|gitGraph|journey|mindmap|timeline|quadrantChart|C4Context|C4Container|C4Component|sankey-beta|requirementDiagram)\b/g, '<span class="hl-keyword">$1</span>');
+          // Directions
           formatted = formatted.replace(/\b(TD|TB|LR|RL|BT)\b/g, '<span class="hl-dir">$1</span>');
-          formatted = formatted.replace(/\bstyle\b/g, '<span class="hl-keyword">style</span>');
-          formatted = formatted.replace(/(&lt;==&gt;|&lt;--&gt;|==&gt;|-\.-&gt;|---&gt;|--&gt;)/g, '<span class="hl-arrow">$1</span>');
+          // Sequence Keywords
+          formatted = formatted.replace(/\b(autonumber|participant|actor|activate|deactivate|loop|alt|else|opt|par|critical|rect|Note over|Note right of|Note left of)\b/g, '<span class="hl-keyword">$1</span>');
+          // Class & Object Keywords
+          formatted = formatted.replace(/\b(class|interface|abstract|enum)\b/g, '<span class="hl-keyword">$1</span>');
+          // Timeline, Gantt, Journey Keywords
+          formatted = formatted.replace(/\b(title|dateFormat|axisFormat|section|completed|active|crit|done|after|task|score)\b/g, '<span class="hl-dir">$1</span>');
+          // GitGraph Keywords
+          formatted = formatted.replace(/\b(commit|branch|checkout|merge|cherry-pick|tag)\b/g, '<span class="hl-keyword">$1</span>');
+          // Quadrant Keywords
+          formatted = formatted.replace(/\b(x-axis|y-axis|quadrant-1|quadrant-2|quadrant-3|quadrant-4)\b/g, '<span class="hl-dir">$1</span>');
+          // Style & C4 Keywords
+          formatted = formatted.replace(/\b(style|Person|System|System_Ext|Container|Component|Rel)\b/g, '<span class="hl-keyword">$1</span>');
+          // Arrows & Connectors
+          formatted = formatted.replace(/(&lt;==&gt;|&lt;--&gt;|==&gt;|-\.-&gt;|---&gt;|--&gt;|-&gt;&gt;|--&gt;&gt;|-x|--x|&lt;\|--|--\|&gt;|\|\|--o\{|\|\|--\|\{|\}\|--\|\{|\}\|--o\{)/g, '<span class="hl-arrow">$1</span>');
+          // Pipe Labels & Quotes
           formatted = formatted.replace(/(\|.*?\|)/g, '<span class="hl-label">$1</span>');
+          formatted = formatted.replace(/(&quot;.*?&quot;)/g, '<span class="hl-shape">$1</span>');
 
           return formatted;
         }).join('\n');
@@ -2144,6 +2469,7 @@
       init() {
         this.cacheDom();
         this.setupEventListeners();
+        this.setupTemplatesModal();
         this.setupInitialDiagram();
         this.renderAll();
         this.recordHistory();
@@ -2161,16 +2487,15 @@
       }
 
       setupInitialDiagram() {
-        this.graph.addNode({ id: 'Client', text: 'Client App', shape: 'rounded', x: 0, y: 0, fillColor: '#E3F2FD', borderColor: '#90CAF9', fontColor: '#0D47A1' });
-        this.graph.addNode({ id: 'API', text: 'API Gateway', shape: 'rectangle', x: 0, y: 0, fillColor: '#E3F2FD', borderColor: '#90CAF9', fontColor: '#0D47A1' });
-        this.graph.addNode({ id: 'Auth', text: 'Auth Service', shape: 'diamond', x: 0, y: 0, fillColor: '#FFF3E0', borderColor: '#FFE082', fontColor: '#E65100' });
-        this.graph.addNode({ id: 'Database', text: 'PostgreSQL DB', shape: 'circle', x: 0, y: 0, fillColor: '#E8F5E9', borderColor: '#A5D6A7', fontColor: '#1B5E20' });
+        // Preferred clean architecture layout with side Auth Service
+        this.graph.addNode({ id: 'Client', text: 'Client App', shape: 'rounded', x: 140, y: 80, fillColor: '#E3F2FD', borderColor: '#90CAF9', fontColor: '#0D47A1' });
+        this.graph.addNode({ id: 'API', text: 'API Gateway', shape: 'rectangle', x: 140, y: 220, fillColor: '#E3F2FD', borderColor: '#90CAF9', fontColor: '#0D47A1' });
+        this.graph.addNode({ id: 'Auth', text: 'Auth Service', shape: 'diamond', x: 380, y: 220, fillColor: '#FFF3E0', borderColor: '#FFE082', fontColor: '#E65100' });
+        this.graph.addNode({ id: 'Database', text: 'PostgreSQL DB', shape: 'circle', x: 140, y: 360, fillColor: '#E8F5E9', borderColor: '#A5D6A7', fontColor: '#1B5E20' });
 
         this.graph.addEdge({ id: 'e1', source: 'Client', target: 'API', type: '-->', label: 'HTTP Request' });
         this.graph.addEdge({ id: 'e2', source: 'API', target: 'Auth', type: '-->', label: 'Verify' });
         this.graph.addEdge({ id: 'e3', source: 'API', target: 'Database', type: '==>', label: 'Query Data' });
-
-        AutoLayoutEngine.layout(this.graph, 'TD');
       }
 
       recordHistory() {
@@ -2333,13 +2658,10 @@
 
           // Determine path shape ensuring clean non-zero entry/exit tangents
           if (Math.abs(dx) < 2 && (srcDir === 'top' || srcDir === 'bottom') && (tgtDir === 'top' || tgtDir === 'bottom')) {
-            // Straight vertical line
             d = `M ${sx} ${sy} L ${tx} ${ty}`;
           } else if (Math.abs(dy) < 2 && (srcDir === 'left' || srcDir === 'right') && (tgtDir === 'left' || tgtDir === 'right')) {
-            // Straight horizontal line
             d = `M ${sx} ${sy} L ${tx} ${ty}`;
           } else {
-            // Smooth bezier with proper entry/exit tangents
             const dist = Math.max(35, Math.min(100, Math.sqrt(dx * dx + dy * dy) * 0.4));
             let cx1 = sx, cy1 = sy;
             let cx2 = tx, cy2 = ty;
@@ -2438,7 +2760,6 @@
         let srcDir = 'bottom', tgtDir = 'top';
 
         if (Math.abs(tcx - scx) > Math.abs(tcy - scy) * 1.1) {
-          // Primarily horizontal
           if (tcx > scx) {
             sx = src.x + sw;
             sy = scy;
@@ -2455,7 +2776,6 @@
             tgtDir = 'right';
           }
         } else {
-          // Primarily vertical
           if (tcy > scy) {
             sx = scx;
             sy = src.y + sh;
@@ -2800,6 +3120,7 @@
         document.getElementById('btn-sync-code').addEventListener('click', () => this.applyCodeToGraph());
 
         document.getElementById('btn-new').addEventListener('click', () => this.confirmNew());
+        document.getElementById('btn-templates').addEventListener('click', () => this.openTemplatesDialog());
         document.getElementById('btn-open').addEventListener('click', () => document.getElementById('file-input').click());
         document.getElementById('btn-save').addEventListener('click', () => ExportManager.exportJSON(this.graph.toProject(this.themeMgr.currentTheme)));
         document.getElementById('btn-export-mmd').addEventListener('click', () => ExportManager.exportMMD(this.graph));
@@ -2853,6 +3174,55 @@
         this.setupPropertiesListeners();
       }
 
+      setupTemplatesModal() {
+        const grid = document.getElementById('templates-grid');
+        if (!grid) return;
+        grid.innerHTML = '';
+
+        DIAGRAM_TEMPLATES.forEach(tpl => {
+          const card = document.createElement('div');
+          card.className = 'template-card';
+          card.innerHTML = `
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span class="template-title">${tpl.name}</span>
+              <span class="template-badge">${tpl.badge}</span>
+            </div>
+            <div class="template-desc">${tpl.desc}</div>
+          `;
+
+          card.addEventListener('click', () => {
+            this.loadTemplate(tpl);
+            this.closeModal('templates-modal');
+          });
+
+          grid.appendChild(card);
+        });
+      }
+
+      openTemplatesDialog() {
+        document.getElementById('templates-modal')?.classList.add('open');
+      }
+
+      loadTemplate(tpl) {
+        this.recordHistory();
+        this.codeEditor.value = tpl.code;
+        this.codeHighlight.innerHTML = SyntaxHighlighter.highlight(tpl.code);
+
+        const res = MermaidParser.parse(tpl.code, this.graph);
+        if (res.graph && res.graph.nodes.length > 0) {
+          this.graph.fromProject(res.graph.toProject(this.themeMgr.currentTheme));
+          AutoLayoutEngine.layout(this.graph, this.graph.layoutDirection);
+          this.renderAll();
+          this.zoomToFit();
+        } else {
+          // Chart or text-centric diagram without visual node primitives
+          this.renderAll();
+        }
+
+        this.recordHistory();
+        Utils.showToast(`Loaded ${tpl.name} template`, 'success');
+      }
+
       setupSplitters() {
         const leftSplitter = document.getElementById('left-splitter');
         const rightSplitter = document.getElementById('right-splitter');
@@ -2896,6 +3266,9 @@
         document.getElementById('rules-modal-close').addEventListener('click', () => this.closeModal('rules-modal'));
         document.getElementById('rules-modal-done').addEventListener('click', () => this.closeModal('rules-modal'));
         document.getElementById('rm-add-btn').addEventListener('click', () => this.addRuleFromModal());
+
+        document.getElementById('templates-modal-close')?.addEventListener('click', () => this.closeModal('templates-modal'));
+        document.getElementById('templates-modal-cancel')?.addEventListener('click', () => this.closeModal('templates-modal'));
       }
 
       handleCanvasMouseDown(e) {
@@ -2936,7 +3309,6 @@
         this.selectedEdgeId = null;
         this.renderAll();
 
-        // Switch to Inspector tab automatically
         document.querySelector('.left-tab[data-tab="properties"]')?.click();
 
         this.isDraggingNodes = true;
@@ -3181,7 +3553,7 @@
           this.graph.fromProject(prev);
           this.renderAll();
           this.updateMermaidCode();
-          Utils.showToast('Undo', 'info');
+          Utils.showToast('Reverted to previous layout (Undo)', 'info');
         }
       }
 
@@ -3600,12 +3972,13 @@
       }
 
       runAutoLayout(direction) {
+        this.recordHistory();
         this.graph.layoutDirection = direction;
         AutoLayoutEngine.layout(this.graph, direction);
         this.renderAll();
         this.recordHistory();
         this.zoomToFit();
-        Utils.showToast(`Auto-layout ${direction} applied`, 'success');
+        Utils.showToast(`Auto-layout ${direction} applied (Press Ctrl+Z or Undo to revert)`, 'info');
       }
 
       handleFileOpen(e) {
