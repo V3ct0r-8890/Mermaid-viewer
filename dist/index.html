@@ -1230,7 +1230,13 @@
             </div>
           </div>
 
-          <div style="display:flex; flex-direction:column; gap:6px; margin-top:14px;">
+          <div style="display:flex; gap:8px; margin-top:14px;">
+            <button class="prop-action-btn primary" id="btn-node-prop-save" style="flex:1;">Save / Apply</button>
+            <button class="prop-action-btn" id="btn-node-prop-reset" style="flex:1;">Reset</button>
+            <button class="prop-action-btn danger" id="btn-node-prop-deselect" style="padding:6px 10px;" title="Deselect node">✕</button>
+          </div>
+
+          <div style="display:flex; flex-direction:column; gap:6px; margin-top:10px;">
             <button class="prop-action-btn" id="btn-prop-duplicate">⎘ Duplicate Node</button>
             <button class="prop-action-btn" id="btn-prop-connect">↗ Add Connection</button>
             <button class="prop-action-btn" id="btn-prop-delete" style="color:var(--btn-danger);">✕ Delete Node</button>
@@ -1255,6 +1261,13 @@
               <option value="<==>">Bidirectional Thick (&lt;==&gt;)</option>
             </select>
           </div>
+
+          <div style="display:flex; gap:8px; margin-top:14px;">
+            <button class="prop-action-btn primary" id="btn-edge-prop-save" style="flex:1;">Save / Apply</button>
+            <button class="prop-action-btn" id="btn-edge-prop-reset" style="flex:1;">Reset</button>
+            <button class="prop-action-btn danger" id="btn-edge-prop-deselect" style="padding:6px 10px;" title="Deselect link">✕</button>
+          </div>
+
           <button class="prop-action-btn" id="btn-prop-edge-delete" style="color:var(--btn-danger); margin-top:10px;">✕ Delete Link</button>
         </div>
 
@@ -4729,7 +4742,13 @@
             </div>
           </div>
 
-          <div style="display:flex; flex-direction:column; gap:6px; margin-top:14px;">
+          <div style="display:flex; gap:8px; margin-top:14px;">
+            <button class="prop-action-btn primary" id="btn-node-prop-save" style="flex:1;">Save / Apply</button>
+            <button class="prop-action-btn" id="btn-node-prop-reset" style="flex:1;">Reset</button>
+            <button class="prop-action-btn danger" id="btn-node-prop-deselect" style="padding:6px 10px;" title="Deselect node">✕</button>
+          </div>
+
+          <div style="display:flex; flex-direction:column; gap:6px; margin-top:10px;">
             <button class="prop-action-btn" id="btn-prop-duplicate">⎘ Duplicate Node</button>
             <button class="prop-action-btn" id="btn-prop-connect">↗ Add Connection</button>
             <button class="prop-action-btn" id="btn-prop-delete" style="color:var(--btn-danger);">✕ Delete Node</button>
@@ -4754,6 +4773,13 @@
               <option value="<==>">Bidirectional Thick (&lt;==&gt;)</option>
             </select>
           </div>
+
+          <div style="display:flex; gap:8px; margin-top:14px;">
+            <button class="prop-action-btn primary" id="btn-edge-prop-save" style="flex:1;">Save / Apply</button>
+            <button class="prop-action-btn" id="btn-edge-prop-reset" style="flex:1;">Reset</button>
+            <button class="prop-action-btn danger" id="btn-edge-prop-deselect" style="padding:6px 10px;" title="Deselect link">✕</button>
+          </div>
+
           <button class="prop-action-btn" id="btn-prop-edge-delete" style="color:var(--btn-danger); margin-top:10px;">✕ Delete Link</button>
         </div>
 
@@ -6679,17 +6705,29 @@
             edgeForm.style.display = 'none';
             nodeForm.style.display = 'block';
 
+            this.nodeInitialValues = {
+              text: node.text || node.id,
+              shape: node.shape || 'rectangle',
+              width: String(node.width || 140),
+              height: String(node.height || 50),
+              x: String(node.x),
+              y: String(node.y),
+              fillColor: node.fillColor || '#E3F2FD',
+              borderColor: node.borderColor || '#90CAF9',
+              fontColor: node.fontColor || '#0D47A1'
+            };
+
             document.getElementById('prop-node-id-badge').textContent = node.id;
-            document.getElementById('prop-node-text').value = node.text || node.id;
-            document.getElementById('prop-node-shape').value = node.shape || 'rectangle';
-            document.getElementById('prop-node-w').value = String(node.width || 140);
-            document.getElementById('prop-node-h').value = String(node.height || 50);
-            document.getElementById('prop-node-x').value = String(node.x);
-            document.getElementById('prop-node-y').value = String(node.y);
-            document.getElementById('prop-node-fill').value = node.fillColor || '#E3F2FD';
-            document.getElementById('prop-node-fill-val').textContent = node.fillColor || '#E3F2FD';
-            document.getElementById('prop-node-border').value = node.borderColor || '#90CAF9';
-            document.getElementById('prop-node-font').value = node.fontColor || '#0D47A1';
+            document.getElementById('prop-node-text').value = this.nodeInitialValues.text;
+            document.getElementById('prop-node-shape').value = this.nodeInitialValues.shape;
+            document.getElementById('prop-node-w').value = this.nodeInitialValues.width;
+            document.getElementById('prop-node-h').value = this.nodeInitialValues.height;
+            document.getElementById('prop-node-x').value = this.nodeInitialValues.x;
+            document.getElementById('prop-node-y').value = this.nodeInitialValues.y;
+            document.getElementById('prop-node-fill').value = this.nodeInitialValues.fillColor;
+            document.getElementById('prop-node-fill-val').textContent = this.nodeInitialValues.fillColor;
+            document.getElementById('prop-node-border').value = this.nodeInitialValues.borderColor;
+            document.getElementById('prop-node-font').value = this.nodeInitialValues.fontColor;
             return;
           }
         }
@@ -6701,8 +6739,13 @@
             nodeForm.style.display = 'none';
             edgeForm.style.display = 'block';
 
-            document.getElementById('prop-edge-label').value = edge.label || '';
-            document.getElementById('prop-edge-type').value = edge.type || '-->';
+            this.edgeInitialValues = {
+              label: edge.label || '',
+              type: edge.type || '-->'
+            };
+
+            document.getElementById('prop-edge-label').value = this.edgeInitialValues.label;
+            document.getElementById('prop-edge-type').value = this.edgeInitialValues.type;
             return;
           }
         }
@@ -6724,7 +6767,8 @@
           });
         });
 
-        const onNodePropChange = (saveHistory = true) => {
+        // Node Form Save & Reset
+        document.getElementById('btn-node-prop-save')?.addEventListener('click', () => {
           if (this.selectedNodeIds.size !== 1) return;
           const nodeId = Array.from(this.selectedNodeIds)[0];
           const node = this.graph.getNode(nodeId);
@@ -6744,52 +6788,46 @@
           this.renderNodes();
           this.renderEdges();
           this.renderMinimap();
-          if (saveHistory) {
-            this.recordHistory();
-          } else {
-            this.updateMermaidCode();
-          }
-        };
-
-        ['prop-node-text', 'prop-node-shape', 'prop-node-w', 'prop-node-h', 'prop-node-x', 'prop-node-y'].forEach(id => {
-          const el = document.getElementById(id);
-          if (el) {
-            el.addEventListener('input', () => onNodePropChange(false));
-            el.addEventListener('change', () => onNodePropChange(true));
-          }
+          this.updateMermaidCode();
+          this.recordHistory();
+          Utils.showToast('Node properties applied', 'success');
         });
 
-        ['prop-node-fill', 'prop-node-border', 'prop-node-font'].forEach(id => {
-          const el = document.getElementById(id);
-          if (el) {
-            el.addEventListener('input', () => onNodePropChange(false));
-            el.addEventListener('change', () => onNodePropChange(true));
-          }
+        document.getElementById('btn-node-prop-reset')?.addEventListener('click', () => {
+          if (!this.nodeInitialValues) return;
+          document.getElementById('prop-node-text').value = this.nodeInitialValues.text;
+          document.getElementById('prop-node-shape').value = this.nodeInitialValues.shape;
+          document.getElementById('prop-node-w').value = this.nodeInitialValues.width;
+          document.getElementById('prop-node-h').value = this.nodeInitialValues.height;
+          document.getElementById('prop-node-x').value = this.nodeInitialValues.x;
+          document.getElementById('prop-node-y').value = this.nodeInitialValues.y;
+          document.getElementById('prop-node-fill').value = this.nodeInitialValues.fillColor;
+          document.getElementById('prop-node-fill-val').textContent = this.nodeInitialValues.fillColor;
+          document.getElementById('prop-node-border').value = this.nodeInitialValues.borderColor;
+          document.getElementById('prop-node-font').value = this.nodeInitialValues.fontColor;
+          Utils.showToast('Node properties reset', 'info');
+        });
+
+        document.getElementById('btn-node-prop-deselect')?.addEventListener('click', () => {
+          this.selectedNodeIds.clear();
+          this.renderAll();
+          this.updatePropertiesPanel();
+        });
+
+        document.getElementById('prop-node-fill')?.addEventListener('input', (e) => {
+          document.getElementById('prop-node-fill-val').textContent = e.target.value;
         });
 
         document.querySelectorAll('#fill-swatches .color-swatch').forEach(swatch => {
           swatch.addEventListener('click', () => {
-            if (this.selectedNodeIds.size !== 1) return;
-            const nodeId = Array.from(this.selectedNodeIds)[0];
-            const node = this.graph.getNode(nodeId);
-            if (!node) return;
-
             const fill = swatch.getAttribute('data-fill');
             const border = swatch.getAttribute('data-border');
             const font = swatch.getAttribute('data-font');
-
-            node.fillColor = fill;
-            node.borderColor = border;
-            node.fontColor = font;
 
             document.getElementById('prop-node-fill').value = fill;
             document.getElementById('prop-node-fill-val').textContent = fill;
             document.getElementById('prop-node-border').value = border;
             document.getElementById('prop-node-font').value = font;
-
-            this.renderNodes();
-            this.renderEdges();
-            this.recordHistory();
           });
         });
 
@@ -6837,7 +6875,8 @@
           btnDel.addEventListener('click', () => this.deleteSelected());
         }
 
-        const onEdgePropChange = (saveHistory = true) => {
+        // Edge Form Save & Reset
+        document.getElementById('btn-edge-prop-save')?.addEventListener('click', () => {
           if (!this.selectedEdgeId) return;
           const edge = this.graph.getEdge(this.selectedEdgeId);
           if (!edge) return;
@@ -6846,23 +6885,23 @@
           edge.type = document.getElementById('prop-edge-type').value;
 
           this.renderEdges();
-          if (saveHistory) {
-            this.recordHistory();
-          } else {
-            this.updateMermaidCode();
-          }
-        };
+          this.updateMermaidCode();
+          this.recordHistory();
+          Utils.showToast('Link properties applied', 'success');
+        });
 
-        const edgeLabelInp = document.getElementById('prop-edge-label');
-        if (edgeLabelInp) {
-          edgeLabelInp.addEventListener('input', () => onEdgePropChange(false));
-          edgeLabelInp.addEventListener('change', () => onEdgePropChange(true));
-        }
+        document.getElementById('btn-edge-prop-reset')?.addEventListener('click', () => {
+          if (!this.edgeInitialValues) return;
+          document.getElementById('prop-edge-label').value = this.edgeInitialValues.label;
+          document.getElementById('prop-edge-type').value = this.edgeInitialValues.type;
+          Utils.showToast('Link properties reset', 'info');
+        });
 
-        const edgeTypeSel = document.getElementById('prop-edge-type');
-        if (edgeTypeSel) {
-          edgeTypeSel.addEventListener('change', () => onEdgePropChange(true));
-        }
+        document.getElementById('btn-edge-prop-deselect')?.addEventListener('click', () => {
+          this.selectedEdgeId = null;
+          this.renderAll();
+          this.updatePropertiesPanel();
+        });
 
         const edgeDelBtn = document.getElementById('btn-prop-edge-delete');
         if (edgeDelBtn) {

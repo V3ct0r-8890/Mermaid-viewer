@@ -204,7 +204,13 @@
             </div>
           </div>
 
-          <div style="display:flex; flex-direction:column; gap:6px; margin-top:14px;">
+          <div style="display:flex; gap:8px; margin-top:14px;">
+            <button class="prop-action-btn primary" id="btn-node-prop-save" style="flex:1;">Save / Apply</button>
+            <button class="prop-action-btn" id="btn-node-prop-reset" style="flex:1;">Reset</button>
+            <button class="prop-action-btn danger" id="btn-node-prop-deselect" style="padding:6px 10px;" title="Deselect node">✕</button>
+          </div>
+
+          <div style="display:flex; flex-direction:column; gap:6px; margin-top:10px;">
             <button class="prop-action-btn" id="btn-prop-duplicate">⎘ Duplicate Node</button>
             <button class="prop-action-btn" id="btn-prop-connect">↗ Add Connection</button>
             <button class="prop-action-btn" id="btn-prop-delete" style="color:var(--btn-danger);">✕ Delete Node</button>
@@ -229,6 +235,13 @@
               <option value="<==>">Bidirectional Thick (&lt;==&gt;)</option>
             </select>
           </div>
+
+          <div style="display:flex; gap:8px; margin-top:14px;">
+            <button class="prop-action-btn primary" id="btn-edge-prop-save" style="flex:1;">Save / Apply</button>
+            <button class="prop-action-btn" id="btn-edge-prop-reset" style="flex:1;">Reset</button>
+            <button class="prop-action-btn danger" id="btn-edge-prop-deselect" style="padding:6px 10px;" title="Deselect link">✕</button>
+          </div>
+
           <button class="prop-action-btn" id="btn-prop-edge-delete" style="color:var(--btn-danger); margin-top:10px;">✕ Delete Link</button>
         </div>
 
