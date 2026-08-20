@@ -1,4 +1,4 @@
-// --- DEDICATED MULTI-DIAGRAM VISUAL SUITE ---
+// --- DEDICATED MULTI-DIAGRAM VISUAL SUITE WITH FULL FONT COLOR SUPPORT ---
 class MultiDiagramVisualizer {
   static customColors = new Map();
 
@@ -82,6 +82,7 @@ class MultiDiagramVisualizer {
     const selGlow = 'drop-shadow(0 0 6px rgba(33, 150, 243, 0.8))';
 
     switch (type) {
+
       case 'sequence': {
         const rawLines = (code || '').split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('%%') && !l.startsWith('sequenceDiagram'));
         const autoNumber = (code || '').toLowerCase().includes('autonumber');
@@ -162,13 +163,13 @@ class MultiDiagramVisualizer {
           rect.setAttribute('rx', p.isActor ? '18' : '6');
           const isSelP = (p.name === selTitle || p.id === selTitle);
           const pFill = MultiDiagramVisualizer.getColor(p.id, primaryFill);
+          const pFont = MultiDiagramVisualizer.getColor(p.id + ':font', primaryText);
           rect.setAttribute('fill', pFill);
           rect.setAttribute('stroke', isSelP ? 'var(--selection-color)' : primaryBorder);
           rect.setAttribute('stroke-width', isSelP ? '3' : '1.8');
           if (isSelP) rect.style.filter = selGlow;
           g.appendChild(rect);
 
-          const pFont = MultiDiagramVisualizer.getColor(p.id + ':font', primaryText);
           const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
           text.setAttribute('x', `${p.x}`);
           text.setAttribute('y', `${topY + 18}`);
@@ -229,6 +230,7 @@ class MultiDiagramVisualizer {
           const x2 = pTo.x;
           const msgKey = `${m.from}->${m.to}:${m.text}`;
           const msgColor = MultiDiagramVisualizer.getColor(msgKey, MultiDiagramVisualizer.getColor(`${m.from}->${m.to}`, linkColor));
+          const msgFont = MultiDiagramVisualizer.getColor(msgKey + ':font', textColor);
 
           const lineG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
           const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
@@ -271,7 +273,6 @@ class MultiDiagramVisualizer {
           if (isSelM) badgeBg.style.filter = selGlow;
           badgeG.appendChild(badgeBg);
 
-          const msgFont = MultiDiagramVisualizer.getColor(msgKey + ':font', msgColor !== linkColor ? msgColor : textColor);
           const badgeText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
           badgeText.setAttribute('x', `${midX}`);
           badgeText.setAttribute('y', `${y - 9}`);
@@ -346,15 +347,16 @@ class MultiDiagramVisualizer {
             data.push({
               label: rawLbl,
               val: parseFloat(m[2]),
-              color: MultiDiagramVisualizer.getColor(rawLbl, colors[data.length % colors.length])
+              color: MultiDiagramVisualizer.getColor(rawLbl, colors[data.length % colors.length]),
+              fontColor: MultiDiagramVisualizer.getColor(rawLbl + ':font', textColor)
             });
           }
         });
 
         if (data.length === 0) {
-          data.push({ label: 'Category A', val: 40, color: '#2196F3' });
-          data.push({ label: 'Category B', val: 35, color: '#4CAF50' });
-          data.push({ label: 'Category C', val: 25, color: '#FF9800' });
+          data.push({ label: 'Category A', val: 40, color: '#2196F3', fontColor: textColor });
+          data.push({ label: 'Category B', val: 35, color: '#4CAF50', fontColor: textColor });
+          data.push({ label: 'Category C', val: 25, color: '#FF9800', fontColor: textColor });
         }
 
         const total = data.reduce((acc, d) => acc + d.val, 0) || 1;
@@ -408,11 +410,14 @@ class MultiDiagramVisualizer {
                   fields: [
                     { key: 'label', label: 'Slice Label', type: 'text', value: d.label },
                     { key: 'val', label: 'Value / Proportion', type: 'number', step: 1, min: 0, value: d.val },
-                    { key: 'color', label: 'Slice Color', type: 'color', value: d.color }
+                    { key: 'color', label: 'Slice Color', type: 'color', value: d.color },
+                    { key: 'font', label: 'Label Font Color', type: 'color', value: d.fontColor }
                   ],
                   onSave: (vals) => {
                     MultiDiagramVisualizer.setColor(vals.label, vals.color);
+                    MultiDiagramVisualizer.setColor(vals.label + ':font', vals.font);
                     MultiDiagramVisualizer.syncColorToCode(vals.label, vals.color);
+                    MultiDiagramVisualizer.syncColorToCode(vals.label + ':font', vals.font);
                     MultiDiagramVisualizer.updateCodeLine((curCode) => {
                       const lines = curCode.split('\n');
                       const esc = d.label.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
@@ -451,7 +456,7 @@ class MultiDiagramVisualizer {
           const legText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
           legText.setAttribute('x', '412');
           legText.setAttribute('y', `${legY + 11}`);
-          legText.setAttribute('fill', textColor);
+          legText.setAttribute('fill', d.fontColor);
           legText.setAttribute('font-size', '11.5px');
           legText.textContent = `${d.label} (${pct}%)`;
           legG.appendChild(legText);
@@ -464,7 +469,7 @@ class MultiDiagramVisualizer {
         break;
       }
 
-            case 'gantt': {
+      case 'gantt': {
         const rawLines = (code || '').split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('%%'));
         let title = 'Project Sprint Roadmap';
         const sections = [];
@@ -549,7 +554,8 @@ class MultiDiagramVisualizer {
               crit: isCrit,
               milestone: isMile,
               dur: durDays,
-              color: MultiDiagramVisualizer.getColor(name, defaultColor)
+              color: MultiDiagramVisualizer.getColor(name, defaultColor),
+              fontColor: MultiDiagramVisualizer.getColor(name + ':font', textColor)
             };
 
             currentSection.tasks.push(taskObj);
@@ -582,9 +588,7 @@ class MultiDiagramVisualizer {
         const pxPerDay = 16;
         const totalDays = (minTime && maxTime) ? Math.max(35, Math.ceil((maxTime - minTime) / 86400000) + 7) : 42;
         const numWeeks = Math.ceil(totalDays / 7);
-        const totalGanttWidth = numWeeks * 7 * pxPerDay;
 
-        // Estimate total height for background grid
         let taskCount = 0;
         sections.forEach(s => { taskCount += s.tasks.length; });
         const estTotalHeight = 85 + sections.length * 36 + taskCount * 28 + 30;
@@ -594,7 +598,6 @@ class MultiDiagramVisualizer {
           const wx = startX + w * 7 * pxPerDay;
           const ww = 7 * pxPerDay;
 
-          // Vertical background gridline
           const gridLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
           gridLine.setAttribute('x1', `${wx}`);
           gridLine.setAttribute('y1', '44');
@@ -606,7 +609,6 @@ class MultiDiagramVisualizer {
           gridLine.setAttribute('opacity', '0.45');
           edgesLayer.appendChild(gridLine);
 
-          // Week header box
           const weekBox = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
           weekBox.setAttribute('x', `${wx}`);
           weekBox.setAttribute('y', '44');
@@ -683,7 +685,7 @@ class MultiDiagramVisualizer {
             const lbl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
             lbl.setAttribute('x', '45');
             lbl.setAttribute('y', `${curY + 16}`);
-            lbl.setAttribute('fill', textColor);
+            lbl.setAttribute('fill', t.fontColor);
             lbl.setAttribute('font-size', '11px');
             lbl.setAttribute('font-weight', '500');
             lbl.textContent = t.name;
@@ -717,7 +719,7 @@ class MultiDiagramVisualizer {
               durText.setAttribute('x', bw > 25 ? `${bx + bw / 2}` : `${bx + bw + 5}`);
               durText.setAttribute('y', `${curY + 17}`);
               durText.setAttribute('text-anchor', bw > 25 ? 'middle' : 'start');
-              durText.setAttribute('fill', bw > 25 ? '#FFFFFF' : textColor);
+              durText.setAttribute('fill', bw > 25 ? '#FFFFFF' : t.fontColor);
               durText.setAttribute('font-size', '9.5px');
               durText.setAttribute('font-weight', 'bold');
               durText.textContent = `${t.dur}d`;
@@ -741,11 +743,14 @@ class MultiDiagramVisualizer {
                       { value: 'crit', label: 'Critical Path (Red)' },
                       { value: 'milestone', label: 'Milestone' }
                     ]},
-                    { key: 'color', label: 'Bar Color', type: 'color', value: t.color }
+                    { key: 'color', label: 'Bar Color', type: 'color', value: t.color },
+                    { key: 'font', label: 'Task Font / Text Color', type: 'color', value: t.fontColor }
                   ],
                   onSave: (vals) => {
                     MultiDiagramVisualizer.setColor(vals.name, vals.color);
+                    MultiDiagramVisualizer.setColor(vals.name + ':font', vals.font);
                     MultiDiagramVisualizer.syncColorToCode(vals.name, vals.color);
+                    MultiDiagramVisualizer.syncColorToCode(vals.name + ':font', vals.font);
                     MultiDiagramVisualizer.updateCodeLine((curCode) => {
                       const lines = curCode.split('\n');
                       const esc = t.name.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
@@ -805,7 +810,7 @@ class MultiDiagramVisualizer {
             return;
           }
 
-          const commitMatch = line.match(/^commit(?:s+id:s*["']?([^"']+)["']?)?(?:s+tag:s*["']?([^"']+)["']?)?/i);
+          const commitMatch = line.match(/^commit(?:\s+id:\s*["']?([^"']+)["']?)?(?:\s+tag:\s*["']?([^"']+)["']?)?/i);
           if (commitMatch) {
             const id = commitMatch[1] || `c${commits.length + 1}`;
             const tag = commitMatch[2];
@@ -814,14 +819,15 @@ class MultiDiagramVisualizer {
               id,
               tag,
               branch: activeBranch,
-              color: MultiDiagramVisualizer.getColor(id, bInfo.color)
+              color: MultiDiagramVisualizer.getColor(id, bInfo.color),
+              fontColor: MultiDiagramVisualizer.getColor(id + ':font', textColor)
             });
           }
         });
 
         if (commits.length === 0) {
-          commits.push({ id: 'Initial Commit', branch: 'main', color: '#2196F3' });
-          commits.push({ id: 'Feature Alpha', branch: 'main', color: '#2196F3' });
+          commits.push({ id: 'Initial Commit', branch: 'main', color: '#2196F3', fontColor: textColor });
+          commits.push({ id: 'Feature Alpha', branch: 'main', color: '#2196F3', fontColor: textColor });
         }
 
         // Draw Branch Tracks
@@ -871,7 +877,7 @@ class MultiDiagramVisualizer {
           txt.setAttribute('x', `${x}`);
           txt.setAttribute('y', `${y + 24}`);
           txt.setAttribute('text-anchor', 'middle');
-          txt.setAttribute('fill', textColor);
+          txt.setAttribute('fill', c.fontColor);
           txt.setAttribute('font-size', '10.5px');
           txt.setAttribute('font-weight', '500');
           txt.textContent = c.id;
@@ -911,11 +917,14 @@ class MultiDiagramVisualizer {
                 fields: [
                   { key: 'id', label: 'Commit Message / ID', type: 'text', value: c.id },
                   { key: 'tag', label: 'Release Tag (Optional)', type: 'text', value: c.tag || '' },
-                  { key: 'color', label: 'Commit Color', type: 'color', value: c.color }
+                  { key: 'color', label: 'Commit Color', type: 'color', value: c.color },
+                  { key: 'font', label: 'Label Font Color', type: 'color', value: c.fontColor }
                 ],
                 onSave: (vals) => {
                   MultiDiagramVisualizer.setColor(vals.id, vals.color);
+                  MultiDiagramVisualizer.setColor(vals.id + ':font', vals.font);
                   MultiDiagramVisualizer.syncColorToCode(vals.id, vals.color);
+                  MultiDiagramVisualizer.syncColorToCode(vals.id + ':font', vals.font);
                   MultiDiagramVisualizer.updateCodeLine((curCode) => {
                     const lines = curCode.split('\n');
                     const esc = c.id.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
@@ -963,7 +972,8 @@ class MultiDiagramVisualizer {
               name,
               score: parseInt(taskMatch[2]),
               actor: taskMatch[3].trim(),
-              color: MultiDiagramVisualizer.getColor(name, cardBg)
+              color: MultiDiagramVisualizer.getColor(name, cardBg),
+              fontColor: MultiDiagramVisualizer.getColor(name + ':font', textColor)
             });
           }
         });
@@ -1018,7 +1028,7 @@ class MultiDiagramVisualizer {
             const tName = document.createElementNS('http://www.w3.org/2000/svg', 'text');
             tName.setAttribute('x', `${x + 10}`);
             tName.setAttribute('y', `${ty + 22}`);
-            tName.setAttribute('fill', primaryText);
+            tName.setAttribute('fill', t.fontColor !== textColor ? t.fontColor : primaryText);
             tName.setAttribute('font-size', '11.5px');
             tName.setAttribute('font-weight', '600');
             tName.textContent = t.name;
@@ -1028,7 +1038,7 @@ class MultiDiagramVisualizer {
             const tScore = document.createElementNS('http://www.w3.org/2000/svg', 'text');
             tScore.setAttribute('x', `${x + 10}`);
             tScore.setAttribute('y', `${ty + 44}`);
-            tScore.setAttribute('fill', textColor);
+            tScore.setAttribute('fill', t.fontColor);
             tScore.setAttribute('font-size', '11px');
             tScore.textContent = `${emoji} Satisfaction: ${t.score}/5`;
             cardG.appendChild(tScore);
@@ -1058,11 +1068,14 @@ class MultiDiagramVisualizer {
                       { value: 1, label: '1 - 😡 Bad' }
                     ], value: t.score },
                     { key: 'actor', label: 'Involved Actor(s)', type: 'text', value: t.actor },
-                    { key: 'color', label: 'Card Color', type: 'color', value: t.color }
+                    { key: 'color', label: 'Card Color', type: 'color', value: t.color },
+                    { key: 'font', label: 'Card Font Color', type: 'color', value: t.fontColor }
                   ],
                   onSave: (vals) => {
                     MultiDiagramVisualizer.setColor(vals.name, vals.color);
+                    MultiDiagramVisualizer.setColor(vals.name + ':font', vals.font);
                     MultiDiagramVisualizer.syncColorToCode(vals.name, vals.color);
+                    MultiDiagramVisualizer.syncColorToCode(vals.name + ':font', vals.font);
                     MultiDiagramVisualizer.updateCodeLine((curCode) => {
                       const lines = curCode.split('\n');
                       const esc = t.name.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
@@ -1217,6 +1230,7 @@ class MultiDiagramVisualizer {
         rootEl.setAttribute('rx', rootNode.shape === 'circle' ? `${rootNode.height / 2}` : '8');
         const isSelRoot = (rootNode.text === selTitle);
         const rFill = MultiDiagramVisualizer.getColor('root', primaryFill);
+        const rFont = MultiDiagramVisualizer.getColor('root:font', primaryText);
         rootEl.setAttribute('fill', rFill);
         rootEl.setAttribute('stroke', isSelRoot ? 'var(--selection-color)' : primaryBorder);
         rootEl.setAttribute('stroke-width', isSelRoot ? '3.5' : '2.5');
@@ -1228,7 +1242,7 @@ class MultiDiagramVisualizer {
         rootTxt.setAttribute('y', `${rootNode.y}`);
         rootTxt.setAttribute('text-anchor', 'middle');
         rootTxt.setAttribute('dominant-baseline', 'central');
-        rootTxt.setAttribute('fill', primaryText);
+        rootTxt.setAttribute('fill', rFont);
         rootTxt.setAttribute('font-size', '13px');
         rootTxt.setAttribute('font-weight', 'bold');
         rootTxt.textContent = rootNode.text;
@@ -1250,11 +1264,14 @@ class MultiDiagramVisualizer {
                   { value: 'hexagon', label: 'Hexagon {{Root}}' },
                   { value: 'cloud', label: 'Cloud )Root(' }
                 ]},
-                { key: 'fill', label: 'Fill Color', type: 'color', value: rFill }
+                { key: 'fill', label: 'Fill Color', type: 'color', value: rFill },
+                { key: 'font', label: 'Font / Text Color', type: 'color', value: rFont }
               ],
               onSave: (vals) => {
                 MultiDiagramVisualizer.setColor('root', vals.fill);
+                MultiDiagramVisualizer.setColor('root:font', vals.font);
                 MultiDiagramVisualizer.syncColorToCode('root', vals.fill);
+                MultiDiagramVisualizer.syncColorToCode('root:font', vals.font);
                 MultiDiagramVisualizer.updateCodeLine((curCode) => {
                   const shapeBrackets = {
                     'circle': ['((', '))'],
@@ -1300,6 +1317,8 @@ class MultiDiagramVisualizer {
           const isSelMM = (node.text === selTitle);
           const defaultNodeFill = node.level === 1 ? cardBg : (isDark ? '#232527' : '#F8F9FA');
           const nodeFill = MultiDiagramVisualizer.getColor(node.text, defaultNodeFill);
+          const defaultNodeFont = node.level === 1 ? primaryText : textColor;
+          const nodeFont = MultiDiagramVisualizer.getColor(node.text + ':font', defaultNodeFont);
           rect.setAttribute('fill', nodeFill);
           rect.setAttribute('stroke', isSelMM ? 'var(--selection-color)' : (node.level === 1 ? primaryBorder : cardBorder));
           rect.setAttribute('stroke-width', isSelMM ? '2.5' : (node.level === 1 ? '1.5' : '1'));
@@ -1311,7 +1330,7 @@ class MultiDiagramVisualizer {
           txt.setAttribute('y', `${node.y}`);
           txt.setAttribute('text-anchor', 'middle');
           txt.setAttribute('dominant-baseline', 'central');
-          txt.setAttribute('fill', node.level === 1 ? primaryText : textColor);
+          txt.setAttribute('fill', nodeFont);
           txt.setAttribute('font-size', node.level === 1 ? '11.5px' : (node.level === 2 ? '11px' : '10px'));
           txt.setAttribute('font-weight', node.level <= 2 ? '600' : 'normal');
           txt.textContent = (node.icon ? '📌 ' : '') + node.text;
@@ -1325,11 +1344,14 @@ class MultiDiagramVisualizer {
                 title: node.text,
                 fields: [
                   { key: 'text', label: 'Branch Topic', type: 'text', value: node.text },
-                  { key: 'color', label: 'Branch Fill Color', type: 'color', value: nodeFill }
+                  { key: 'color', label: 'Branch Fill Color', type: 'color', value: nodeFill },
+                  { key: 'font', label: 'Branch Font Color', type: 'color', value: nodeFont }
                 ],
                 onSave: (vals) => {
                   MultiDiagramVisualizer.setColor(vals.text, vals.color);
+                  MultiDiagramVisualizer.setColor(vals.text + ':font', vals.font);
                   MultiDiagramVisualizer.syncColorToCode(vals.text, vals.color);
+                  MultiDiagramVisualizer.syncColorToCode(vals.text + ':font', vals.font);
                   MultiDiagramVisualizer.updateCodeLine((curCode) => {
                     const lines = curCode.split('\n');
                     const esc = node.text.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
@@ -1376,15 +1398,16 @@ class MultiDiagramVisualizer {
             events.push({
               era,
               items: items.length > 0 ? items : ['Milestone Event'],
-              color: MultiDiagramVisualizer.getColor(era, colors[events.length % colors.length])
+              color: MultiDiagramVisualizer.getColor(era, colors[events.length % colors.length]),
+              fontColor: MultiDiagramVisualizer.getColor(era + ':font', textColor)
             });
           }
         });
 
         if (events.length === 0) {
-          events.push({ era: '2024', items: ['Alpha Prototype'], color: '#2196F3' });
-          events.push({ era: '2025', items: ['Beta Release'], color: '#4CAF50' });
-          events.push({ era: '2026', items: ['Production Launch'], color: '#FF9800' });
+          events.push({ era: '2024', items: ['Alpha Prototype'], color: '#2196F3', fontColor: textColor });
+          events.push({ era: '2025', items: ['Beta Release'], color: '#4CAF50', fontColor: textColor });
+          events.push({ era: '2026', items: ['Production Launch'], color: '#FF9800', fontColor: textColor });
         }
 
         // Title
@@ -1460,7 +1483,7 @@ class MultiDiagramVisualizer {
             const itemTxt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
             itemTxt.setAttribute('x', `${ex - cardW / 2 + 12}`);
             itemTxt.setAttribute('y', `${axisY + 52 + iIdx * 22}`);
-            itemTxt.setAttribute('fill', textColor);
+            itemTxt.setAttribute('fill', ev.fontColor);
             itemTxt.setAttribute('font-size', '11px');
             itemTxt.textContent = '✔ ' + it;
             cardG.appendChild(itemTxt);
@@ -1475,11 +1498,14 @@ class MultiDiagramVisualizer {
                 fields: [
                   { key: 'era', label: 'Era / Year', type: 'text', value: ev.era },
                   { key: 'items', label: 'Milestone Events (Comma Separated)', type: 'textarea', rows: 2, value: ev.items.join(', ') },
-                  { key: 'color', label: 'Milestone Accent Color', type: 'color', value: ev.color }
+                  { key: 'color', label: 'Milestone Accent Color', type: 'color', value: ev.color },
+                  { key: 'font', label: 'Milestone Font Color', type: 'color', value: ev.fontColor }
                 ],
                 onSave: (vals) => {
                   MultiDiagramVisualizer.setColor(vals.era, vals.color);
+                  MultiDiagramVisualizer.setColor(vals.era + ':font', vals.font);
                   MultiDiagramVisualizer.syncColorToCode(vals.era, vals.color);
+                  MultiDiagramVisualizer.syncColorToCode(vals.era + ':font', vals.font);
                   MultiDiagramVisualizer.updateCodeLine((curCode) => {
                     const lines = curCode.split('\n');
                     const esc = ev.era.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
@@ -1534,7 +1560,8 @@ class MultiDiagramVisualizer {
               name: rawItemName,
               x: parseFloat(itemMatch[2]),
               y: parseFloat(itemMatch[3]),
-              color: MultiDiagramVisualizer.getColor(rawItemName, colors[items.length % colors.length])
+              color: MultiDiagramVisualizer.getColor(rawItemName, colors[items.length % colors.length]),
+              fontColor: MultiDiagramVisualizer.getColor(rawItemName + ':font', textColor)
             });
           }
         });
@@ -1643,7 +1670,6 @@ class MultiDiagramVisualizer {
           t.setAttribute('fill', primaryText);
           t.setAttribute('font-size', '11px');
           t.setAttribute('font-weight', 'bold');
-          t.textContent = title;
           nodesLayer.appendChild(t);
         };
 
@@ -1674,7 +1700,7 @@ class MultiDiagramVisualizer {
           const txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
           txt.setAttribute('x', `${px + 12}`);
           txt.setAttribute('y', `${py + 4}`);
-          txt.setAttribute('fill', textColor);
+          txt.setAttribute('fill', it.fontColor);
           txt.setAttribute('font-size', '11px');
           txt.setAttribute('font-weight', '500');
           txt.textContent = it.name;
@@ -1691,11 +1717,14 @@ class MultiDiagramVisualizer {
                   { key: 'name', label: 'Item Name', type: 'text', value: it.name },
                   { key: 'x', label: 'X Axis (0.0 - 1.0)', type: 'number', step: 0.05, min: 0, max: 1, value: it.x },
                   { key: 'y', label: 'Y Axis (0.0 - 1.0)', type: 'number', step: 0.05, min: 0, max: 1, value: it.y },
-                  { key: 'color', label: 'Point Color', type: 'color', value: it.color }
+                  { key: 'color', label: 'Point Color', type: 'color', value: it.color },
+                  { key: 'font', label: 'Point Font Color', type: 'color', value: it.fontColor }
                 ],
                 onSave: (vals) => {
                   MultiDiagramVisualizer.setColor(vals.name, vals.color);
+                  MultiDiagramVisualizer.setColor(vals.name + ':font', vals.font);
                   MultiDiagramVisualizer.syncColorToCode(vals.name, vals.color);
+                  MultiDiagramVisualizer.syncColorToCode(vals.name + ':font', vals.font);
                   MultiDiagramVisualizer.updateCodeLine((curCode) => {
                     const lines = curCode.split('\n');
                     const esc = it.name.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
@@ -1720,7 +1749,7 @@ class MultiDiagramVisualizer {
         const rawLines = (code || '').split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('%%') && !l.startsWith('sankey'));
         const flows = [];
         const nodeSet = new Set();
-        const colors = ['#2196F3', '#4CAF50', '#FF9800', '#9C27B0', '#00BCD4', '#E91E63', '#607D8B'];
+        const colors = ['#2196F3', '#4CAF50', '#FF9800', '#E91E63', '#9C27B0', '#00BCD4', '#E91E63', '#607D8B'];
 
         rawLines.forEach(line => {
           const parts = line.split(',').map(p => p.trim());
@@ -1754,6 +1783,7 @@ class MultiDiagramVisualizer {
 
         const drawBox = (name, x, y, defaultColor) => {
           const color = MultiDiagramVisualizer.getColor(name, defaultColor);
+          const fontColor = MultiDiagramVisualizer.getColor(name + ':font', '#FFFFFF');
           const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
           g.style.cursor = 'pointer';
 
@@ -1778,7 +1808,7 @@ class MultiDiagramVisualizer {
           txt.setAttribute('y', `${y + 22}`);
           txt.setAttribute('text-anchor', 'middle');
           txt.setAttribute('dominant-baseline', 'central');
-          txt.setAttribute('fill', '#FFFFFF');
+          txt.setAttribute('fill', fontColor);
           txt.setAttribute('font-size', '11.5px');
           txt.setAttribute('font-weight', 'bold');
           txt.textContent = name;
@@ -1792,11 +1822,14 @@ class MultiDiagramVisualizer {
                 title: name,
                 fields: [
                   { key: 'name', label: 'Node Label', type: 'text', value: name },
-                  { key: 'color', label: 'Node Fill Color', type: 'color', value: color }
+                  { key: 'color', label: 'Node Fill Color', type: 'color', value: color },
+                  { key: 'font', label: 'Node Font Color', type: 'color', value: fontColor }
                 ],
                 onSave: (vals) => {
                   MultiDiagramVisualizer.setColor(vals.name, vals.color);
+                  MultiDiagramVisualizer.setColor(vals.name + ':font', vals.font);
                   MultiDiagramVisualizer.syncColorToCode(vals.name, vals.color);
+                  MultiDiagramVisualizer.syncColorToCode(vals.name + ':font', vals.font);
                   MultiDiagramVisualizer.updateCodeLine((curCode) => {
                     const lines = curCode.split('\n');
                     for (let i = 0; i < lines.length; i++) {
