@@ -277,6 +277,7 @@
           case 'gantt': {
             const rawLines = (code || '').split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('%%'));
             let title = 'Project Roadmap';
+            let dateFormat = 'YYYY-MM-DD';
             const sections = [];
             let currentSec = { title: 'General', tasks: [] };
             sections.push(currentSec);
@@ -286,6 +287,9 @@
               const titleMatch = line.match(/^title\s+(.+)$/i);
               if (titleMatch) { title = titleMatch[1].trim(); return; }
 
+              const dfMatch = line.match(/^dateFormat\s+(.+)$/i);
+              if (dfMatch) { dateFormat = dfMatch[1].trim(); return; }
+
               const secMatch = line.match(/^section\s+(.+)$/i);
               if (secMatch) {
                 currentSec = { title: secMatch[1].trim(), tasks: [] };
@@ -293,7 +297,7 @@
                 return;
               }
 
-              if (line.toLowerCase().startsWith('gantt') || line.toLowerCase().startsWith('dateformat')) return;
+              if (line.toLowerCase().startsWith('gantt')) return;
 
               const taskParts = line.split(':');
               if (taskParts.length >= 2) {
@@ -310,63 +314,207 @@
 
                 const color = status === 'done' ? '#4CAF50' : status === 'active' ? '#2196F3' : status === 'crit' ? '#F44336' : '#FF9800';
                 currentSec.tasks.push({ name: taskName, start: dayOffset, dur, status, color });
-                dayOffset += Math.max(2, Math.round(dur * 0.7));
+                dayOffset += Math.max(2, Math.round(dur * 0.75));
               }
             });
 
             const validSections = sections.filter(s => s.tasks.length > 0);
-            const startX = 220, startY = 80, rowH = 34, dayW = 12;
+            const totalDays = Math.max(dayOffset + 8, 35);
+            const taskColW = 200;
+            const timelineX = 240;
+            const timelineW = 560;
+            const dayW = timelineW / totalDays;
+            const rowH = 34;
+            const secH = 28;
 
+            // 1. Chart Title
             const titleEl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-            titleEl.setAttribute('x', '400');
-            titleEl.setAttribute('y', '45');
+            titleEl.setAttribute('x', `${(taskColW + timelineW) / 2 + 20}`);
+            titleEl.setAttribute('y', '36');
             titleEl.setAttribute('text-anchor', 'middle');
             titleEl.setAttribute('fill', textColor);
-            titleEl.setAttribute('font-size', '15px');
+            titleEl.setAttribute('font-size', '16px');
             titleEl.setAttribute('font-weight', '700');
             titleEl.textContent = title;
             nodesLayer.appendChild(titleEl);
 
-            let curY = startY + 20;
+            // 2. Timeline Header & Grid
+            const headerY = 65;
+            const totalRowsCount = validSections.length + validSections.reduce((sum, s) => sum + s.tasks.length, 0);
+            const chartBottomY = headerY + 26 + totalRowsCount * rowH;
+
+            // Header background
+            const headerBg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+            headerBg.setAttribute('x', '30');
+            headerBg.setAttribute('y', `${headerY}`);
+            headerBg.setAttribute('width', `${timelineX + timelineW - 30}`);
+            headerBg.setAttribute('height', '26');
+            headerBg.setAttribute('rx', '4');
+            headerBg.setAttribute('fill', isDark ? '#2D3033' : '#F1F3F5');
+            nodesLayer.appendChild(headerBg);
+
+            const taskColHeader = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            taskColHeader.setAttribute('x', '45');
+            taskColHeader.setAttribute('y', `${headerY + 17}`);
+            taskColHeader.setAttribute('fill', textColor);
+            taskColHeader.setAttribute('font-size', '11px');
+            taskColHeader.setAttribute('font-weight', 'bold');
+            taskColHeader.textContent = 'TASK / SECTION';
+            nodesLayer.appendChild(taskColHeader);
+
+            // Time column ticks
+            const stepDays = 7;
+            for (let d = 0; d <= totalDays; d += stepDays) {
+              const gx = timelineX + d * dayW;
+              
+              // Grid line
+              const gridLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+              gridLine.setAttribute('x1', `${gx}`);
+              gridLine.setAttribute('y1', `${headerY + 26}`);
+              gridLine.setAttribute('x2', `${gx}`);
+              gridLine.setAttribute('y2', `${chartBottomY}`);
+              gridLine.setAttribute('stroke', cardBorder);
+              gridLine.setAttribute('stroke-dasharray', '3 3');
+              gridLine.setAttribute('opacity', '0.6');
+              edgesLayer.appendChild(gridLine);
+
+              // Date tick label
+              const tickTxt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+              tickTxt.setAttribute('x', `${gx + 12}`);
+              tickTxt.setAttribute('y', `${headerY + 17}`);
+              tickTxt.setAttribute('fill', textColor);
+              tickTxt.setAttribute('font-size', '10px');
+              tickTxt.setAttribute('opacity', '0.85');
+              tickTxt.textContent = `Week ${Math.floor(d / 7) + 1}`;
+              nodesLayer.appendChild(tickTxt);
+            }
+
+            // 3. Render Sections and Tasks
+            let curY = headerY + 34;
+
             validSections.forEach(sec => {
+              // Section Row Banner
+              const secBg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+              secBg.setAttribute('x', '30');
+              secBg.setAttribute('y', `${curY}`);
+              secBg.setAttribute('width', `${timelineX + timelineW - 30}`);
+              secBg.setAttribute('height', `${secH}`);
+              secBg.setAttribute('rx', '4');
+              secBg.setAttribute('fill', isDark ? '#25282B' : '#EBF3FA');
+              secBg.setAttribute('opacity', '0.9');
+              nodesLayer.appendChild(secBg);
+
               const secTxt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-              secTxt.setAttribute('x', '50');
-              secTxt.setAttribute('y', `${curY + 12}`);
+              secTxt.setAttribute('x', '45');
+              secTxt.setAttribute('y', `${curY + 18}`);
               secTxt.setAttribute('fill', primaryText);
               secTxt.setAttribute('font-size', '12px');
               secTxt.setAttribute('font-weight', 'bold');
-              secTxt.textContent = sec.title;
+              secTxt.textContent = `📁  ${sec.title}`;
               nodesLayer.appendChild(secTxt);
 
-              sec.tasks.forEach(t => {
+              curY += secH + 6;
+
+              // Task Rows
+              sec.tasks.forEach((t, tIdx) => {
+                // Zebra row background
+                if (tIdx % 2 === 1) {
+                  const rowBg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                  rowBg.setAttribute('x', '30');
+                  rowBg.setAttribute('y', `${curY}`);
+                  rowBg.setAttribute('width', `${timelineX + timelineW - 30}`);
+                  rowBg.setAttribute('height', `${rowH - 4}`);
+                  rowBg.setAttribute('rx', '3');
+                  rowBg.setAttribute('fill', isDark ? '#1F2224' : '#FAFAFA');
+                  nodesLayer.appendChild(rowBg);
+                }
+
+                // Task Name
                 const tTxt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                tTxt.setAttribute('x', '70');
-                tTxt.setAttribute('y', `${curY + 12}`);
+                tTxt.setAttribute('x', '65');
+                tTxt.setAttribute('y', `${curY + 18}`);
                 tTxt.setAttribute('fill', textColor);
-                tTxt.setAttribute('font-size', '11px');
+                tTxt.setAttribute('font-size', '11.5px');
+                tTxt.setAttribute('font-weight', '500');
                 tTxt.textContent = t.name;
                 nodesLayer.appendChild(tTxt);
 
+                // Gantt Bar / Milestone
+                const bx = timelineX + t.start * dayW;
+                const bw = Math.max(18, t.dur * dayW);
+
                 if (t.status === 'milestone') {
                   const mDia = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
-                  const mx = startX + t.start * dayW;
-                  const my = curY + 10;
-                  mDia.setAttribute('points', `${mx},${my - 8} ${mx + 8},${my} ${mx},${my + 8} ${mx - 8},${my}`);
+                  const mx = bx + 10;
+                  const my = curY + 15;
+                  mDia.setAttribute('points', `${mx},${my - 9} ${mx + 9},${my} ${mx},${my + 9} ${mx - 9},${my}`);
                   mDia.setAttribute('fill', t.color);
                   nodesLayer.appendChild(mDia);
+
+                  const mTag = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                  mTag.setAttribute('x', `${mx + 14}`);
+                  mTag.setAttribute('y', `${my + 4}`);
+                  mTag.setAttribute('fill', t.color);
+                  mTag.setAttribute('font-size', '10px');
+                  mTag.setAttribute('font-weight', 'bold');
+                  mTag.textContent = 'Milestone';
+                  nodesLayer.appendChild(mTag);
                 } else {
+                  // Track bar
                   const bar = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-                  bar.setAttribute('x', `${startX + t.start * dayW}`);
-                  bar.setAttribute('y', `${curY}`);
-                  bar.setAttribute('width', `${Math.max(16, t.dur * dayW)}`);
+                  bar.setAttribute('x', `${bx}`);
+                  bar.setAttribute('y', `${curY + 6}`);
+                  bar.setAttribute('width', `${bw}`);
                   bar.setAttribute('height', '18');
                   bar.setAttribute('rx', '4');
                   bar.setAttribute('fill', t.color);
                   nodesLayer.appendChild(bar);
+
+                  // Duration text inside/next to bar
+                  const durText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                  durText.setAttribute('x', bw > 30 ? `${bx + bw / 2}` : `${bx + bw + 6}`);
+                  durText.setAttribute('y', `${curY + 19}`);
+                  durText.setAttribute('text-anchor', bw > 30 ? 'middle' : 'start');
+                  durText.setAttribute('fill', bw > 30 ? '#FFFFFF' : textColor);
+                  durText.setAttribute('font-size', '10px');
+                  durText.setAttribute('font-weight', '600');
+                  durText.textContent = `${t.dur}d`;
+                  nodesLayer.appendChild(durText);
                 }
+
                 curY += rowH;
               });
-              curY += 10;
+
+              curY += 8;
+            });
+
+            // 4. Legend
+            const legY = curY + 12;
+            const legendItems = [
+              { label: 'Completed', color: '#4CAF50' },
+              { label: 'In Progress', color: '#2196F3' },
+              { label: 'Critical', color: '#F44336' },
+              { label: 'Milestone', color: '#FF9800' }
+            ];
+
+            legendItems.forEach((it, idx) => {
+              const lx = 60 + idx * 140;
+              const dot = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+              dot.setAttribute('x', `${lx}`);
+              dot.setAttribute('y', `${legY}`);
+              dot.setAttribute('width', '12');
+              dot.setAttribute('height', '12');
+              dot.setAttribute('rx', '3');
+              dot.setAttribute('fill', it.color);
+              nodesLayer.appendChild(dot);
+
+              const lt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+              lt.setAttribute('x', `${lx + 18}`);
+              lt.setAttribute('y', `${legY + 10}`);
+              lt.setAttribute('fill', textColor);
+              lt.setAttribute('font-size', '11px');
+              lt.textContent = it.label;
+              nodesLayer.appendChild(lt);
             });
             break;
           }
