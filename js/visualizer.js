@@ -31,7 +31,7 @@ class MultiDiagramVisualizer {
     const cleanKey = String(key).replace(/^["']|["']$/g, '').trim();
     let curCode = app.codeEditor.value;
     const colorDir = `%% @color: ${cleanKey} = ${color}`;
-    const escapedKey = cleanKey.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
+    const escapedKey = cleanKey.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
     const reg = new RegExp(`^%%\\s*@color:\\s*${escapedKey}\\s*=[^\n]*$`, 'm');
 
     if (reg.test(curCode)) {
@@ -223,17 +223,30 @@ class MultiDiagramVisualizer {
 
           const x1 = pFrom.x;
           const x2 = pTo.x;
+          const msgKey = `${m.from}->${m.to}:${m.text}`;
+          const msgColor = MultiDiagramVisualizer.getColor(msgKey, MultiDiagramVisualizer.getColor(`${m.from}->${m.to}`, linkColor));
 
+          const lineG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
           const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
           line.setAttribute('x1', `${x1}`);
           line.setAttribute('y1', `${y}`);
           line.setAttribute('x2', `${x2}`);
           line.setAttribute('y2', `${y}`);
-          line.setAttribute('stroke', linkColor);
+          line.setAttribute('stroke', msgColor);
           line.setAttribute('stroke-width', '2');
           if (m.type === 'dashed') line.setAttribute('stroke-dasharray', '5,4');
-          line.setAttribute('marker-end', 'url(#marker-arrow)');
-          edgesLayer.appendChild(line);
+          lineG.appendChild(line);
+
+          // Arrowhead
+          const arrowHead = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+          if (x2 > x1) {
+            arrowHead.setAttribute('points', `${x2 - 8},${y - 4.5} ${x2},${y} ${x2 - 8},${y + 4.5}`);
+          } else {
+            arrowHead.setAttribute('points', `${x2 + 8},${y - 4.5} ${x2},${y} ${x2 + 8},${y + 4.5}`);
+          }
+          arrowHead.setAttribute('fill', msgColor);
+          lineG.appendChild(arrowHead);
+          edgesLayer.appendChild(lineG);
 
           // Step Badge
           const badgeG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
@@ -249,7 +262,7 @@ class MultiDiagramVisualizer {
           badgeBg.setAttribute('rx', '4');
           const isSelM = (m.text === selTitle || `${m.from} → ${m.to}` === selTitle);
           badgeBg.setAttribute('fill', cardBg);
-          badgeBg.setAttribute('stroke', isSelM ? 'var(--selection-color)' : cardBorder);
+          badgeBg.setAttribute('stroke', isSelM ? 'var(--selection-color)' : (msgColor !== linkColor ? msgColor : cardBorder));
           badgeBg.setAttribute('stroke-width', isSelM ? '2' : '1');
           if (isSelM) badgeBg.style.filter = selGlow;
           badgeG.appendChild(badgeBg);
@@ -259,7 +272,7 @@ class MultiDiagramVisualizer {
           badgeText.setAttribute('y', `${y - 9}`);
           badgeText.setAttribute('text-anchor', 'middle');
           badgeText.setAttribute('dominant-baseline', 'central');
-          badgeText.setAttribute('fill', textColor);
+          badgeText.setAttribute('fill', msgColor !== linkColor ? msgColor : textColor);
           badgeText.setAttribute('font-size', '10.5px');
           badgeText.setAttribute('font-weight', '500');
           badgeText.textContent = badgeTextStr;
@@ -281,12 +294,16 @@ class MultiDiagramVisualizer {
                     { value: '-->', label: 'Dotted Line (-->)' },
                     { value: '-x', label: 'Cross End (-x)' },
                     { value: '--x', label: 'Dotted Cross (--x)' }
-                  ]}
+                  ]},
+                  { key: 'color', label: 'Line / Arrow Color', type: 'color', value: msgColor }
                 ],
                 onSave: (vals) => {
+                  const newKey = `${m.from}->${m.to}:${vals.text}`;
+                  MultiDiagramVisualizer.setColor(newKey, vals.color);
+                  MultiDiagramVisualizer.syncColorToCode(newKey, vals.color);
                   MultiDiagramVisualizer.updateCodeLine((curCode) => {
                     const lines = curCode.split('\n');
-                    const idx = lines.findIndex(l => new RegExp(`^s*${m.from}\\s*(?:-->>|->>|-->|->|-x|--x)\\s*${m.to}\\s*:`, 'i').test(l.trim()));
+                    const idx = lines.findIndex(l => new RegExp(`^\\s*${m.from}\\s*(?:-->>|->>|-->|->|-x|--x)\\s*${m.to}\\s*:`, 'i').test(l.trim()));
                     if (idx !== -1) {
                       const lead = lines[idx].match(/^(\s*)/)[1] || '  ';
                       lines[idx] = `${lead}${m.from} ${vals.arrow} ${m.to}: ${vals.text}`;
@@ -315,7 +332,7 @@ class MultiDiagramVisualizer {
             if (tm) title = tm[1].trim();
             return;
           }
-          const m = line.match(/^["']?([^"':]+)["']?s*:s*([0-9.]+)/);
+          const m = line.match(/^["']?([^"':]+)["']?\s*:\s*([0-9.]+)/);
           if (m) {
             const rawLbl = m[1].trim();
             data.push({
@@ -332,7 +349,7 @@ class MultiDiagramVisualizer {
           data.push({ label: 'Category C', val: 25, color: '#FF9800' });
         }
 
-        const total = data.reduce((acc, d) => acc + d.val, 0);
+        const total = data.reduce((acc, d) => acc + d.val, 0) || 1;
         const cx = 220;
         const cy = 200;
         const r = 130;
@@ -386,11 +403,11 @@ class MultiDiagramVisualizer {
                     { key: 'color', label: 'Slice Color', type: 'color', value: d.color }
                   ],
                   onSave: (vals) => {
-                    MultiDiagramVisualizer.setColor(d.label, vals.color);
-                    MultiDiagramVisualizer.syncColorToCode(d.label, vals.color);
+                    MultiDiagramVisualizer.setColor(vals.label, vals.color);
+                    MultiDiagramVisualizer.syncColorToCode(vals.label, vals.color);
                     MultiDiagramVisualizer.updateCodeLine((curCode) => {
                       const lines = curCode.split('\n');
-                      const esc = d.label.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
+                      const esc = d.label.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
                       const idx = lines.findIndex(l => new RegExp(`^\\s*["']?${esc}["']?\\s*:`, 'i').test(l.trim()));
                       if (idx !== -1) {
                         const lead = lines[idx].match(/^(\s*)/)[1] || '  ';
@@ -443,11 +460,18 @@ class MultiDiagramVisualizer {
         const rawLines = (code || '').split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('%%'));
         let title = 'Project Sprint Roadmap';
         const sections = [];
-        let currentSection = { name: 'Tasks', tasks: [] };
+        let currentSection = { name: 'Sprint Tasks', tasks: [] };
         sections.push(currentSection);
 
+        const parseDateOffset = (dateStr) => {
+          const t = Date.parse(dateStr);
+          return isNaN(t) ? null : t;
+        };
+
+        const allTasks = [];
+
         rawLines.forEach(line => {
-          if (line.toLowerCase().startsWith('gantt')) return;
+          if (line.toLowerCase().startsWith('gantt') || line.toLowerCase().startsWith('dateformat')) return;
           const titleMatch = line.match(/^title\s+(.+)$/i);
           if (titleMatch) { title = titleMatch[1].trim(); return; }
 
@@ -462,12 +486,34 @@ class MultiDiagramVisualizer {
           if (taskMatch) {
             const name = taskMatch[1].trim();
             const details = taskMatch[2].trim();
-            const isDone = details.includes('done');
-            const isActive = details.includes('active');
-            const isCrit = details.includes('crit');
-            const isMile = details.includes('milestone');
-            const durMatch = details.match(/([0-9]+)d/);
-            const dur = durMatch ? parseInt(durMatch[1]) : (isMile ? 0 : 5);
+            const parts = details.split(',').map(s => s.trim());
+
+            let isDone = false, isActive = false, isCrit = false, isMile = false;
+            let id = null, startDate = null, endDate = null, durDays = 5;
+
+            parts.forEach(p => {
+              const pl = p.toLowerCase();
+              if (pl === 'done') isDone = true;
+              else if (pl === 'active') isActive = true;
+              else if (pl === 'crit') isCrit = true;
+              else if (pl === 'milestone') isMile = true;
+              else if (p.match(/^[0-9]+d$/i)) {
+                durDays = parseInt(p);
+              } else if (p.match(/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/)) {
+                if (!startDate) startDate = p;
+                else endDate = p;
+              } else if (!id && p.match(/^[A-Za-z0-9_]+$/)) {
+                id = p;
+              }
+            });
+
+            if (startDate && endDate) {
+              const t1 = parseDateOffset(startDate);
+              const t2 = parseDateOffset(endDate);
+              if (t1 && t2 && t2 >= t1) {
+                durDays = Math.max(1, Math.round((t2 - t1) / (1000 * 60 * 60 * 24)));
+              }
+            }
 
             let status = 'normal';
             if (isDone) status = 'done';
@@ -477,23 +523,37 @@ class MultiDiagramVisualizer {
 
             const defaultColor = isCrit ? '#F44336' : (isDone ? '#4CAF50' : (isActive ? '#FF9800' : '#2196F3'));
 
-            currentSection.tasks.push({
+            const taskObj = {
               name,
+              id: id || `t_${allTasks.length + 1}`,
+              startDate,
+              endDate,
               status,
               done: isDone,
               active: isActive,
               crit: isCrit,
               milestone: isMile,
-              dur: dur || 4,
+              dur: durDays,
               color: MultiDiagramVisualizer.getColor(name, defaultColor)
-            });
+            };
+
+            currentSection.tasks.push(taskObj);
+            allTasks.push(taskObj);
           }
         });
 
-        // Title
+        // Compute global date baseline
+        let minTime = null;
+        allTasks.forEach(t => {
+          if (t.startDate) {
+            const time = parseDateOffset(t.startDate);
+            if (time && (minTime === null || time < minTime)) minTime = time;
+          }
+        });
+
         const titleEl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
         titleEl.setAttribute('x', '30');
-        titleEl.setAttribute('y', '36');
+        titleEl.setAttribute('y', '34');
         titleEl.setAttribute('fill', primaryText);
         titleEl.setAttribute('font-size', '15px');
         titleEl.setAttribute('font-weight', 'bold');
@@ -501,51 +561,79 @@ class MultiDiagramVisualizer {
         nodesLayer.appendChild(titleEl);
 
         let curY = 65;
-        const startX = 180;
-        const pxPerDay = 24;
+        const startX = 200;
+        const pxPerDay = 18;
+
+        // Timeline header bar
+        const headerBar = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        headerBar.setAttribute('x', `${startX}`);
+        headerBar.setAttribute('y', '46');
+        headerBar.setAttribute('width', '520');
+        headerBar.setAttribute('height', '18');
+        headerBar.setAttribute('rx', '3');
+        headerBar.setAttribute('fill', isDark ? '#232527' : '#ECEFF1');
+        nodesLayer.appendChild(headerBar);
+
+        const headerTxt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        headerTxt.setAttribute('x', `${startX + 10}`);
+        headerTxt.setAttribute('y', '59');
+        headerTxt.setAttribute('fill', textColor);
+        headerTxt.setAttribute('font-size', '10px');
+        headerTxt.setAttribute('font-weight', 'bold');
+        headerTxt.textContent = '📅 Timeline Axis (Sprint Days & Milestones)';
+        nodesLayer.appendChild(headerTxt);
+
+        let globalDayCounter = 0;
 
         sections.forEach(sec => {
           if (sec.tasks.length === 0) return;
 
-          // Section Header
           const secText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
           secText.setAttribute('x', '30');
           secText.setAttribute('y', `${curY + 16}`);
           secText.setAttribute('fill', primaryBorder);
-          secText.setAttribute('font-size', '12.5px');
+          secText.setAttribute('font-size', '12px');
           secText.setAttribute('font-weight', 'bold');
-          secText.textContent = `📁 ${sec.name}`;
+          secText.textContent = `§ ${sec.name}`;
           nodesLayer.appendChild(secText);
 
-          curY += 28;
+          curY += 26;
 
-          let dayOffset = 0;
           sec.tasks.forEach(t => {
+            let dayOffset = globalDayCounter;
+            if (minTime && t.startDate) {
+              const tTime = parseDateOffset(t.startDate);
+              if (tTime) {
+                dayOffset = Math.max(0, Math.round((tTime - minTime) / (1000 * 60 * 60 * 24)));
+              }
+            }
+
             const taskRowG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
             taskRowG.style.cursor = 'pointer';
 
             const lbl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
             lbl.setAttribute('x', '45');
-            lbl.setAttribute('y', `${curY + 18}`);
+            lbl.setAttribute('y', `${curY + 16}`);
             lbl.setAttribute('fill', textColor);
-            lbl.setAttribute('font-size', '11.5px');
+            lbl.setAttribute('font-size', '11px');
+            lbl.setAttribute('font-weight', '500');
             lbl.textContent = t.name;
             taskRowG.appendChild(lbl);
 
             const bx = startX + dayOffset * pxPerDay;
-            const bw = Math.max(pxPerDay, t.dur * pxPerDay);
+            const bw = Math.max(20, t.dur * pxPerDay);
 
             if (t.milestone) {
               const diamond = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
-              diamond.setAttribute('points', `${bx}, ${curY + 7} ${bx + 11}, ${curY + 18} ${bx}, ${curY + 29} ${bx - 11}, ${curY + 18}`);
+              diamond.setAttribute('points', `${bx}, ${curY + 5} ${bx + 10}, ${curY + 15} ${bx}, ${curY + 25} ${bx - 10}, ${curY + 15}`);
               diamond.setAttribute('fill', '#9C27B0');
               taskRowG.appendChild(diamond);
             } else {
               const bar = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
               bar.setAttribute('x', `${bx}`);
-              bar.setAttribute('y', `${curY + 6}`);
+              bar.setAttribute('y', `${curY + 4}`);
               bar.setAttribute('width', `${bw}`);
-              bar.setAttribute('height', '22');
+              bar.setAttribute('height', '20');
               bar.setAttribute('rx', '4');
               const isSelGantt = (t.name === selTitle);
               bar.setAttribute('fill', t.color);
@@ -557,12 +645,12 @@ class MultiDiagramVisualizer {
               taskRowG.appendChild(bar);
 
               const durText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-              durText.setAttribute('x', bw > 30 ? `${bx + bw / 2}` : `${bx + bw + 6}`);
-              durText.setAttribute('y', `${curY + 19}`);
-              durText.setAttribute('text-anchor', bw > 30 ? 'middle' : 'start');
-              durText.setAttribute('fill', bw > 30 ? '#FFFFFF' : textColor);
-              durText.setAttribute('font-size', '10px');
-              durText.setAttribute('font-weight', '600');
+              durText.setAttribute('x', bw > 25 ? `${bx + bw / 2}` : `${bx + bw + 5}`);
+              durText.setAttribute('y', `${curY + 17}`);
+              durText.setAttribute('text-anchor', bw > 25 ? 'middle' : 'start');
+              durText.setAttribute('fill', bw > 25 ? '#FFFFFF' : textColor);
+              durText.setAttribute('font-size', '9.5px');
+              durText.setAttribute('font-weight', 'bold');
               durText.textContent = `${t.dur}d`;
               taskRowG.appendChild(durText);
             }
@@ -587,16 +675,16 @@ class MultiDiagramVisualizer {
                     { key: 'color', label: 'Bar Color', type: 'color', value: t.color }
                   ],
                   onSave: (vals) => {
-                    MultiDiagramVisualizer.setColor(t.name, vals.color);
-                    MultiDiagramVisualizer.syncColorToCode(t.name, vals.color);
+                    MultiDiagramVisualizer.setColor(vals.name, vals.color);
+                    MultiDiagramVisualizer.syncColorToCode(vals.name, vals.color);
                     MultiDiagramVisualizer.updateCodeLine((curCode) => {
                       const lines = curCode.split('\n');
-                      const esc = t.name.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
+                      const esc = t.name.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
                       const idx = lines.findIndex(l => new RegExp(`^\\s*${esc}\\s*:`, 'i').test(l.trim()));
                       if (idx !== -1) {
                         const lead = lines[idx].match(/^(\s*)/)[1] || '    ';
                         const stStr = vals.status && vals.status !== 'normal' ? `${vals.status}, ` : '';
-                        lines[idx] = `${lead}${vals.name} : ${stStr}${vals.dur}d`;
+                        lines[idx] = `${lead}${vals.name} : ${stStr}${t.id ? t.id + ', ' : ''}${vals.dur}d`;
                       }
                       return lines.join('\n');
                     });
@@ -606,10 +694,10 @@ class MultiDiagramVisualizer {
             });
 
             nodesLayer.appendChild(taskRowG);
-            dayOffset += t.dur;
-            curY += 32;
+            globalDayCounter += Math.min(6, t.dur);
+            curY += 28;
           });
-          curY += 12;
+          curY += 10;
         });
         break;
       }
@@ -627,7 +715,7 @@ class MultiDiagramVisualizer {
         rawLines.forEach(line => {
           if (line.toLowerCase().startsWith('gitgraph')) return;
 
-          const brMatch = line.match(/^branch\s+([A-Za-z0-9_/]+)/i);
+          const brMatch = line.match(/^branch\s+([A-Za-z0-9_\/]+)/i);
           if (brMatch) {
             const bName = brMatch[1];
             if (!branches.has(bName)) {
@@ -642,7 +730,7 @@ class MultiDiagramVisualizer {
             return;
           }
 
-          const coMatch = line.match(/^checkout\s+([A-Za-z0-9_/]+)/i);
+          const coMatch = line.match(/^checkout\s+([A-Za-z0-9_\/]+)/i);
           if (coMatch) {
             activeBranch = coMatch[1];
             return;
@@ -757,11 +845,11 @@ class MultiDiagramVisualizer {
                   { key: 'color', label: 'Commit Color', type: 'color', value: c.color }
                 ],
                 onSave: (vals) => {
-                  MultiDiagramVisualizer.setColor(c.id, vals.color);
-                  MultiDiagramVisualizer.syncColorToCode(c.id, vals.color);
+                  MultiDiagramVisualizer.setColor(vals.id, vals.color);
+                  MultiDiagramVisualizer.syncColorToCode(vals.id, vals.color);
                   MultiDiagramVisualizer.updateCodeLine((curCode) => {
                     const lines = curCode.split('\n');
-                    const esc = c.id.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
+                    const esc = c.id.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
                     const idx = lines.findIndex(l => new RegExp(`commit\\s+id:\\s*["']?${esc}["']?`, 'i').test(l.trim()));
                     if (idx !== -1) {
                       const lead = lines[idx].match(/^(\s*)/)[1] || '  ';
@@ -799,7 +887,7 @@ class MultiDiagramVisualizer {
             return;
           }
 
-          const taskMatch = line.match(/^([^:]+):s*([0-9]+)s*:s*(.+)$/);
+          const taskMatch = line.match(/^([^:]+):\s*([0-9]+)\s*:\s*(.+)$/);
           if (taskMatch) {
             const name = taskMatch[1].trim();
             curSection.tasks.push({
@@ -904,11 +992,11 @@ class MultiDiagramVisualizer {
                     { key: 'color', label: 'Card Color', type: 'color', value: t.color }
                   ],
                   onSave: (vals) => {
-                    MultiDiagramVisualizer.setColor(t.name, vals.color);
-                    MultiDiagramVisualizer.syncColorToCode(t.name, vals.color);
+                    MultiDiagramVisualizer.setColor(vals.name, vals.color);
+                    MultiDiagramVisualizer.syncColorToCode(vals.name, vals.color);
                     MultiDiagramVisualizer.updateCodeLine((curCode) => {
                       const lines = curCode.split('\n');
-                      const esc = t.name.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
+                      const esc = t.name.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
                       const idx = lines.findIndex(l => new RegExp(`^\\s*${esc}\\s*:`, 'i').test(l.trim()));
                       if (idx !== -1) {
                         const lead = lines[idx].match(/^(\s*)/)[1] || '    ';
@@ -1171,11 +1259,11 @@ class MultiDiagramVisualizer {
                   { key: 'color', label: 'Branch Fill Color', type: 'color', value: nodeFill }
                 ],
                 onSave: (vals) => {
-                  MultiDiagramVisualizer.setColor(node.text, vals.color);
-                  MultiDiagramVisualizer.syncColorToCode(node.text, vals.color);
+                  MultiDiagramVisualizer.setColor(vals.text, vals.color);
+                  MultiDiagramVisualizer.syncColorToCode(vals.text, vals.color);
                   MultiDiagramVisualizer.updateCodeLine((curCode) => {
                     const lines = curCode.split('\n');
-                    const esc = node.text.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
+                    const esc = node.text.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
                     const idx = lines.findIndex(l => new RegExp(`^\\s*[\[\(\{]*${esc}[\]\)\}\s]*(?:\\s*|::.*)$`, 'i').test(l.trim()));
                     if (idx !== -1) {
                       const lead = lines[idx].match(/^(\s*)/)[1] || '      ';
@@ -1204,6 +1292,7 @@ class MultiDiagramVisualizer {
         const rawLines = (code || '').split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('%%'));
         let title = 'Timeline Roadmap';
         const events = [];
+        const colors = ['#2196F3', '#4CAF50', '#FF9800', '#E91E63', '#9C27B0', '#00BCD4'];
 
         rawLines.forEach(line => {
           const titleMatch = line.match(/^title\s+(.+)$/i);
@@ -1291,7 +1380,7 @@ class MultiDiagramVisualizer {
           cardRect.setAttribute('rx', '6');
           const isSelTime = (ev.era === selTitle);
           cardRect.setAttribute('fill', cardBg);
-          cardRect.setAttribute('stroke', isSelTime ? 'var(--selection-color)' : cardBorder);
+          cardRect.setAttribute('stroke', isSelTime ? 'var(--selection-color)' : (ev.color !== colors[eIdx % colors.length] ? ev.color : cardBorder));
           if (isSelTime) {
             cardRect.setAttribute('stroke-width', '2.5');
             cardRect.style.filter = selGlow;
@@ -1320,11 +1409,11 @@ class MultiDiagramVisualizer {
                   { key: 'color', label: 'Milestone Accent Color', type: 'color', value: ev.color }
                 ],
                 onSave: (vals) => {
-                  MultiDiagramVisualizer.setColor(ev.era, vals.color);
-                  MultiDiagramVisualizer.syncColorToCode(ev.era, vals.color);
+                  MultiDiagramVisualizer.setColor(vals.era, vals.color);
+                  MultiDiagramVisualizer.syncColorToCode(vals.era, vals.color);
                   MultiDiagramVisualizer.updateCodeLine((curCode) => {
                     const lines = curCode.split('\n');
-                    const esc = ev.era.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
+                    const esc = ev.era.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
                     const idx = lines.findIndex(l => new RegExp(`^\\s*${esc}\\s*:`, 'i').test(l.trim()));
                     if (idx !== -1) {
                       const lead = lines[idx].match(/^(\s*)/)[1] || '  ';
@@ -1396,21 +1485,19 @@ class MultiDiagramVisualizer {
         titleEl.textContent = title;
         nodesLayer.appendChild(titleEl);
 
-        // 4 Distinct Quadrant Color Backgrounds
         const qColors = isDark ? [
-          'rgba(76, 175, 80, 0.12)',   // Q1: Green tint (Top-Right: Strategic)
-          'rgba(244, 67, 54, 0.14)',   // Q2: Red tint (Top-Left: Urgent)
-          'rgba(158, 158, 158, 0.08)', // Q3: Gray tint (Bottom-Left: Low Priority)
-          'rgba(33, 150, 243, 0.12)'   // Q4: Blue tint (Bottom-Right: Quick Fixes)
+          'rgba(76, 175, 80, 0.12)',
+          'rgba(244, 67, 54, 0.14)',
+          'rgba(158, 158, 158, 0.08)',
+          'rgba(33, 150, 243, 0.12)'
         ] : [
-          '#E8F5E9', // Q1: Light Green (Top-Right)
-          '#FFEBEE', // Q2: Light Red (Top-Left)
-          '#F5F5F5', // Q3: Light Gray (Bottom-Left)
-          '#E3F2FD'  // Q4: Light Blue (Bottom-Right)
+          '#E8F5E9',
+          '#FFEBEE',
+          '#F5F5F5',
+          '#E3F2FD'
         ];
 
         // Draw 4 Quadrant Panes
-        // Top-Left (Q2: Urgent & Critical)
         const q2Rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
         q2Rect.setAttribute('x', `${cx - boxSize}`);
         q2Rect.setAttribute('y', `${cy - boxSize}`);
@@ -1421,7 +1508,6 @@ class MultiDiagramVisualizer {
         q2Rect.setAttribute('stroke-width', '1');
         nodesLayer.appendChild(q2Rect);
 
-        // Top-Right (Q1: Strategic Bets)
         const q1Rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
         q1Rect.setAttribute('x', `${cx}`);
         q1Rect.setAttribute('y', `${cy - boxSize}`);
@@ -1432,7 +1518,6 @@ class MultiDiagramVisualizer {
         q1Rect.setAttribute('stroke-width', '1');
         nodesLayer.appendChild(q1Rect);
 
-        // Bottom-Left (Q3: Low Priority)
         const q3Rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
         q3Rect.setAttribute('x', `${cx - boxSize}`);
         q3Rect.setAttribute('y', `${cy}`);
@@ -1443,7 +1528,6 @@ class MultiDiagramVisualizer {
         q3Rect.setAttribute('stroke-width', '1');
         nodesLayer.appendChild(q3Rect);
 
-        // Bottom-Right (Q4: Quick Fixes)
         const q4Rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
         q4Rect.setAttribute('x', `${cx}`);
         q4Rect.setAttribute('y', `${cy}`);
@@ -1454,7 +1538,6 @@ class MultiDiagramVisualizer {
         q4Rect.setAttribute('stroke-width', '1');
         nodesLayer.appendChild(q4Rect);
 
-        // Outer Grid Border
         const grid = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
         grid.setAttribute('x', `${cx - boxSize}`);
         grid.setAttribute('y', `${cy - boxSize}`);
@@ -1465,7 +1548,6 @@ class MultiDiagramVisualizer {
         grid.setAttribute('stroke-width', '2');
         nodesLayer.appendChild(grid);
 
-        // Axes Crosshair
         const vertAxis = document.createElementNS('http://www.w3.org/2000/svg', 'line');
         vertAxis.setAttribute('x1', `${cx}`);
         vertAxis.setAttribute('y1', `${cy - boxSize}`);
@@ -1484,7 +1566,6 @@ class MultiDiagramVisualizer {
         horizAxis.setAttribute('stroke-width', '2');
         edgesLayer.appendChild(horizAxis);
 
-        // Quadrant Title Badges
         const addQBadge = (title, x, y) => {
           const t = document.createElementNS('http://www.w3.org/2000/svg', 'text');
           t.setAttribute('x', `${x}`);
@@ -1544,11 +1625,11 @@ class MultiDiagramVisualizer {
                   { key: 'color', label: 'Point Color', type: 'color', value: it.color }
                 ],
                 onSave: (vals) => {
-                  MultiDiagramVisualizer.setColor(it.name, vals.color);
-                  MultiDiagramVisualizer.syncColorToCode(it.name, vals.color);
+                  MultiDiagramVisualizer.setColor(vals.name, vals.color);
+                  MultiDiagramVisualizer.syncColorToCode(vals.name, vals.color);
                   MultiDiagramVisualizer.updateCodeLine((curCode) => {
                     const lines = curCode.split('\n');
-                    const esc = it.name.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
+                    const esc = it.name.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
                     const idx = lines.findIndex(l => new RegExp(`^\\s*["']?${esc}["']?\\s*:`, 'i').test(l.trim()));
                     if (idx !== -1) {
                       const lead = lines[idx].match(/^(\s*)/)[1] || '  ';
@@ -1645,8 +1726,8 @@ class MultiDiagramVisualizer {
                   { key: 'color', label: 'Node Fill Color', type: 'color', value: color }
                 ],
                 onSave: (vals) => {
-                  MultiDiagramVisualizer.setColor(name, vals.color);
-                  MultiDiagramVisualizer.syncColorToCode(name, vals.color);
+                  MultiDiagramVisualizer.setColor(vals.name, vals.color);
+                  MultiDiagramVisualizer.syncColorToCode(vals.name, vals.color);
                   MultiDiagramVisualizer.updateCodeLine((curCode) => {
                     const lines = curCode.split('\n');
                     for (let i = 0; i < lines.length; i++) {
@@ -1722,8 +1803,9 @@ class MultiDiagramVisualizer {
                   { key: 'color', label: 'Flow Band Color', type: 'color', value: flowColor }
                 ],
                 onSave: (vals) => {
-                  MultiDiagramVisualizer.setColor(flowKey, vals.color);
-                  MultiDiagramVisualizer.syncColorToCode(flowKey, vals.color);
+                  const newFlowKey = `${vals.src}->${vals.tgt}`;
+                  MultiDiagramVisualizer.setColor(newFlowKey, vals.color);
+                  MultiDiagramVisualizer.syncColorToCode(newFlowKey, vals.color);
                   MultiDiagramVisualizer.updateCodeLine((curCode) => {
                     const lines = curCode.split('\n');
                     for (let i = 0; i < lines.length; i++) {

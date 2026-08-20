@@ -408,14 +408,18 @@
           const isDashed = edge.type === '-.->';
           const isBi = edge.type === '<-->' || edge.type === '<==>';
 
+          const endMarkerId = this.getOrCreateMarker(edge.color, isThick, false, isSelected);
+          path.setAttribute('marker-end', `url(#${endMarkerId})`);
+
+          if (isBi) {
+            const startMarkerId = this.getOrCreateMarker(edge.color, isThick, true, isSelected);
+            path.setAttribute('marker-start', `url(#${startMarkerId})`);
+          }
+
           if (isThick) {
             path.style.strokeWidth = isSelected ? '4.5px' : (edge.strokeWidth ? `${edge.strokeWidth}px` : '3.5px');
-            path.setAttribute('marker-end', isSelected ? 'url(#marker-thick-selected)' : 'url(#marker-thick)');
-            if (isBi) path.setAttribute('marker-start', isSelected ? 'url(#marker-start-thick-selected)' : 'url(#marker-start-thick)');
           } else {
             path.style.strokeWidth = isSelected ? '3px' : (edge.strokeWidth ? `${edge.strokeWidth}px` : '2px');
-            path.setAttribute('marker-end', isSelected ? 'url(#marker-arrow-selected)' : 'url(#marker-arrow)');
-            if (isBi) path.setAttribute('marker-start', isSelected ? 'url(#marker-start-arrow-selected)' : 'url(#marker-start-arrow)');
           }
 
           if (edge.color) {
@@ -519,6 +523,63 @@
         }
 
         return { sx, sy, tx, ty, srcDir, tgtDir };
+      }
+
+      getOrCreateMarker(color, isThick, isStart, isSelected) {
+        if (isSelected) {
+          if (isThick) {
+            return isStart ? 'marker-start-thick-selected' : 'marker-thick-selected';
+          } else {
+            return isStart ? 'marker-start-arrow-selected' : 'marker-arrow-selected';
+          }
+        }
+
+        if (!color || color === 'var(--link-color)' || color === '#616161' || color === '#BBBBBB') {
+          if (isThick) {
+            return isStart ? 'marker-start-thick' : 'marker-thick';
+          } else {
+            return isStart ? 'marker-start-arrow' : 'marker-arrow';
+          }
+        }
+
+        const colorId = color.replace(/[^A-Za-z0-9]/g, '');
+        const markerId = `marker-${isStart ? 'start-' : ''}${isThick ? 'thick-' : 'arrow-'}${colorId}`;
+
+        let defs = this.svg.querySelector('defs');
+        if (!defs) {
+          defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+          this.svg.insertBefore(defs, this.svg.firstChild);
+        }
+
+        let existing = defs.querySelector(`#${markerId}`);
+        if (!existing) {
+          const marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
+          marker.setAttribute('id', markerId);
+          marker.setAttribute('viewBox', '0 0 10 10');
+          marker.setAttribute('orient', 'auto');
+
+          const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+          path.setAttribute('fill', color);
+
+          if (isThick) {
+            marker.setAttribute('refX', isStart ? '2' : '8');
+            marker.setAttribute('refY', '5');
+            marker.setAttribute('markerWidth', '3.5');
+            marker.setAttribute('markerHeight', '3.5');
+            path.setAttribute('d', isStart ? 'M 10 0 L 0 5 L 10 10 z' : 'M 0 0 L 10 5 L 0 10 z');
+          } else {
+            marker.setAttribute('refX', isStart ? '1' : '9');
+            marker.setAttribute('refY', '5');
+            marker.setAttribute('markerWidth', '6');
+            marker.setAttribute('markerHeight', '6');
+            path.setAttribute('d', isStart ? 'M 10 1.5 L 0 5 L 10 8.5 z' : 'M 0 1.5 L 10 5 L 0 8.5 z');
+          }
+
+          marker.appendChild(path);
+          defs.appendChild(marker);
+        }
+
+        return markerId;
       }
 
       // --- LIVE PROPERTIES EDITOR ---
