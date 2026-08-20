@@ -3346,17 +3346,30 @@
             }
 
             const existingPos = new Map(currentGraph.nodes.map(n => [n.id, { x: n.x, y: n.y }]));
-            let newCount = 0;
+            const missingAny = newGraph.nodes.some(n => !existingPos.has(n.id) || n.id === 'visual_chart_bounds');
+
             newGraph.nodes.forEach(n => {
-              if (existingPos.has(n.id)) {
+              if (existingPos.has(n.id) && n.id !== 'visual_chart_bounds') {
                 n.x = existingPos.get(n.id).x;
                 n.y = existingPos.get(n.id).y;
-              } else {
-                n.x = 100 + (newCount % 5) * 160;
-                n.y = 100 + Math.floor(newCount / 5) * 120;
-                newCount++;
               }
             });
+
+            if (missingAny) {
+              const hasSampleNodes = newGraph.getNode('Client') && newGraph.getNode('API') && newGraph.getNode('Auth') && newGraph.getNode('Database') && newGraph.nodes.length === 4;
+              if (hasSampleNodes && newGraph.layoutDirection === 'TD') {
+                const cNode = newGraph.getNode('Client');
+                const aNode = newGraph.getNode('API');
+                const authNode = newGraph.getNode('Auth');
+                const dNode = newGraph.getNode('Database');
+                if (cNode) { cNode.x = 140; cNode.y = 80; }
+                if (aNode) { aNode.x = 140; aNode.y = 220; }
+                if (authNode) { authNode.x = 380; authNode.y = 220; }
+                if (dNode) { dNode.x = 140; dNode.y = 360; }
+              } else {
+                AutoLayoutEngine.layout(newGraph, newGraph.layoutDirection || 'TD');
+              }
+            }
 
             return { graph: newGraph, error: null };
           } catch (e) {
@@ -4590,15 +4603,26 @@
       loadTemplate(tpl) {
         this.recordHistory();
         this.graph.diagramType = tpl.id;
-        this.graph.customRawCode = tpl.code;
+        this.graph.customRawCode = (tpl.id === 'flowchart_td' || tpl.id === 'flowchart_lr') ? null : tpl.code;
         if (this.typeSelect) this.typeSelect.value = tpl.id;
 
         this.codeEditor.value = tpl.code;
         this.codeHighlight.innerHTML = SyntaxHighlighter.highlight(tpl.code);
 
-        const res = MermaidParser.parse(tpl.code, this.graph);
-        if (res.graph) {
-          this.graph.fromProject(res.graph.toProject(this.themeMgr.currentTheme));
+        if (tpl.id === 'flowchart_td') {
+          this.graph.nodes = [];
+          this.graph.edges = [];
+          this.setupInitialDiagram();
+        } else {
+          this.graph.nodes = [];
+          this.graph.edges = [];
+          const res = MermaidParser.parse(tpl.code, this.graph);
+          if (res.graph) {
+            this.graph.fromProject(res.graph.toProject(this.themeMgr.currentTheme));
+            if (tpl.id === 'flowchart_lr') {
+              AutoLayoutEngine.layout(this.graph, 'LR');
+            }
+          }
         }
 
         this.renderAll();
