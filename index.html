@@ -458,6 +458,56 @@
       width: 100%;
       height: 100%;
       display: block;
+      cursor: grab;
+    }
+
+    #canvas-svg.panning, #canvas-svg.panning * {
+      cursor: grabbing !important;
+    }
+
+    /* Canvas Scrollbars */
+    .canvas-scrollbar {
+      position: absolute;
+      background: rgba(0, 0, 0, 0.05);
+      z-index: 18;
+      transition: background 0.15s, opacity 0.15s;
+      border-radius: 4px;
+      user-select: none;
+    }
+    [data-theme="dark"] .canvas-scrollbar {
+      background: rgba(255, 255, 255, 0.06);
+    }
+    .canvas-scrollbar:hover {
+      background: rgba(0, 0, 0, 0.1);
+    }
+    [data-theme="dark"] .canvas-scrollbar:hover {
+      background: rgba(255, 255, 255, 0.12);
+    }
+    .canvas-scrollbar.horizontal {
+      left: 0;
+      bottom: 0;
+      right: 12px;
+      height: 10px;
+    }
+    .canvas-scrollbar.vertical {
+      top: 0;
+      right: 0;
+      bottom: 12px;
+      width: 10px;
+    }
+    .scrollbar-thumb {
+      position: absolute;
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 5px;
+      cursor: grab;
+      transition: background 0.15s;
+    }
+    [data-theme="dark"] .scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.3);
+    }
+    .scrollbar-thumb:hover, .scrollbar-thumb.dragging {
+      background: var(--selection-color);
+      cursor: grabbing;
     }
 
     /* Right Panel: Mermaid Code Editor */
@@ -1323,6 +1373,14 @@
           <g id="minimap-content"></g>
           <rect id="minimap-viewport" x="0" y="0" width="0" height="0" />
         </svg>
+      </div>
+
+      <!-- Horizontal (H) and Vertical (V) Scrollbars -->
+      <div id="canvas-h-scrollbar" class="canvas-scrollbar horizontal" title="Scroll horizontally">
+        <div id="canvas-h-thumb" class="scrollbar-thumb"></div>
+      </div>
+      <div id="canvas-v-scrollbar" class="canvas-scrollbar vertical" title="Scroll vertically">
+        <div id="canvas-v-thumb" class="scrollbar-thumb"></div>
       </div>
     </div>
 
@@ -3582,6 +3640,7 @@
         this.viewportG.setAttribute('transform', `translate(${this.panX}, ${this.panY}) scale(${this.zoom})`);
         const zoomText = `${Math.round(this.zoom * 100)}%`;
         document.getElementById('sb-zoom').textContent = `Zoom: ${zoomText}`;
+        this.updateScrollbars();
       }
 
       renderNodes() {
@@ -4269,9 +4328,15 @@
 
         document.getElementById('file-input').addEventListener('change', (e) => this.handleFileOpen(e));
 
+        window.addEventListener('resize', () => {
+          this.updateScrollbars();
+          this.renderMinimap();
+        });
+
         this.setupSplitters();
         this.setupModals();
         this.setupPropertiesListeners();
+        this.setupScrollbarListeners();
       }
 
       setupTemplatesModal() {
@@ -4372,14 +4437,18 @@
       }
 
       handleCanvasMouseDown(e) {
-        if (e.button === 1 || e.spaceKey || (e.button === 0 && e.target === this.svg || e.target.id === 'canvas-grid-bg')) {
+        // Any click on background (svg, background rect, viewport, layers)
+        const isBg = e.target === this.svg || e.target.id === 'canvas-grid-bg' || e.target.id === 'canvas-viewport' || e.target === this.nodesLayer || e.target === this.edgesLayer;
+
+        if (e.button === 1 || e.spaceKey || (e.button === 0 && isBg)) {
           if (e.button === 0 && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
             this.selectedNodeIds.clear();
             this.selectedEdgeId = null;
             this.renderAll();
           }
 
-          if (e.shiftKey || (e.button === 0 && !e.altKey && e.target.id === 'canvas-grid-bg')) {
+          if (e.shiftKey) {
+            // Shift + Drag = Marquee Selection Box
             this.isMarquee = true;
             const pt = this.getCanvasPoint(e);
             this.marqueeStart = pt;
@@ -4389,9 +4458,11 @@
             this.marqueeRect.setAttribute('height', '0');
             this.marqueeRect.style.display = 'block';
           } else {
+            // Left click + Drag on background = Move / Pan screen!
             this.isPanning = true;
             this.panStartX = e.clientX - this.panX;
             this.panStartY = e.clientY - this.panY;
+            this.svg.classList.add('panning');
           }
         }
       }
@@ -4453,6 +4524,7 @@
           this.renderNodes();
           this.renderMinimap();
           this.updatePropertiesPanel();
+          this.updateScrollbars();
         } else if (this.isMarquee) {
           const curPt = this.getCanvasPoint(e);
           const x = Math.min(this.marqueeStart.x, curPt.x);
@@ -4499,6 +4571,7 @@
         }
         if (this.isPanning) {
           this.isPanning = false;
+          this.svg.classList.remove('panning');
         }
         if (this.isMarquee) {
           this.isMarquee = false;
@@ -4520,6 +4593,139 @@
           }
           this.connectingSourceId = null;
         }
+      }
+
+      // --- CANVAS SCROLLBARS ENGINE ---
+      getWorldBounds() {
+        let minX = 0, minY = 0, maxX = 1200, maxY = 800;
+        if (this.graph.nodes && this.graph.nodes.length > 0) {
+          this.graph.nodes.forEach(n => {
+            if (n.id === 'visual_chart_bounds') return;
+            minX = Math.min(minX, n.x - 200);
+            minY = Math.min(minY, n.y - 200);
+            maxX = Math.max(maxX, n.x + (n.width || 140) + 200);
+            maxY = Math.max(maxY, n.y + (n.height || 50) + 200);
+          });
+        }
+        minX = Math.min(minX, -600);
+        minY = Math.min(minY, -400);
+        maxX = Math.max(maxX, 1600);
+        maxY = Math.max(maxY, 1200);
+        return { minX, minY, maxX, maxY, totalW: maxX - minX, totalH: maxY - minY };
+      }
+
+      updateScrollbars() {
+        const hThumb = document.getElementById('canvas-h-thumb');
+        const vThumb = document.getElementById('canvas-v-thumb');
+        if (!hThumb || !vThumb || !this.svg) return;
+
+        const rect = this.svg.getBoundingClientRect();
+        if (rect.width === 0 || rect.height === 0) return;
+
+        const bounds = this.getWorldBounds();
+        const visibleW = rect.width / this.zoom;
+        const visibleH = rect.height / this.zoom;
+        const visibleX = -this.panX / this.zoom;
+        const visibleY = -this.panY / this.zoom;
+
+        const trackW = rect.width - 12;
+        const trackH = rect.height - 12;
+
+        const thumbW = Utils.clamp((visibleW / bounds.totalW) * trackW, 30, trackW);
+        const thumbH = Utils.clamp((visibleH / bounds.totalH) * trackH, 30, trackH);
+
+        const thumbX = Utils.clamp(((visibleX - bounds.minX) / bounds.totalW) * trackW, 0, trackW - thumbW);
+        const thumbY = Utils.clamp(((visibleY - bounds.minY) / bounds.totalH) * trackH, 0, trackH - thumbH);
+
+        hThumb.style.width = `${thumbW}px`;
+        hThumb.style.left = `${thumbX}px`;
+
+        vThumb.style.height = `${thumbH}px`;
+        vThumb.style.top = `${thumbY}px`;
+      }
+
+      setupScrollbarListeners() {
+        const hTrack = document.getElementById('canvas-h-scrollbar');
+        const vTrack = document.getElementById('canvas-v-scrollbar');
+        const hThumb = document.getElementById('canvas-h-thumb');
+        const vThumb = document.getElementById('canvas-v-thumb');
+        if (!hTrack || !vTrack || !hThumb || !vThumb) return;
+
+        let isDraggingH = false;
+        let isDraggingV = false;
+        let startThumbX = 0;
+        let startThumbY = 0;
+        let startPanX = 0;
+        let startPanY = 0;
+
+        hThumb.addEventListener('mousedown', (e) => {
+          e.stopPropagation();
+          isDraggingH = true;
+          startThumbX = e.clientX;
+          startPanX = this.panX;
+          hThumb.classList.add('dragging');
+        });
+
+        vThumb.addEventListener('mousedown', (e) => {
+          e.stopPropagation();
+          isDraggingV = true;
+          startThumbY = e.clientY;
+          startPanY = this.panY;
+          vThumb.classList.add('dragging');
+        });
+
+        hTrack.addEventListener('mousedown', (e) => {
+          if (e.target === hThumb) return;
+          const rect = hTrack.getBoundingClientRect();
+          const clickX = e.clientX - rect.left;
+          const bounds = this.getWorldBounds();
+          const targetWorldX = bounds.minX + (clickX / rect.width) * bounds.totalW;
+          this.panX = -targetWorldX * this.zoom + this.svg.clientWidth / 2;
+          this.renderAll();
+        });
+
+        vTrack.addEventListener('mousedown', (e) => {
+          if (e.target === vThumb) return;
+          const rect = vTrack.getBoundingClientRect();
+          const clickY = e.clientY - rect.top;
+          const bounds = this.getWorldBounds();
+          const targetWorldY = bounds.minY + (clickY / rect.height) * bounds.totalH;
+          this.panY = -targetWorldY * this.zoom + this.svg.clientHeight / 2;
+          this.renderAll();
+        });
+
+        window.addEventListener('mousemove', (e) => {
+          if (isDraggingH) {
+            const rect = this.svg.getBoundingClientRect();
+            const trackW = rect.width - 12;
+            const bounds = this.getWorldBounds();
+            const deltaX = e.clientX - startThumbX;
+            const deltaWorldX = (deltaX / trackW) * bounds.totalW;
+            this.panX = startPanX - deltaWorldX * this.zoom;
+            this.updateTransform();
+            this.renderMinimap();
+          } else if (isDraggingV) {
+            const rect = this.svg.getBoundingClientRect();
+            const trackH = rect.height - 12;
+            const bounds = this.getWorldBounds();
+            const deltaY = e.clientY - startThumbY;
+            const deltaWorldY = (deltaY / trackH) * bounds.totalH;
+            this.panY = startPanY - deltaWorldY * this.zoom;
+            this.updateTransform();
+            this.renderMinimap();
+          }
+        });
+
+        window.addEventListener('mouseup', () => {
+          if (isDraggingH) {
+            isDraggingH = false;
+            hThumb.classList.remove('dragging');
+          }
+          if (isDraggingV) {
+            isDraggingV = false;
+            vThumb.classList.remove('dragging');
+          }
+        });
       }
 
       startConnecting(nodeId, portPos, e) {
