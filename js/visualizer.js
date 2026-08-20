@@ -123,6 +123,9 @@
               text.textContent = p.name;
               g.appendChild(text);
 
+              g.addEventListener('mousedown', (e) => e.stopPropagation());
+              g.addEventListener('mousedown', (e) => e.stopPropagation());
+              g.addEventListener('mousedown', (e) => e.stopPropagation());
               g.addEventListener('click', (e) => {
                 e.stopPropagation();
                 if (typeof AppController !== 'undefined' && AppController.instance) {
@@ -192,6 +195,7 @@
               badgeText.textContent = badgeTextStr;
               badgeG.appendChild(badgeText);
 
+              badgeG.addEventListener('mousedown', (e) => e.stopPropagation());
               badgeG.addEventListener('click', (e) => {
                 e.stopPropagation();
                 if (typeof AppController !== 'undefined' && AppController.instance) {
@@ -282,6 +286,7 @@
               path.style.cursor = 'pointer';
 
               const attachPieClick = (targetEl) => {
+                targetEl.addEventListener('mousedown', (e) => e.stopPropagation());
                 targetEl.addEventListener('click', (e) => {
                   e.stopPropagation();
                   if (typeof AppController !== 'undefined' && AppController.instance) {
@@ -622,6 +627,7 @@
                   taskRowG.appendChild(durText);
                 }
 
+                taskRowG.addEventListener('mousedown', (e) => e.stopPropagation());
                 taskRowG.addEventListener('click', (e) => {
                   e.stopPropagation();
                   if (typeof AppController !== 'undefined' && AppController.instance) {
@@ -814,6 +820,7 @@
                 commitG.appendChild(tagG);
               }
 
+              commitG.addEventListener('mousedown', (e) => e.stopPropagation());
               commitG.addEventListener('click', (e) => {
                 e.stopPropagation();
                 if (typeof AppController !== 'undefined' && AppController.instance) {
@@ -945,7 +952,9 @@
                 tActor.textContent = `👤 ${t.actor}`;
                 cardG.appendChild(tActor);
 
-                cardG.addEventListener('click', (e) => {
+                cardG.addEventListener('mousedown', (e) => e.stopPropagation());
+                cardG.addEventListener('mousedown', (e) => e.stopPropagation());
+              cardG.addEventListener('click', (e) => {
                   e.stopPropagation();
                   if (typeof AppController !== 'undefined' && AppController.instance) {
                     AppController.instance.selectVisualObject({
@@ -1121,6 +1130,7 @@
             rootTxt.textContent = rootNode.text;
             rootG.appendChild(rootTxt);
 
+            rootG.addEventListener('mousedown', (e) => e.stopPropagation());
             rootG.addEventListener('click', (e) => {
               e.stopPropagation();
               if (typeof AppController !== 'undefined' && AppController.instance) {
@@ -1381,53 +1391,98 @@
               items.push({ name: 'Task B', x: 0.3, y: 0.4, color: colors[1] });
             }
 
-            const matrixX = 140, matrixY = 80, size = 320;
+            const matrixX = 140, matrixY = 80, size = 340;
+            const halfSize = size / 2;
 
-            const bgRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-            bgRect.setAttribute('x', `${matrixX}`);
-            bgRect.setAttribute('y', `${matrixY}`);
-            bgRect.setAttribute('width', `${size}`);
-            bgRect.setAttribute('height', `${size}`);
-            bgRect.setAttribute('fill', cardBg);
-            bgRect.setAttribute('stroke', cardBorder);
-            bgRect.setAttribute('stroke-width', '1.5');
-            nodesLayer.appendChild(bgRect);
+            // Quadrant 2 (Top-Left - Urgent & Important / Soft Blue)
+            const q2Bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+            q2Bg.setAttribute('x', `${matrixX}`);
+            q2Bg.setAttribute('y', `${matrixY}`);
+            q2Bg.setAttribute('width', `${halfSize}`);
+            q2Bg.setAttribute('height', `${halfSize}`);
+            q2Bg.setAttribute('rx', '6');
+            q2Bg.setAttribute('fill', isDark ? 'rgba(33, 150, 243, 0.16)' : '#E3F2FD');
+            nodesLayer.appendChild(q2Bg);
 
+            // Quadrant 1 (Top-Right - High Value / Soft Green)
+            const q1Bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+            q1Bg.setAttribute('x', `${matrixX + halfSize}`);
+            q1Bg.setAttribute('y', `${matrixY}`);
+            q1Bg.setAttribute('width', `${halfSize}`);
+            q1Bg.setAttribute('height', `${halfSize}`);
+            q1Bg.setAttribute('rx', '6');
+            q1Bg.setAttribute('fill', isDark ? 'rgba(76, 175, 80, 0.16)' : '#E8F5E9');
+            nodesLayer.appendChild(q1Bg);
+
+            // Quadrant 3 (Bottom-Left - Low Priority / Soft Orange)
+            const q3Bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+            q3Bg.setAttribute('x', `${matrixX}`);
+            q3Bg.setAttribute('y', `${matrixY + halfSize}`);
+            q3Bg.setAttribute('width', `${halfSize}`);
+            q3Bg.setAttribute('height', `${halfSize}`);
+            q3Bg.setAttribute('rx', '6');
+            q3Bg.setAttribute('fill', isDark ? 'rgba(255, 152, 0, 0.14)' : '#FFF3E0');
+            nodesLayer.appendChild(q3Bg);
+
+            // Quadrant 4 (Bottom-Right - Low Value / Soft Purple)
+            const q4Bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+            q4Bg.setAttribute('x', `${matrixX + halfSize}`);
+            q4Bg.setAttribute('y', `${matrixY + halfSize}`);
+            q4Bg.setAttribute('width', `${halfSize}`);
+            q4Bg.setAttribute('height', `${halfSize}`);
+            q4Bg.setAttribute('rx', '6');
+            q4Bg.setAttribute('fill', isDark ? 'rgba(156, 39, 176, 0.15)' : '#F3E5F5');
+            nodesLayer.appendChild(q4Bg);
+
+            // Outer Border
+            const bgBorder = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+            bgBorder.setAttribute('x', `${matrixX}`);
+            bgBorder.setAttribute('y', `${matrixY}`);
+            bgBorder.setAttribute('width', `${size}`);
+            bgBorder.setAttribute('height', `${size}`);
+            bgBorder.setAttribute('rx', '6');
+            bgBorder.setAttribute('fill', 'none');
+            bgBorder.setAttribute('stroke', cardBorder);
+            bgBorder.setAttribute('stroke-width', '1.8');
+            nodesLayer.appendChild(bgBorder);
+
+            // Cross Axis Dividers
             const vLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-            vLine.setAttribute('x1', `${matrixX + size / 2}`);
+            vLine.setAttribute('x1', `${matrixX + halfSize}`);
             vLine.setAttribute('y1', `${matrixY}`);
-            vLine.setAttribute('x2', `${matrixX + size / 2}`);
+            vLine.setAttribute('x2', `${matrixX + halfSize}`);
             vLine.setAttribute('y2', `${matrixY + size}`);
             vLine.setAttribute('stroke', cardBorder);
+            vLine.setAttribute('stroke-width', '1.5');
             vLine.setAttribute('stroke-dasharray', '4 4');
             edgesLayer.appendChild(vLine);
 
             const hLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
             hLine.setAttribute('x1', `${matrixX}`);
-            hLine.setAttribute('y1', `${matrixY + size / 2}`);
+            hLine.setAttribute('y1', `${matrixY + halfSize}`);
             hLine.setAttribute('x2', `${matrixX + size}`);
-            hLine.setAttribute('y2', `${matrixY + size / 2}`);
+            hLine.setAttribute('y2', `${matrixY + halfSize}`);
             hLine.setAttribute('stroke', cardBorder);
+            hLine.setAttribute('stroke-width', '1.5');
             hLine.setAttribute('stroke-dasharray', '4 4');
             edgesLayer.appendChild(hLine);
 
-            // Quadrant labels
-            const drawQLabel = (text, qx, qy) => {
+            // Quadrant Header Labels
+            const drawQLabel = (text, qx, qy, color) => {
               const t = document.createElementNS('http://www.w3.org/2000/svg', 'text');
               t.setAttribute('x', `${qx}`);
               t.setAttribute('y', `${qy}`);
-              t.setAttribute('fill', textColor);
-              t.setAttribute('opacity', '0.5');
-              t.setAttribute('font-size', '11px');
-              t.setAttribute('font-weight', 'bold');
+              t.setAttribute('fill', color || textColor);
+              t.setAttribute('font-size', '11.5px');
+              t.setAttribute('font-weight', '700');
               t.textContent = text;
               nodesLayer.appendChild(t);
             };
 
-            drawQLabel(qNames['quadrant-2'], matrixX + 15, matrixY + 25);
-            drawQLabel(qNames['quadrant-1'], matrixX + size / 2 + 15, matrixY + 25);
-            drawQLabel(qNames['quadrant-3'], matrixX + 15, matrixY + size / 2 + 25);
-            drawQLabel(qNames['quadrant-4'], matrixX + size / 2 + 15, matrixY + size / 2 + 25);
+            drawQLabel(`⚡ ${qNames['quadrant-2']}`, matrixX + 16, matrixY + 24, isDark ? '#64B5F6' : '#1976D2');
+            drawQLabel(`⭐ ${qNames['quadrant-1']}`, matrixX + halfSize + 16, matrixY + 24, isDark ? '#81C784' : '#388E3C');
+            drawQLabel(`☕ ${qNames['quadrant-3']}`, matrixX + 16, matrixY + halfSize + 24, isDark ? '#FFB74D' : '#F57C00');
+            drawQLabel(`📦 ${qNames['quadrant-4']}`, matrixX + halfSize + 16, matrixY + halfSize + 24, isDark ? '#BA68C8' : '#7B1FA2');
 
             // Plot Items
             items.forEach(it => {
@@ -1455,6 +1510,7 @@
               txt.textContent = it.name;
               itemG.appendChild(txt);
 
+              itemG.addEventListener('mousedown', (e) => e.stopPropagation());
               itemG.addEventListener('click', (e) => {
                 e.stopPropagation();
                 if (typeof AppController !== 'undefined' && AppController.instance) {

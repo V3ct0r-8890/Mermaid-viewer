@@ -1005,6 +1005,11 @@
       }
 
       loadTemplate(tpl) {
+        this.selectedNodeIds.clear();
+        this.selectedEdgeId = null;
+        this.selectedVisualObject = null;
+        this.updatePropertiesPanel();
+
         this.recordHistory();
         this.graph.diagramType = tpl.id;
         this.graph.customRawCode = (tpl.id === 'flowchart_td' || tpl.id === 'flowchart_lr') ? null : tpl.code;
