@@ -1974,55 +1974,106 @@
         ExportManager.downloadFile(json, 'project.graph.json', 'application/json');
       }
 
-      static exportSVG(svgElement) {
+      static prepareSvgElement(svgElement, graph, theme) {
         const clone = svgElement.cloneNode(true);
         clone.removeAttribute('id');
         clone.querySelector('#canvas-grid-bg')?.remove();
         clone.querySelector('#marquee-rect')?.remove();
+        clone.querySelector('#temp-layer')?.remove();
         clone.querySelectorAll('.node-port').forEach(p => p.remove());
 
-        const bbox = svgElement.querySelector('#canvas-viewport').getBBox();
-        const padding = 30;
-        clone.setAttribute('viewBox', `${bbox.x - padding} ${bbox.y - padding} ${bbox.width + padding * 2} ${bbox.height + padding * 2}`);
-        clone.setAttribute('width', `${bbox.width + padding * 2}`);
-        clone.setAttribute('height', `${bbox.height + padding * 2}`);
+        // Remove selection state highlights
+        clone.querySelectorAll('.selected').forEach(el => el.classList.remove('selected'));
 
+        // Reset transform on viewport group to prevent pan/zoom displacement
+        const viewport = clone.querySelector('#canvas-viewport');
+        if (viewport) {
+          viewport.removeAttribute('transform');
+        }
+
+        // Calculate diagram bounding box based on node positions
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        if (graph && graph.nodes && graph.nodes.length > 0) {
+          graph.nodes.forEach(n => {
+            const w = n.width || 140;
+            const h = n.height || 50;
+            minX = Math.min(minX, n.x);
+            minY = Math.min(minY, n.y);
+            maxX = Math.max(maxX, n.x + w);
+            maxY = Math.max(maxY, n.y + h);
+          });
+        } else {
+          minX = 0; minY = 0; maxX = 400; maxY = 300;
+        }
+
+        const padding = 50;
+        const x = minX - padding;
+        const y = minY - padding;
+        const width = Math.max(200, (maxX - minX) + padding * 2);
+        const height = Math.max(150, (maxY - minY) + padding * 2);
+
+        clone.setAttribute('viewBox', `${x} ${y} ${width} ${height}`);
+        clone.setAttribute('width', `${width}`);
+        clone.setAttribute('height', `${height}`);
+        clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+
+        const isDark = theme === 'dark';
+        const linkColor = isDark ? '#BBBBBB' : '#616161';
+        const labelBgColor = isDark ? '#252526' : '#FFFFFF';
+        const labelBorderColor = isDark ? '#383838' : '#E0E0E0';
+        const textColor = isDark ? '#D4D4D4' : '#212121';
+
+        // Embed self-contained inline CSS into exported SVG
+        let defs = clone.querySelector('defs');
+        if (!defs) {
+          defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+          clone.insertBefore(defs, clone.firstChild);
+        }
+
+        // Ensure marker arrowhead paths use explicit solid hex color
+        defs.querySelectorAll('path').forEach(p => {
+          p.setAttribute('fill', linkColor);
+        });
+
+        const styleEl = document.createElementNS('http://www.w3.org/2000/svg', 'style');
+        styleEl.textContent = `
+          .canvas-edge-path { fill: none !important; stroke: ${linkColor} !important; stroke-width: 2px; }
+          .edge-label-bg { fill: ${labelBgColor} !important; stroke: ${labelBorderColor} !important; stroke-width: 1px; rx: 4px; }
+          .edge-label-text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; font-size: 11px; fill: ${textColor} !important; text-anchor: middle; dominant-baseline: central; }
+          .node-shape { stroke-width: 1.8px; }
+          text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+        `;
+        defs.appendChild(styleEl);
+
+        return { clone, width, height, x, y };
+      }
+
+      static exportSVG(svgElement, graph, theme) {
+        const { clone } = ExportManager.prepareSvgElement(svgElement, graph, theme);
         const svgData = new XMLSerializer().serializeToString(clone);
         const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
         const url = URL.createObjectURL(svgBlob);
         ExportManager.downloadUrl(url, 'diagram.svg');
       }
 
-      static exportPNG(svgElement) {
-        const clone = svgElement.cloneNode(true);
-        clone.querySelector('#canvas-grid-bg')?.remove();
-        clone.querySelector('#marquee-rect')?.remove();
-        clone.querySelectorAll('.node-port').forEach(p => p.remove());
-
-        const bbox = svgElement.querySelector('#canvas-viewport').getBBox();
-        const padding = 40;
-        const width = Math.max(400, bbox.width + padding * 2);
-        const height = Math.max(300, bbox.height + padding * 2);
-
-        clone.setAttribute('viewBox', `${bbox.x - padding} ${bbox.y - padding} ${width} ${height}`);
-        clone.setAttribute('width', `${width}`);
-        clone.setAttribute('height', `${height}`);
-
+      static exportPNG(svgElement, graph, theme) {
+        const { clone, width, height } = ExportManager.prepareSvgElement(svgElement, graph, theme);
         const svgData = new XMLSerializer().serializeToString(clone);
-        const img = new Image();
         const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
         const url = URL.createObjectURL(svgBlob);
+        const img = new Image();
 
         img.onload = () => {
-          const canvas = document.createElement('canvas');
           const scale = 2;
+          const canvas = document.createElement('canvas');
           canvas.width = width * scale;
           canvas.height = height * scale;
           const ctx = canvas.getContext('2d');
           ctx.scale(scale, scale);
-          ctx.fillStyle = document.documentElement.getAttribute('data-theme') === 'dark' ? '#252526' : '#FFFFFF';
+
+          ctx.fillStyle = theme === 'dark' ? '#252526' : '#FFFFFF';
           ctx.fillRect(0, 0, width, height);
-          ctx.drawImage(img, 0, 0);
+          ctx.drawImage(img, 0, 0, width, height);
           URL.revokeObjectURL(url);
 
           canvas.toBlob(blob => {
@@ -2030,8 +2081,14 @@
               const pngUrl = URL.createObjectURL(blob);
               ExportManager.downloadUrl(pngUrl, 'diagram.png');
             }
-          });
+          }, 'image/png');
         };
+
+        img.onerror = () => {
+          URL.revokeObjectURL(url);
+          Utils.showToast('Failed to render PNG image', 'error');
+        };
+
         img.src = url;
       }
 
@@ -2745,8 +2802,8 @@
         document.getElementById('btn-save').addEventListener('click', () => ExportManager.exportJSON(this.graph.toProject(this.themeMgr.currentTheme)));
         document.getElementById('btn-export-mmd').addEventListener('click', () => ExportManager.exportMMD(this.graph));
         document.getElementById('btn-export-json').addEventListener('click', () => ExportManager.exportJSON(this.graph.toProject(this.themeMgr.currentTheme)));
-        document.getElementById('btn-export-svg').addEventListener('click', () => ExportManager.exportSVG(this.svg));
-        document.getElementById('btn-export-png').addEventListener('click', () => ExportManager.exportPNG(this.svg));
+        document.getElementById('btn-export-svg').addEventListener('click', () => ExportManager.exportSVG(this.svg, this.graph, this.themeMgr.currentTheme));
+        document.getElementById('btn-export-png').addEventListener('click', () => ExportManager.exportPNG(this.svg, this.graph, this.themeMgr.currentTheme));
 
         document.getElementById('btn-undo').addEventListener('click', () => this.handleUndo());
         document.getElementById('btn-redo').addEventListener('click', () => this.handleRedo());
