@@ -100,6 +100,10 @@
       <button class="tb-btn" id="btn-rules" title="Connection Rules">
         <span>Rules</span>
       </button>
+      <button class="tb-btn active" id="btn-toggle-code" title="Toggle Mermaid Code Panel (Show/Hide)">
+        <svg viewBox="0 0 24 24"><path d="M9.4 16.6L4.8 12l4.6-4.6L8 6l-6 6 6 6 1.4-1.4zm5.2 0l4.6-4.6-4.6-4.6L16 6l6 6-6 6-1.4-1.4z"/></svg>
+        <span>Code</span>
+      </button>
       <button class="tb-btn" id="btn-search-toggle" title="Search (Ctrl+F)">
         <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
       </button>
@@ -111,13 +115,13 @@
 
   <!-- Main Workspace -->
   <div id="main-container">
-    <!-- Left Sidebar: Inspector / Palette / Rules -->
+    <!-- Left Sidebar: Palette / Rules / Inspector -->
     <div id="left-panel" class="panel">
-      <!-- Tabs -->
+      <!-- Tabs (Shapes, Rules, Inspector) -->
       <div class="left-tabs">
-        <div class="left-tab active" data-tab="properties">Inspector</div>
         <div class="left-tab" data-tab="shapes">Shapes</div>
         <div class="left-tab" data-tab="rules">Rules</div>
+        <div class="left-tab active" data-tab="properties">Inspector</div>
       </div>
 
       <!-- Tab 1: Live Properties Editor -->
@@ -244,6 +248,15 @@
               <button class="prop-action-btn" id="btn-canvas-layout-lr" style="flex:1;">Left-Right</button>
             </div>
           </div>
+        </div>
+
+        <!-- Dynamic Visual Diagram Object Properties Form -->
+        <div id="visual-props-form" style="display:none;">
+          <h4 style="font-size:11px; text-transform:uppercase; color:var(--text-muted); margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;">
+            <span id="visual-prop-title">Object Properties</span>
+            <span id="visual-prop-type-badge" style="background:var(--hover-color); padding:2px 6px; border-radius:3px; font-weight:bold; color:var(--btn-primary);"></span>
+          </h4>
+          <div id="visual-prop-fields"></div>
         </div>
       </div>
 
@@ -387,8 +400,9 @@
     <div id="right-panel" class="panel">
       <div class="panel-header">
         <span>Mermaid Code</span>
-        <div style="display:flex; gap:4px;">
+        <div style="display:flex; gap:4px; align-items:center;">
           <button class="tb-btn" id="btn-sync-code" style="padding:2px 6px; font-size:10px;" title="Apply changes to visual canvas">Apply</button>
+          <button class="tb-btn" id="btn-close-code" style="padding:2px 6px; font-size:10px;" title="Hide Code Panel">✕</button>
         </div>
       </div>
       <div id="editor-container">

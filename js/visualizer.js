@@ -1,5 +1,19 @@
 // --- DEDICATED MULTI-DIAGRAM VISUAL SUITE ---
     class MultiDiagramVisualizer {
+      static updateCodeLine(pattern, replacement) {
+        const app = (typeof AppController !== 'undefined' && AppController.instance) ? AppController.instance : null;
+        if (!app || !app.codeEditor) return;
+        const curCode = app.codeEditor.value;
+        const newCode = curCode.replace(pattern, replacement);
+        if (newCode !== curCode) {
+          app.codeEditor.value = newCode;
+          if (app.codeHighlight) {
+            app.codeHighlight.innerHTML = SyntaxHighlighter.highlight(newCode);
+          }
+          app.applyCodeToGraph(false);
+        }
+      }
+
       static render(type, code, nodesLayer, edgesLayer, isDark) {
         nodesLayer.innerHTML = '';
         edgesLayer.innerHTML = '';
@@ -51,6 +65,7 @@
                   from,
                   to,
                   text,
+                  rawArrow: arrow,
                   type: arrow.startsWith('--') ? 'dashed' : 'solid'
                 });
               }
@@ -84,6 +99,7 @@
 
               // Participant box
               const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+              g.style.cursor = 'pointer';
               const boxW = Math.max(100, p.name.length * 8 + 24);
               const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
               rect.setAttribute('x', `${p.x - boxW / 2}`);
@@ -106,6 +122,26 @@
               text.setAttribute('font-weight', '600');
               text.textContent = p.name;
               g.appendChild(text);
+
+              g.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (typeof AppController !== 'undefined' && AppController.instance) {
+                  AppController.instance.selectVisualObject({
+                    type: p.isActor ? 'Actor' : 'Participant',
+                    title: p.name,
+                    fields: [
+                      { key: 'name', label: 'Display Name', type: 'text', value: p.name }
+                    ],
+                    onUpdate: (k, v) => {
+                      if (k === 'name') {
+                        const regex = new RegExp(`(actor|participant)\\s+${p.id}(?:\\s+as\\s+[^\n]+)?`, 'i');
+                        MultiDiagramVisualizer.updateCodeLine(regex, `$1 ${p.id} as ${v}`);
+                      }
+                    }
+                  });
+                }
+              });
+
               nodesLayer.appendChild(g);
             });
 
@@ -132,6 +168,7 @@
 
               // Step Badge
               const badgeG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+              badgeG.style.cursor = 'pointer';
               const midX = (x1 + x2) / 2;
               const badgeTextStr = autoNumber ? `${idx + 1}. ${m.text}` : m.text;
               const badgeW = badgeTextStr.length * 6.8 + 24;
@@ -156,6 +193,25 @@
               badgeText.setAttribute('font-weight', '500');
               badgeText.textContent = badgeTextStr;
               badgeG.appendChild(badgeText);
+
+              badgeG.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (typeof AppController !== 'undefined' && AppController.instance) {
+                  AppController.instance.selectVisualObject({
+                    type: 'Sequence Message',
+                    title: `${m.from} → ${m.to}`,
+                    fields: [
+                      { key: 'text', label: 'Message Text', type: 'text', value: m.text }
+                    ],
+                    onUpdate: (k, v) => {
+                      const escaped = m.text.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+                      const regex = new RegExp(`(${m.from}\\s*(?:-->>|->>|-->|->)\\s*${m.to}\\s*:\\s*)${escaped}`, 'i');
+                      MultiDiagramVisualizer.updateCodeLine(regex, `$1${v}`);
+                    }
+                  });
+                }
+              });
+
               nodesLayer.appendChild(badgeG);
             });
             break;
@@ -225,6 +281,35 @@
               path.setAttribute('fill', d.color);
               path.setAttribute('stroke', cardBg);
               path.setAttribute('stroke-width', '2');
+              path.style.cursor = 'pointer';
+
+              const attachPieClick = (targetEl) => {
+                targetEl.addEventListener('click', (e) => {
+                  e.stopPropagation();
+                  if (typeof AppController !== 'undefined' && AppController.instance) {
+                    AppController.instance.selectVisualObject({
+                      type: 'Pie Slice',
+                      title: d.label,
+                      fields: [
+                        { key: 'label', label: 'Slice Label', type: 'text', value: d.label },
+                        { key: 'val', label: 'Value / Proportion', type: 'number', value: d.val }
+                      ],
+                      onUpdate: (k, v) => {
+                        const escaped = d.label.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+                        if (k === 'label') {
+                          const regex = new RegExp(`(["']?)${escaped}(["']?\\s*:\\s*${d.val})`, 'i');
+                          MultiDiagramVisualizer.updateCodeLine(regex, `"$1${v}$2"`);
+                        } else if (k === 'val') {
+                          const regex = new RegExp(`((?:["']?)${escaped}(?:["']?)\\s*:\\s*)[0-9.]+`, 'i');
+                          MultiDiagramVisualizer.updateCodeLine(regex, `$1${v}`);
+                        }
+                      }
+                    });
+                  }
+                });
+              };
+
+              attachPieClick(path);
               nodesLayer.appendChild(path);
 
               if (sliceAngle > 0.15) {
@@ -248,6 +333,7 @@
               // Legend
               const legY = 120 + idx * 32;
               const legG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+              legG.style.cursor = 'pointer';
 
               const legBox = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
               legBox.setAttribute('x', '450');
@@ -268,6 +354,7 @@
               legTxt.textContent = `${d.label} (${d.val} - ${pct}%)`;
               legG.appendChild(legTxt);
 
+              attachPieClick(legG);
               nodesLayer.appendChild(legG);
               curAngle = nextAngle;
             });
@@ -472,6 +559,9 @@
 
               // Task Rows
               sec.tasks.forEach((t, tIdx) => {
+                const taskRowG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                taskRowG.style.cursor = 'pointer';
+
                 if (tIdx % 2 === 1) {
                   const rowBg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
                   rowBg.setAttribute('x', '30');
@@ -480,7 +570,7 @@
                   rowBg.setAttribute('height', `${rowH - 4}`);
                   rowBg.setAttribute('rx', '3');
                   rowBg.setAttribute('fill', isDark ? '#1F2224' : '#FAFAFA');
-                  nodesLayer.appendChild(rowBg);
+                  taskRowG.appendChild(rowBg);
                 }
 
                 // Task Name
@@ -491,7 +581,7 @@
                 tTxt.setAttribute('font-size', '11.5px');
                 tTxt.setAttribute('font-weight', '500');
                 tTxt.textContent = t.name;
-                nodesLayer.appendChild(tTxt);
+                taskRowG.appendChild(tTxt);
 
                 // Start day calculation
                 let taskStartDay = t.fallbackStart;
@@ -508,7 +598,7 @@
                   const my = curY + 15;
                   mDia.setAttribute('points', `${mx},${my - 9} ${mx + 9},${my} ${mx},${my + 9} ${mx - 9},${my}`);
                   mDia.setAttribute('fill', t.color);
-                  nodesLayer.appendChild(mDia);
+                  taskRowG.appendChild(mDia);
 
                   const mTag = document.createElementNS('http://www.w3.org/2000/svg', 'text');
                   mTag.setAttribute('x', `${mx + 14}`);
@@ -517,7 +607,7 @@
                   mTag.setAttribute('font-size', '10px');
                   mTag.setAttribute('font-weight', 'bold');
                   mTag.textContent = 'Milestone';
-                  nodesLayer.appendChild(mTag);
+                  taskRowG.appendChild(mTag);
                 } else {
                   const bar = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
                   bar.setAttribute('x', `${bx}`);
@@ -526,7 +616,7 @@
                   bar.setAttribute('height', '18');
                   bar.setAttribute('rx', '4');
                   bar.setAttribute('fill', t.color);
-                  nodesLayer.appendChild(bar);
+                  taskRowG.appendChild(bar);
 
                   const durText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
                   durText.setAttribute('x', bw > 30 ? `${bx + bw / 2}` : `${bx + bw + 6}`);
@@ -536,9 +626,32 @@
                   durText.setAttribute('font-size', '10px');
                   durText.setAttribute('font-weight', '600');
                   durText.textContent = `${t.dur}d`;
-                  nodesLayer.appendChild(durText);
+                  taskRowG.appendChild(durText);
                 }
 
+                taskRowG.addEventListener('click', (e) => {
+                  e.stopPropagation();
+                  if (typeof AppController !== 'undefined' && AppController.instance) {
+                    AppController.instance.selectVisualObject({
+                      type: 'Gantt Task',
+                      title: t.name,
+                      fields: [
+                        { key: 'name', label: 'Task Name', type: 'text', value: t.name },
+                        { key: 'dur', label: 'Duration (Days)', type: 'number', value: t.dur },
+                        { key: 'status', label: 'Status', type: 'select', options: ['done', 'active', 'crit', 'milestone'], value: t.status }
+                      ],
+                      onUpdate: (k, v) => {
+                        const escaped = t.name.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+                        if (k === 'name') {
+                          const regex = new RegExp(`^(\\s*)${escaped}(\\s*:)`, 'm');
+                          MultiDiagramVisualizer.updateCodeLine(regex, `$1${v}$2`);
+                        }
+                      }
+                    });
+                  }
+                });
+
+                nodesLayer.appendChild(taskRowG);
                 curY += rowH;
               });
 
@@ -583,7 +696,7 @@
             let curBranch = 'main';
             const commits = [];
 
-            rawLines.forEach((line, idx) => {
+            rawLines.forEach((line) => {
               const bMatch = line.match(/^branch\s+([A-Za-z0-9_-]+)/i);
               if (bMatch) {
                 const bName = bMatch[1];
@@ -595,109 +708,143 @@
                 curBranch = bName;
                 return;
               }
-              const chMatch = line.match(/^checkout\s+([A-Za-z0-9_-]+)/i);
-              if (chMatch) {
-                curBranch = chMatch[1];
+
+              const chkMatch = line.match(/^checkout\s+([A-Za-z0-9_-]+)/i);
+              if (chkMatch) {
+                curBranch = chkMatch[1];
                 return;
               }
-              const mMatch = line.match(/^merge\s+([A-Za-z0-9_-]+)/i);
-              if (mMatch) {
-                const targetB = curBranch;
-                const sourceB = mMatch[1];
-                commits.push({ type: 'merge', sourceB, targetB, id: `Merge ${sourceB}`, tag: null });
-                return;
-              }
+
               const cMatch = line.match(/^commit(?:\s+id:\s*"([^"]+)")?(?:\s+tag:\s*"([^"]+)")?/i);
-              if (cMatch || line.startsWith('commit')) {
-                const id = (cMatch && cMatch[1]) ? cMatch[1] : `c${commits.length + 1}`;
-                const tag = (cMatch && cMatch[2]) ? cMatch[2] : null;
-                commits.push({ type: 'commit', branch: curBranch, id, tag });
+              if (cMatch) {
+                const id = cMatch[1] || `c${commits.length + 1}`;
+                const tag = cMatch[2] || undefined;
+                commits.push({ id, tag, branch: curBranch, type: 'commit' });
+                return;
+              }
+
+              const mMatch = line.match(/^merge\s+([A-Za-z0-9_-]+)(?:\s+id:\s*"([^"]+)")?/i);
+              if (mMatch) {
+                const srcB = mMatch[1];
+                const id = mMatch[2] || `m${commits.length + 1}`;
+                commits.push({ id, fromBranch: srcB, branch: curBranch, type: 'merge' });
               }
             });
 
             if (commits.length === 0) {
-              commits.push({ type: 'commit', branch: 'main', id: 'init', tag: 'v0.1' });
-              commits.push({ type: 'commit', branch: 'main', id: 'feat', tag: null });
+              commits.push({ id: 'init', branch: 'main', type: 'commit' });
+              commits.push({ id: 'feat', branch: 'main', type: 'commit' });
             }
 
+            // Draw branch tracks
             branches.forEach(b => {
-              const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-              line.setAttribute('x1', '60');
-              line.setAttribute('y1', `${b.y}`);
-              line.setAttribute('x2', `${Math.max(600, 100 + commits.length * 80)}`);
-              line.setAttribute('y2', `${b.y}`);
-              line.setAttribute('stroke', b.color);
-              line.setAttribute('stroke-width', '3');
-              line.setAttribute('opacity', '0.35');
-              edgesLayer.appendChild(line);
+              const bLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+              bLine.setAttribute('x1', '120');
+              bLine.setAttribute('y1', `${b.y}`);
+              bLine.setAttribute('x2', `${Math.max(680, 140 + commits.length * 90)}`);
+              bLine.setAttribute('y2', `${b.y}`);
+              bLine.setAttribute('stroke', b.color);
+              bLine.setAttribute('stroke-width', '3');
+              bLine.setAttribute('opacity', '0.4');
+              edgesLayer.appendChild(bLine);
 
-              const lbl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-              lbl.setAttribute('x', '45');
-              lbl.setAttribute('y', `${b.y + 4}`);
-              lbl.setAttribute('text-anchor', 'end');
-              lbl.setAttribute('fill', b.color);
-              lbl.setAttribute('font-size', '11.5px');
-              lbl.setAttribute('font-weight', 'bold');
-              lbl.textContent = b.name;
-              nodesLayer.appendChild(lbl);
+              const bTag = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+              bTag.setAttribute('x', '45');
+              bTag.setAttribute('y', `${b.y + 4}`);
+              bTag.setAttribute('fill', b.color);
+              bTag.setAttribute('font-size', '12px');
+              bTag.setAttribute('font-weight', 'bold');
+              bTag.textContent = b.name;
+              nodesLayer.appendChild(bTag);
             });
 
+            // Draw commits
+            const bMap = new Map(branches.map(b => [b.name, b]));
             commits.forEach((c, idx) => {
-              const cx = 100 + idx * 75;
-              const bObj = branches.find(b => b.name === (c.branch || c.targetB)) || branches[0];
-              const cy = bObj.y;
+              const x = 160 + idx * 80;
+              const bInfo = bMap.get(c.branch) || branches[0];
+              const y = bInfo.y;
 
-              if (c.type === 'merge') {
-                const srcB = branches.find(b => b.name === c.sourceB) || branches[0];
-                const arc = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-                arc.setAttribute('d', `M ${cx - 50} ${srcB.y} C ${cx - 20} ${srcB.y}, ${cx - 20} ${cy}, ${cx} ${cy}`);
-                arc.setAttribute('fill', 'none');
-                arc.setAttribute('stroke', srcB.color);
-                arc.setAttribute('stroke-width', '2.5');
-                edgesLayer.appendChild(arc);
+              const commitG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+              commitG.style.cursor = 'pointer';
+
+              if (c.type === 'merge' && c.fromBranch) {
+                const srcB = bMap.get(c.fromBranch);
+                if (srcB) {
+                  const mCurve = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                  mCurve.setAttribute('d', `M ${x - 80} ${srcB.y} C ${x - 30} ${srcB.y}, ${x - 30} ${y}, ${x} ${y}`);
+                  mCurve.setAttribute('fill', 'none');
+                  mCurve.setAttribute('stroke', srcB.color);
+                  mCurve.setAttribute('stroke-width', '2.5');
+                  edgesLayer.appendChild(mCurve);
+                }
               }
 
-              const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-              dot.setAttribute('cx', `${cx}`);
-              dot.setAttribute('cy', `${cy}`);
-              dot.setAttribute('r', '8');
-              dot.setAttribute('fill', bObj.color);
-              dot.setAttribute('stroke', '#FFFFFF');
-              dot.setAttribute('stroke-width', '2');
-              nodesLayer.appendChild(dot);
+              const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+              circle.setAttribute('cx', `${x}`);
+              circle.setAttribute('cy', `${y}`);
+              circle.setAttribute('r', '10');
+              circle.setAttribute('fill', bInfo.color);
+              circle.setAttribute('stroke', cardBg);
+              circle.setAttribute('stroke-width', '2.5');
+              commitG.appendChild(circle);
 
-              const idTxt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-              idTxt.setAttribute('x', `${cx}`);
-              idTxt.setAttribute('y', `${cy + 22}`);
-              idTxt.setAttribute('text-anchor', 'middle');
-              idTxt.setAttribute('fill', textColor);
-              idTxt.setAttribute('font-size', '10px');
-              idTxt.textContent = c.id;
-              nodesLayer.appendChild(idTxt);
+              const cLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+              cLabel.setAttribute('x', `${x}`);
+              cLabel.setAttribute('y', `${y + 24}`);
+              cLabel.setAttribute('text-anchor', 'middle');
+              cLabel.setAttribute('fill', textColor);
+              cLabel.setAttribute('font-size', '10px');
+              cLabel.setAttribute('font-weight', '500');
+              cLabel.textContent = c.id;
+              commitG.appendChild(cLabel);
 
               if (c.tag) {
                 const tagG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-                const tagW = c.tag.length * 6.5 + 14;
-                const tagBg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-                tagBg.setAttribute('x', `${cx - tagW / 2}`);
-                tagBg.setAttribute('y', `${cy - 28}`);
-                tagBg.setAttribute('width', `${tagW}`);
-                tagBg.setAttribute('height', '16');
-                tagBg.setAttribute('rx', '3');
-                tagBg.setAttribute('fill', '#FF9800');
-                tagG.appendChild(tagBg);
+                const tagRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                const tagW = c.tag.length * 6.5 + 16;
+                tagRect.setAttribute('x', `${x - tagW / 2}`);
+                tagRect.setAttribute('y', `${y - 30}`);
+                tagRect.setAttribute('width', `${tagW}`);
+                tagRect.setAttribute('height', '18');
+                tagRect.setAttribute('rx', '9');
+                tagRect.setAttribute('fill', '#9C27B0');
+                tagG.appendChild(tagRect);
 
-                const tagTxt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                tagTxt.setAttribute('x', `${cx}`);
-                tagTxt.setAttribute('y', `${cy - 18}`);
-                tagTxt.setAttribute('text-anchor', 'middle');
-                tagTxt.setAttribute('fill', '#FFFFFF');
-                tagTxt.setAttribute('font-size', '9.5px');
-                tagTxt.setAttribute('font-weight', 'bold');
-                tagTxt.textContent = c.tag;
-                tagG.appendChild(tagTxt);
-                nodesLayer.appendChild(tagG);
+                const tagText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                tagText.setAttribute('x', `${x}`);
+                tagText.setAttribute('y', `${y - 18}`);
+                tagText.setAttribute('text-anchor', 'middle');
+                tagText.setAttribute('fill', '#FFFFFF');
+                tagText.setAttribute('font-size', '9.5px');
+                tagText.setAttribute('font-weight', 'bold');
+                tagText.textContent = '🏷 ' + c.tag;
+                tagG.appendChild(tagText);
+                commitG.appendChild(tagG);
               }
+
+              commitG.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (typeof AppController !== 'undefined' && AppController.instance) {
+                  AppController.instance.selectVisualObject({
+                    type: 'Git Commit',
+                    title: c.id,
+                    fields: [
+                      { key: 'id', label: 'Commit Message / ID', type: 'text', value: c.id },
+                      { key: 'tag', label: 'Release Tag', type: 'text', value: c.tag || '' }
+                    ],
+                    onUpdate: (k, v) => {
+                      const escaped = c.id.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+                      if (k === 'id') {
+                        const regex = new RegExp(`(commit\\s+id:\\s*["'])${escaped}(["'])`, 'i');
+                        MultiDiagramVisualizer.updateCodeLine(regex, `$1${v}$2`);
+                      }
+                    }
+                  });
+                }
+              });
+
+              nodesLayer.appendChild(commitG);
             });
             break;
           }
@@ -770,6 +917,9 @@
 
               st.tasks.forEach((t, tIdx) => {
                 const ty = 125 + tIdx * 90;
+                const cardG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                cardG.style.cursor = 'pointer';
+
                 const card = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
                 card.setAttribute('x', `${x}`);
                 card.setAttribute('y', `${ty}`);
@@ -778,7 +928,7 @@
                 card.setAttribute('rx', '6');
                 card.setAttribute('fill', cardBg);
                 card.setAttribute('stroke', cardBorder);
-                nodesLayer.appendChild(card);
+                cardG.appendChild(card);
 
                 const tName = document.createElementNS('http://www.w3.org/2000/svg', 'text');
                 tName.setAttribute('x', `${x + 10}`);
@@ -787,7 +937,7 @@
                 tName.setAttribute('font-size', '11.5px');
                 tName.setAttribute('font-weight', '600');
                 tName.textContent = t.name;
-                nodesLayer.appendChild(tName);
+                cardG.appendChild(tName);
 
                 const emoji = emojis[t.score] || '🙂';
                 const tScore = document.createElementNS('http://www.w3.org/2000/svg', 'text');
@@ -796,7 +946,7 @@
                 tScore.setAttribute('fill', textColor);
                 tScore.setAttribute('font-size', '11px');
                 tScore.textContent = `${emoji} Satisfaction: ${t.score}/5`;
-                nodesLayer.appendChild(tScore);
+                cardG.appendChild(tScore);
 
                 const tActor = document.createElementNS('http://www.w3.org/2000/svg', 'text');
                 tActor.setAttribute('x', `${x + 10}`);
@@ -804,7 +954,34 @@
                 tActor.setAttribute('fill', linkColor);
                 tActor.setAttribute('font-size', '10px');
                 tActor.textContent = `👤 ${t.actor}`;
-                nodesLayer.appendChild(tActor);
+                cardG.appendChild(tActor);
+
+                cardG.addEventListener('click', (e) => {
+                  e.stopPropagation();
+                  if (typeof AppController !== 'undefined' && AppController.instance) {
+                    AppController.instance.selectVisualObject({
+                      type: 'Journey Touchpoint',
+                      title: t.name,
+                      fields: [
+                        { key: 'name', label: 'Task Name', type: 'text', value: t.name },
+                        { key: 'score', label: 'Satisfaction (1-5)', type: 'select', options: [1, 2, 3, 4, 5], value: t.score },
+                        { key: 'actor', label: 'Actor', type: 'text', value: t.actor }
+                      ],
+                      onUpdate: (k, v) => {
+                        const escaped = t.name.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+                        if (k === 'score') {
+                          const regex = new RegExp(`(${escaped}\\s*:\\s*)[0-9]+(\\s*:\\s*${t.actor})`, 'i');
+                          MultiDiagramVisualizer.updateCodeLine(regex, `$1${v}$2`);
+                        } else if (k === 'name') {
+                          const regex = new RegExp(`^(\\s*)${escaped}(\\s*:\\s*${t.score})`, 'm');
+                          MultiDiagramVisualizer.updateCodeLine(regex, `$1${v}$2`);
+                        }
+                      }
+                    });
+                  }
+                });
+
+                nodesLayer.appendChild(cardG);
               });
             });
             break;
@@ -937,6 +1114,7 @@
 
             // Draw Root
             const rootG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+            rootG.style.cursor = 'pointer';
             const rootEl = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
             rootEl.setAttribute('x', `${rootNode.x - rootNode.width / 2}`);
             rootEl.setAttribute('y', `${rootNode.y - rootNode.height / 2}`);
@@ -958,6 +1136,24 @@
             rootTxt.setAttribute('font-weight', 'bold');
             rootTxt.textContent = rootNode.text;
             rootG.appendChild(rootTxt);
+
+            rootG.addEventListener('click', (e) => {
+              e.stopPropagation();
+              if (typeof AppController !== 'undefined' && AppController.instance) {
+                AppController.instance.selectVisualObject({
+                  type: 'Mindmap Root',
+                  title: rootNode.text,
+                  fields: [
+                    { key: 'text', label: 'Central Topic', type: 'text', value: rootNode.text }
+                  ],
+                  onUpdate: (k, v) => {
+                    const escaped = rootNode.text.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+                    const regex = new RegExp(`(root[\\(\\[{]*)${escaped}([\\)\\]}]*)`);
+                    MultiDiagramVisualizer.updateCodeLine(regex, `$1${v}$2`);
+                  }
+                });
+              }
+            });
             nodesLayer.appendChild(rootG);
 
             // Draw Nodes & Curves across all tiers
@@ -978,6 +1174,7 @@
               }
 
               const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+              g.style.cursor = 'pointer';
               const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
               rect.setAttribute('x', `${node.x - node.width / 2}`);
               rect.setAttribute('y', `${node.y - node.height / 2}`);
@@ -1000,6 +1197,24 @@
               txt.textContent = node.text;
               g.appendChild(txt);
 
+              g.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (typeof AppController !== 'undefined' && AppController.instance) {
+                  AppController.instance.selectVisualObject({
+                    type: `Mindmap Tier ${node.level}`,
+                    title: node.text,
+                    fields: [
+                      { key: 'text', label: 'Branch Topic', type: 'text', value: node.text }
+                    ],
+                    onUpdate: (k, v) => {
+                      const escaped = node.text.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+                      const regex = new RegExp(`^(\\s*)${escaped}$`, 'm');
+                      MultiDiagramVisualizer.updateCodeLine(regex, `$1${v}`);
+                    }
+                  });
+                }
+              });
+
               nodesLayer.appendChild(g);
 
               node.children.forEach((child) => {
@@ -1014,34 +1229,31 @@
 
           case 'timeline': {
             const rawLines = (code || '').split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('%%'));
-            let title = 'Timeline';
+            let title = 'Timeline Roadmap';
             const events = [];
 
             rawLines.forEach(line => {
               const titleMatch = line.match(/^title\s+(.+)$/i);
               if (titleMatch) { title = titleMatch[1].trim(); return; }
+
               if (line.toLowerCase().startsWith('timeline')) return;
 
-              const parts = line.split(':').map(p => p.trim());
-              if (parts.length >= 2) {
-                const year = parts[0];
-                const items = parts.slice(1).filter(Boolean);
-                events.push({ year, items });
+              const parts = line.split(':').map(p => p.trim()).filter(Boolean);
+              if (parts.length >= 1) {
+                const era = parts[0];
+                const items = parts.slice(1);
+                events.push({ era, items });
               }
             });
 
             if (events.length === 0) {
-              events.push({ year: '2024', items: ['Phase 1', 'Kickoff'] });
-              events.push({ year: '2025', items: ['Phase 2', 'Rollout'] });
+              events.push({ era: '2024', items: ['Alpha Launch', 'Prototype'] });
+              events.push({ era: '2025', items: ['Beta Release', 'Multi-format'] });
             }
-
-            const count = events.length;
-            const spacing = Math.max(180, Math.min(260, 700 / (count || 1)));
-            const axisY = 200;
 
             const titleEl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
             titleEl.setAttribute('x', '380');
-            titleEl.setAttribute('y', '45');
+            titleEl.setAttribute('y', '50');
             titleEl.setAttribute('text-anchor', 'middle');
             titleEl.setAttribute('fill', textColor);
             titleEl.setAttribute('font-size', '15px');
@@ -1049,52 +1261,58 @@
             titleEl.textContent = title;
             nodesLayer.appendChild(titleEl);
 
-            const axisLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-            axisLine.setAttribute('x1', '60');
-            axisLine.setAttribute('y1', `${axisY}`);
-            axisLine.setAttribute('x2', `${60 + count * spacing}`);
-            axisLine.setAttribute('y2', `${axisY}`);
-            axisLine.setAttribute('stroke', primaryBorder);
-            axisLine.setAttribute('stroke-width', '3');
-            edgesLayer.appendChild(axisLine);
+            const axisY = 180;
+            const count = events.length;
+            const spacing = Math.max(160, Math.min(240, 750 / (count || 1)));
+
+            const axis = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            axis.setAttribute('x1', '60');
+            axis.setAttribute('y1', `${axisY}`);
+            axis.setAttribute('x2', `${Math.max(700, 80 + count * spacing)}`);
+            axis.setAttribute('y2', `${axisY}`);
+            axis.setAttribute('stroke', primaryBorder);
+            axis.setAttribute('stroke-width', '3');
+            edgesLayer.appendChild(axis);
 
             events.forEach((ev, idx) => {
               const ex = 100 + idx * spacing;
-              const circ = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-              circ.setAttribute('cx', `${ex}`);
-              circ.setAttribute('cy', `${axisY}`);
-              circ.setAttribute('r', '10');
-              circ.setAttribute('fill', primaryFill);
-              circ.setAttribute('stroke', primaryBorder);
-              circ.setAttribute('stroke-width', '3');
-              nodesLayer.appendChild(circ);
 
-              const badgeG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-              const badgeW = Math.max(60, ev.year.length * 8 + 20);
-              const badgeBg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-              badgeBg.setAttribute('x', `${ex - badgeW / 2}`);
-              badgeBg.setAttribute('y', `${axisY - 45}`);
-              badgeBg.setAttribute('width', `${badgeW}`);
-              badgeBg.setAttribute('height', '24');
-              badgeBg.setAttribute('rx', '12');
-              badgeBg.setAttribute('fill', '#2196F3');
-              badgeG.appendChild(badgeBg);
+              const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+              dot.setAttribute('cx', `${ex}`);
+              dot.setAttribute('cy', `${axisY}`);
+              dot.setAttribute('r', '7');
+              dot.setAttribute('fill', primaryBorder);
+              dot.setAttribute('stroke', cardBg);
+              dot.setAttribute('stroke-width', '2');
+              nodesLayer.appendChild(dot);
 
-              const badgeText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-              badgeText.setAttribute('x', `${ex}`);
-              badgeText.setAttribute('y', `${axisY - 33}`);
-              badgeText.setAttribute('text-anchor', 'middle');
-              badgeText.setAttribute('dominant-baseline', 'central');
-              badgeText.setAttribute('fill', '#FFFFFF');
-              badgeText.setAttribute('font-size', '11.5px');
-              badgeText.setAttribute('font-weight', 'bold');
-              badgeText.textContent = ev.year;
-              badgeG.appendChild(badgeText);
-              nodesLayer.appendChild(badgeG);
+              const eraRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+              eraRect.setAttribute('x', `${ex - 50}`);
+              eraRect.setAttribute('y', `${axisY - 45}`);
+              eraRect.setAttribute('width', '100');
+              eraRect.setAttribute('height', '26');
+              eraRect.setAttribute('rx', '13');
+              eraRect.setAttribute('fill', primaryFill);
+              eraRect.setAttribute('stroke', primaryBorder);
+              eraRect.setAttribute('stroke-width', '1.5');
+              nodesLayer.appendChild(eraRect);
+
+              const eraTxt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+              eraTxt.setAttribute('x', `${ex}`);
+              eraTxt.setAttribute('y', `${axisY - 32}`);
+              eraTxt.setAttribute('text-anchor', 'middle');
+              eraTxt.setAttribute('dominant-baseline', 'central');
+              eraTxt.setAttribute('fill', primaryText);
+              eraTxt.setAttribute('font-size', '11.5px');
+              eraTxt.setAttribute('font-weight', 'bold');
+              eraTxt.textContent = ev.era;
+              nodesLayer.appendChild(eraTxt);
 
               const cardG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-              const cardW = Math.max(140, spacing - 30);
-              const cardH = Math.max(60, 26 + ev.items.length * 22);
+              cardG.style.cursor = 'pointer';
+              const cardW = 140;
+              const cardH = Math.max(40, ev.items.length * 26 + 14);
+
               const cardRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
               cardRect.setAttribute('x', `${ex - cardW / 2}`);
               cardRect.setAttribute('y', `${axisY + 30}`);
@@ -1114,6 +1332,29 @@
                 itemTxt.textContent = '✔ ' + it;
                 cardG.appendChild(itemTxt);
               });
+
+              cardG.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (typeof AppController !== 'undefined' && AppController.instance) {
+                  AppController.instance.selectVisualObject({
+                    type: 'Timeline Milestone',
+                    title: ev.era,
+                    fields: [
+                      { key: 'era', label: 'Era / Year', type: 'text', value: ev.era },
+                      { key: 'items', label: 'Milestone Events (Comma Separated)', type: 'text', value: ev.items.join(', ') }
+                    ],
+                    onUpdate: (k, v) => {
+                      const escaped = ev.era.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+                      if (k === 'items') {
+                        const newItems = v.split(',').map(s => s.trim()).filter(Boolean).join(' : ');
+                        const regex = new RegExp(`(${escaped}\\s*:\\s*)[^\n]+`, 'i');
+                        MultiDiagramVisualizer.updateCodeLine(regex, `$1${newItems}`);
+                      }
+                    }
+                  });
+                }
+              });
+
               nodesLayer.appendChild(cardG);
             });
             break;
@@ -1154,71 +1395,107 @@
             });
 
             if (items.length === 0) {
-              items.push({ name: 'Task A', x: 0.75, y: 0.85, color: colors[0] });
-              items.push({ name: 'Task B', x: 0.30, y: 0.40, color: colors[1] });
+              items.push({ name: 'Task A', x: 0.8, y: 0.8, color: colors[0] });
+              items.push({ name: 'Task B', x: 0.3, y: 0.4, color: colors[1] });
             }
 
-            const ox = 120, oy = 70, qw = 220, qh = 160;
+            const matrixX = 140, matrixY = 80, size = 320;
 
-            const titleEl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-            titleEl.setAttribute('x', `${ox + qw}`);
-            titleEl.setAttribute('y', '45');
-            titleEl.setAttribute('text-anchor', 'middle');
-            titleEl.setAttribute('fill', textColor);
-            titleEl.setAttribute('font-size', '15px');
-            titleEl.setAttribute('font-weight', '700');
-            titleEl.textContent = title;
-            nodesLayer.appendChild(titleEl);
+            const bgRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+            bgRect.setAttribute('x', `${matrixX}`);
+            bgRect.setAttribute('y', `${matrixY}`);
+            bgRect.setAttribute('width', `${size}`);
+            bgRect.setAttribute('height', `${size}`);
+            bgRect.setAttribute('fill', cardBg);
+            bgRect.setAttribute('stroke', cardBorder);
+            bgRect.setAttribute('stroke-width', '1.5');
+            nodesLayer.appendChild(bgRect);
 
-            const quads = [
-              { name: qNames['quadrant-2'], rx: ox, ry: oy, bg: 'rgba(244, 67, 54, 0.08)' },
-              { name: qNames['quadrant-1'], rx: ox + qw, ry: oy, bg: 'rgba(33, 150, 243, 0.08)' },
-              { name: qNames['quadrant-3'], rx: ox, ry: oy + qh, bg: 'rgba(158, 158, 158, 0.08)' },
-              { name: qNames['quadrant-4'], rx: ox + qw, ry: oy + qh, bg: 'rgba(76, 175, 80, 0.08)' }
-            ];
+            const vLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            vLine.setAttribute('x1', `${matrixX + size / 2}`);
+            vLine.setAttribute('y1', `${matrixY}`);
+            vLine.setAttribute('x2', `${matrixX + size / 2}`);
+            vLine.setAttribute('y2', `${matrixY + size}`);
+            vLine.setAttribute('stroke', cardBorder);
+            vLine.setAttribute('stroke-dasharray', '4 4');
+            edgesLayer.appendChild(vLine);
 
-            quads.forEach(q => {
-              const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-              rect.setAttribute('x', `${q.rx}`);
-              rect.setAttribute('y', `${q.ry}`);
-              rect.setAttribute('width', `${qw}`);
-              rect.setAttribute('height', `${qh}`);
-              rect.setAttribute('fill', q.bg);
-              rect.setAttribute('stroke', cardBorder);
-              rect.setAttribute('stroke-width', '1');
-              nodesLayer.appendChild(rect);
+            const hLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            hLine.setAttribute('x1', `${matrixX}`);
+            hLine.setAttribute('y1', `${matrixY + size / 2}`);
+            hLine.setAttribute('x2', `${matrixX + size}`);
+            hLine.setAttribute('y2', `${matrixY + size / 2}`);
+            hLine.setAttribute('stroke', cardBorder);
+            hLine.setAttribute('stroke-dasharray', '4 4');
+            edgesLayer.appendChild(hLine);
 
-              const lbl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-              lbl.setAttribute('x', `${q.rx + 10}`);
-              lbl.setAttribute('y', `${q.ry + 20}`);
-              lbl.setAttribute('fill', linkColor);
-              lbl.setAttribute('font-size', '11px');
-              lbl.setAttribute('font-weight', '600');
-              lbl.textContent = q.name;
-              nodesLayer.appendChild(lbl);
-            });
+            // Quadrant labels
+            const drawQLabel = (text, qx, qy) => {
+              const t = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+              t.setAttribute('x', `${qx}`);
+              t.setAttribute('y', `${qy}`);
+              t.setAttribute('fill', textColor);
+              t.setAttribute('opacity', '0.5');
+              t.setAttribute('font-size', '11px');
+              t.setAttribute('font-weight', 'bold');
+              t.textContent = text;
+              nodesLayer.appendChild(t);
+            };
 
+            drawQLabel(qNames['quadrant-2'], matrixX + 15, matrixY + 25);
+            drawQLabel(qNames['quadrant-1'], matrixX + size / 2 + 15, matrixY + 25);
+            drawQLabel(qNames['quadrant-3'], matrixX + 15, matrixY + size / 2 + 25);
+            drawQLabel(qNames['quadrant-4'], matrixX + size / 2 + 15, matrixY + size / 2 + 25);
+
+            // Plot Items
             items.forEach(it => {
-              const px = ox + it.x * (qw * 2);
-              const py = oy + (1 - it.y) * (qh * 2);
+              const px = matrixX + it.x * size;
+              const py = matrixY + (1 - it.y) * size;
 
-              const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-              dot.setAttribute('cx', `${px}`);
-              dot.setAttribute('cy', `${py}`);
-              dot.setAttribute('r', '6');
-              dot.setAttribute('fill', it.color);
-              dot.setAttribute('stroke', '#FFFFFF');
-              dot.setAttribute('stroke-width', '1.5');
-              nodesLayer.appendChild(dot);
+              const itemG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+              itemG.style.cursor = 'pointer';
+
+              const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+              circle.setAttribute('cx', `${px}`);
+              circle.setAttribute('cy', `${py}`);
+              circle.setAttribute('r', '8');
+              circle.setAttribute('fill', it.color);
+              circle.setAttribute('stroke', cardBg);
+              circle.setAttribute('stroke-width', '2');
+              itemG.appendChild(circle);
 
               const txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-              txt.setAttribute('x', `${px + 8}`);
+              txt.setAttribute('x', `${px + 12}`);
               txt.setAttribute('y', `${py + 4}`);
               txt.setAttribute('fill', textColor);
               txt.setAttribute('font-size', '11px');
               txt.setAttribute('font-weight', '500');
               txt.textContent = it.name;
-              nodesLayer.appendChild(txt);
+              itemG.appendChild(txt);
+
+              itemG.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (typeof AppController !== 'undefined' && AppController.instance) {
+                  AppController.instance.selectVisualObject({
+                    type: 'Quadrant Point',
+                    title: it.name,
+                    fields: [
+                      { key: 'name', label: 'Item Name', type: 'text', value: it.name },
+                      { key: 'x', label: 'X Axis (0.0 - 1.0)', type: 'number', step: 0.05, min: 0, max: 1, value: it.x },
+                      { key: 'y', label: 'Y Axis (0.0 - 1.0)', type: 'number', step: 0.05, min: 0, max: 1, value: it.y }
+                    ],
+                    onUpdate: (k, v) => {
+                      const escaped = it.name.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+                      if (k === 'name') {
+                        const regex = new RegExp(`(["']?)${escaped}(["']?\\s*:\\s*\\[)`, 'i');
+                        MultiDiagramVisualizer.updateCodeLine(regex, `"$1${v}$2"`);
+                      }
+                    }
+                  });
+                }
+              });
+
+              nodesLayer.appendChild(itemG);
             });
             break;
           }
@@ -1260,6 +1537,9 @@
             const rightYMap = new Map();
 
             const drawBox = (name, x, y, color) => {
+              const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+              g.style.cursor = 'pointer';
+
               const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
               rect.setAttribute('x', `${x}`);
               rect.setAttribute('y', `${y}`);
@@ -1268,7 +1548,7 @@
               rect.setAttribute('rx', '4');
               rect.setAttribute('fill', color);
               rect.setAttribute('opacity', '0.85');
-              nodesLayer.appendChild(rect);
+              g.appendChild(rect);
 
               const txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
               txt.setAttribute('x', `${x + 65}`);
@@ -1279,7 +1559,27 @@
               txt.setAttribute('font-size', '11.5px');
               txt.setAttribute('font-weight', 'bold');
               txt.textContent = name;
-              nodesLayer.appendChild(txt);
+              g.appendChild(txt);
+
+              g.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (typeof AppController !== 'undefined' && AppController.instance) {
+                  AppController.instance.selectVisualObject({
+                    type: 'Sankey Node',
+                    title: name,
+                    fields: [
+                      { key: 'name', label: 'Node Label', type: 'text', value: name }
+                    ],
+                    onUpdate: (k, v) => {
+                      const escaped = name.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+                      const regex = new RegExp(`^(\\s*)${escaped}(\\s*,)`, 'gm');
+                      MultiDiagramVisualizer.updateCodeLine(regex, `$1${v}$2`);
+                    }
+                  });
+                }
+              });
+
+              nodesLayer.appendChild(g);
             };
 
             leftNodes.forEach((n, idx) => {

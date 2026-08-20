@@ -509,6 +509,13 @@
       min-width: 220px;
       max-width: 600px;
       border-left: 1px solid var(--border-color);
+      transition: width 0.15s ease;
+    }
+    #right-panel.collapsed {
+      display: none !important;
+    }
+    #right-splitter.collapsed {
+      display: none !important;
     }
 
     #editor-container {

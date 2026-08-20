@@ -1,6 +1,7 @@
 // --- MAIN APPLICATION CONTROLLER ---
     class AppController {
       constructor() {
+        AppController.instance = this;
         this.themeMgr = new ThemeManager();
         this.historyMgr = new HistoryManager();
         this.graph = new GraphModel();
@@ -14,6 +15,7 @@
 
         this.selectedNodeIds = new Set();
         this.selectedEdgeId = null;
+        this.selectedVisualObject = null;
 
         this.isDraggingNodes = false;
         this.dragStartPos = { x: 0, y: 0 };
@@ -394,10 +396,117 @@
       }
 
       // --- LIVE PROPERTIES EDITOR ---
+      selectVisualObject(info) {
+        this.selectedNodeIds.clear();
+        this.selectedEdgeId = null;
+        this.selectedVisualObject = info;
+
+        const inspectorTab = document.querySelector('.left-tab[data-tab="properties"]');
+        if (inspectorTab) inspectorTab.click();
+
+        this.updatePropertiesPanel();
+      }
+
+      toggleCodePanel(forceState = null) {
+        const rightPanel = document.getElementById('right-panel');
+        const rightSplitter = document.getElementById('right-splitter');
+        const btnToggle = document.getElementById('btn-toggle-code');
+
+        const isCollapsed = rightPanel.classList.contains('collapsed');
+        const shouldCollapse = forceState !== null ? !forceState : !isCollapsed;
+
+        if (shouldCollapse) {
+          rightPanel.classList.add('collapsed');
+          rightSplitter.classList.add('collapsed');
+          if (btnToggle) btnToggle.classList.remove('active');
+        } else {
+          rightPanel.classList.remove('collapsed');
+          rightSplitter.classList.remove('collapsed');
+          if (btnToggle) btnToggle.classList.add('active');
+        }
+        this.updateScrollbars();
+      }
+
       updatePropertiesPanel() {
         const propEmpty = document.getElementById('prop-empty');
         const nodeForm = document.getElementById('node-props-form');
         const edgeForm = document.getElementById('edge-props-form');
+        const visualForm = document.getElementById('visual-props-form');
+        const visualFields = document.getElementById('visual-prop-fields');
+
+        if (this.selectedVisualObject) {
+          propEmpty.style.display = 'none';
+          nodeForm.style.display = 'none';
+          edgeForm.style.display = 'none';
+          if (visualForm) {
+            visualForm.style.display = 'block';
+            document.getElementById('visual-prop-title').textContent = this.selectedVisualObject.title || 'Object Properties';
+            document.getElementById('visual-prop-type-badge').textContent = this.selectedVisualObject.type || 'Item';
+
+            if (visualFields) {
+              visualFields.innerHTML = '';
+              (this.selectedVisualObject.fields || []).forEach(f => {
+                const grp = document.createElement('div');
+                grp.className = 'prop-group';
+
+                const lbl = document.createElement('label');
+                lbl.textContent = f.label;
+                grp.appendChild(lbl);
+
+                if (f.type === 'select') {
+                  const sel = document.createElement('select');
+                  sel.className = 'prop-input';
+                  (f.options || []).forEach(opt => {
+                    const optEl = document.createElement('option');
+                    optEl.value = opt.value !== undefined ? opt.value : opt;
+                    optEl.textContent = opt.label || opt;
+                    if (String(optEl.value) === String(f.value)) optEl.selected = true;
+                    sel.appendChild(optEl);
+                  });
+                  sel.addEventListener('change', () => {
+                    f.value = sel.value;
+                    if (this.selectedVisualObject.onUpdate) {
+                      this.selectedVisualObject.onUpdate(f.key, sel.value);
+                    }
+                  });
+                  grp.appendChild(sel);
+                } else if (f.type === 'number') {
+                  const inp = document.createElement('input');
+                  inp.type = 'number';
+                  inp.className = 'prop-input';
+                  inp.value = f.value;
+                  if (f.min !== undefined) inp.min = f.min;
+                  if (f.max !== undefined) inp.max = f.max;
+                  if (f.step !== undefined) inp.step = f.step;
+                  inp.addEventListener('input', () => {
+                    f.value = parseFloat(inp.value) || 0;
+                    if (this.selectedVisualObject.onUpdate) {
+                      this.selectedVisualObject.onUpdate(f.key, f.value);
+                    }
+                  });
+                  grp.appendChild(inp);
+                } else {
+                  const inp = document.createElement('input');
+                  inp.type = 'text';
+                  inp.className = 'prop-input';
+                  inp.value = f.value || '';
+                  inp.addEventListener('input', () => {
+                    f.value = inp.value;
+                    if (this.selectedVisualObject.onUpdate) {
+                      this.selectedVisualObject.onUpdate(f.key, inp.value);
+                    }
+                  });
+                  grp.appendChild(inp);
+                }
+
+                visualFields.appendChild(grp);
+              });
+            }
+          }
+          return;
+        }
+
+        if (visualForm) visualForm.style.display = 'none';
 
         if (this.selectedNodeIds.size === 1) {
           const nodeId = Array.from(this.selectedNodeIds)[0];
@@ -738,6 +847,8 @@
         });
 
         document.getElementById('btn-sync-code').addEventListener('click', () => this.applyCodeToGraph(false));
+        document.getElementById('btn-toggle-code')?.addEventListener('click', () => this.toggleCodePanel());
+        document.getElementById('btn-close-code')?.addEventListener('click', () => this.toggleCodePanel(false));
 
         if (this.typeSelect) {
           this.typeSelect.addEventListener('change', (e) => {
