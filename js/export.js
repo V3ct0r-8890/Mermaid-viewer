@@ -1,13 +1,15 @@
 // --- EXPORT MANAGER ---
     class ExportManager {
-      static exportMMD(graph) {
+      static exportMMD(graph, filename = 'diagram.mmd') {
         const code = MermaidGenerator.generate(graph);
-        ExportManager.downloadFile(code, 'diagram.mmd', 'text/plain');
+        const fn = filename.endsWith('.mmd') ? filename : `${filename}.mmd`;
+        ExportManager.downloadFile(code, fn, 'text/plain');
       }
 
-      static exportJSON(project) {
+      static exportJSON(project, filename = 'project.graph.json') {
         const json = JSON.stringify(project, null, 2);
-        ExportManager.downloadFile(json, 'project.graph.json', 'application/json');
+        const fn = (filename.endsWith('.json') || filename.endsWith('.graph.json')) ? filename : `${filename}.graph.json`;
+        ExportManager.downloadFile(json, fn, 'application/json');
       }
 
       static prepareSvgElement(svgElement, graph, theme) {

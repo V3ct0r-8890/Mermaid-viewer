@@ -1121,12 +1121,14 @@
         });
 
         document.getElementById('btn-do-export-mmd')?.addEventListener('click', () => {
-          ExportManager.exportMMD(this.graph);
+          const filename = document.getElementById('export-filename').value.trim() || 'diagram';
+          ExportManager.exportMMD(this.graph, filename);
           this.closeModal('export-modal');
         });
 
         document.getElementById('btn-do-export-json')?.addEventListener('click', () => {
-          ExportManager.exportJSON(this.graph.toProject(this.themeMgr.currentTheme));
+          const filename = document.getElementById('export-filename').value.trim() || 'diagram';
+          ExportManager.exportJSON(this.graph.toProject(this.themeMgr.currentTheme), filename);
           this.closeModal('export-modal');
         });
       }
@@ -1542,7 +1544,7 @@
           this.handleRedo();
         } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
           e.preventDefault();
-          ExportManager.exportJSON(this.graph.toProject(this.themeMgr.currentTheme));
+          this.openExportDialog();
         } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'n') {
           e.preventDefault();
           this.confirmNew();
