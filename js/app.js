@@ -76,11 +76,7 @@
       renderAll() {
         this.updateTransform();
 
-        const dType = (this.graph.diagramType || '').toLowerCase();
-        const isVisualSpecial = [
-          'sequence', 'classdiagram', 'statediagram', 'erdiagram', 'c4context',
-          'gantt', 'pie', 'gitgraph', 'journey', 'mindmap', 'timeline', 'quadrant', 'sankey'
-        ].includes(dType);
+        const isVisualSpecial = ['sequence', 'gantt', 'pie', 'gitGraph', 'gitgraph', 'journey', 'mindmap', 'timeline', 'quadrant', 'sankey'].includes(this.graph.diagramType);
 
         if (isVisualSpecial) {
           const isDark = this.themeMgr.currentTheme === 'dark';
