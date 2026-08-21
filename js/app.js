@@ -665,83 +665,7 @@
         const visualForm = document.getElementById('visual-props-form');
         const visualFields = document.getElementById('visual-prop-fields');
 
-        // Priority 1: Single Selected Node (Flowchart)
-        if (this.selectedNodeIds && this.selectedNodeIds.size === 1) {
-          const nodeId = Array.from(this.selectedNodeIds)[0];
-          const node = this.graph.getNode(nodeId);
-          if (node) {
-            this.selectedVisualObject = {
-              type: 'Flowchart Node',
-              title: node.text || node.id,
-              fields: [
-                { key: 'text', label: 'Node Label / Text', type: 'text', value: node.text || node.id },
-                { key: 'shape', label: 'Node Shape', type: 'select', value: node.shape || 'rectangle', options: [
-                  { value: 'rectangle', label: 'Rectangle [text]' },
-                  { value: 'rounded', label: 'Rounded (text)' },
-                  { value: 'stadium', label: 'Stadium ([text])' },
-                  { value: 'subroutine', label: 'Subroutine [[text]]' },
-                  { value: 'cylinder', label: 'Cylinder [(text)]' },
-                  { value: 'circle', label: 'Circle ((text))' },
-                  { value: 'double_circle', label: 'Double Circle (((text)))' },
-                  { value: 'diamond', label: 'Diamond {text}' },
-                  { value: 'hexagon', label: 'Hexagon {{text}}' },
-                  { value: 'asymmetric', label: 'Asymmetric >text]' },
-                  { value: 'parallelogram', label: 'Parallelogram [/text/]' },
-                  { value: 'trapezoid', label: 'Trapezoid [/text\]' }
-                ]},
-                { key: 'fill', label: 'Node Fill Color', type: 'color', value: node.fillColor || (this.themeMgr.isDarkTheme() ? '#2D4A66' : '#E3F2FD') },
-                { key: 'font', label: 'Font / Text Color', type: 'color', value: node.fontColor || (this.themeMgr.isDarkTheme() ? '#E1F5FE' : '#0D47A1') },
-                { key: 'border', label: 'Border / Stroke Color', type: 'color', value: node.borderColor || (this.themeMgr.isDarkTheme() ? '#4FC3F7' : '#90CAF9') }
-              ],
-              onSave: (vals) => {
-                node.text = vals.text;
-                node.shape = vals.shape;
-                node.fillColor = vals.fill;
-                node.fontColor = vals.font;
-                node.borderColor = vals.border;
-                this.graph.customRawCode = null;
-                this.updateMermaidCode();
-                this.renderAll();
-                Utils.showToast(`Updated node "${vals.text}"`, 'success');
-              }
-            };
-          }
-        }
-        // Priority 2: Selected Edge / Arrow (Flowchart)
-        else if (this.selectedEdgeId) {
-          const edge = this.graph.getEdge(this.selectedEdgeId);
-          if (edge) {
-            this.selectedVisualObject = {
-              type: 'Flowchart Link',
-              title: `${edge.source} → ${edge.target}`,
-              fields: [
-                { key: 'label', label: 'Link Label (Optional)', type: 'text', value: edge.label || '' },
-                { key: 'type', label: 'Link Type', type: 'select', value: edge.type || '-->', options: [
-                  { value: '-->', label: 'Arrow (-->)' },
-                  { value: '---', label: 'Open Line (---)' },
-                  { value: '==>', label: 'Thick Arrow (==>)' },
-                  { value: '-.->', label: 'Dotted Arrow (-.->)' },
-                  { value: '<-->', label: 'Bidirectional (<-->)' },
-                  { value: '<==>', label: 'Bidirectional Thick (<==>)' }
-                ]},
-                { key: 'color', label: 'Line / Arrow Color', type: 'color', value: edge.color || (this.themeMgr.isDarkTheme() ? '#BBBBBB' : '#616161') },
-                { key: 'font', label: 'Label Font Color', type: 'color', value: edge.textColor || (this.themeMgr.isDarkTheme() ? '#D4D4D4' : '#212121') }
-              ],
-              onSave: (vals) => {
-                edge.label = vals.label || undefined;
-                edge.type = vals.type;
-                edge.color = vals.color;
-                edge.textColor = vals.font;
-                this.graph.customRawCode = null;
-                this.updateMermaidCode();
-                this.renderAll();
-                Utils.showToast(`Updated link ${edge.source} → ${edge.target}`, 'success');
-              }
-            };
-          }
-        }
-
-        // Priority 3: Custom Visual Object (Sequence, Class, State, ER, C4, Gantt, etc.)
+        // Priority 1: Multi-diagram Visual Object (Sequence, Class, State, ER, C4, etc.)
         if (this.selectedVisualObject) {
           propEmpty.style.display = 'none';
           if (nodeForm) nodeForm.style.display = 'none';
@@ -773,9 +697,9 @@
                   sel.className = 'prop-input';
                   (f.options || []).forEach(opt => {
                     const optEl = document.createElement('option');
-                    optEl.value = opt.value;
-                    optEl.textContent = opt.label;
-                    if (String(opt.value) === String(f.value)) optEl.selected = true;
+                    optEl.value = opt.value !== undefined ? opt.value : opt;
+                    optEl.textContent = opt.label || opt;
+                    if (String(optEl.value) === String(f.value)) optEl.selected = true;
                     sel.appendChild(optEl);
                   });
                   sel.addEventListener('change', (e) => {
@@ -823,7 +747,6 @@
                   colorWrap.appendChild(hexTxt);
                   grp.appendChild(colorWrap);
 
-                  // 10-palette swatch row
                   const swatchRow = document.createElement('div');
                   swatchRow.style.display = 'flex';
                   swatchRow.style.gap = '5px';
@@ -937,6 +860,75 @@
         }
 
         if (visualForm) visualForm.style.display = 'none';
+
+        // Priority 2: Flowchart Node Selected
+        if (this.selectedNodeIds && this.selectedNodeIds.size === 1) {
+          const nodeId = Array.from(this.selectedNodeIds)[0];
+          const node = this.graph.getNode(nodeId);
+          if (node) {
+            propEmpty.style.display = 'none';
+            if (edgeForm) edgeForm.style.display = 'none';
+            if (nodeForm) nodeForm.style.display = 'block';
+
+            this.nodeInitialValues = {
+              text: node.text || node.id,
+              shape: node.shape || 'rectangle',
+              width: String(node.width || 140),
+              height: String(node.height || 50),
+              x: String(node.x),
+              y: String(node.y),
+              fillColor: node.fillColor || '#E3F2FD',
+              borderColor: node.borderColor || '#90CAF9',
+              fontColor: node.fontColor || '#0D47A1'
+            };
+
+            document.getElementById('prop-node-id-badge').textContent = node.id;
+            document.getElementById('prop-node-text').value = this.nodeInitialValues.text;
+            document.getElementById('prop-node-shape').value = this.nodeInitialValues.shape;
+            document.getElementById('prop-node-w').value = this.nodeInitialValues.width;
+            document.getElementById('prop-node-h').value = this.nodeInitialValues.height;
+            document.getElementById('prop-node-x').value = this.nodeInitialValues.x;
+            document.getElementById('prop-node-y').value = this.nodeInitialValues.y;
+            document.getElementById('prop-node-fill').value = this.nodeInitialValues.fillColor;
+            document.getElementById('prop-node-fill-val').textContent = this.nodeInitialValues.fillColor;
+            document.getElementById('prop-node-border').value = this.nodeInitialValues.borderColor;
+            document.getElementById('prop-node-font').value = this.nodeInitialValues.fontColor;
+            return;
+          }
+        }
+
+        // Priority 3: Flowchart Link / Arrow Selected
+        if (this.selectedEdgeId) {
+          const edge = this.graph.getEdge(this.selectedEdgeId);
+          if (edge) {
+            propEmpty.style.display = 'none';
+            if (nodeForm) nodeForm.style.display = 'none';
+            if (edgeForm) edgeForm.style.display = 'block';
+
+            this.edgeInitialValues = {
+              label: edge.label || '',
+              type: edge.type || '-->',
+              color: edge.color || (this.themeMgr.currentTheme === 'dark' ? '#BBBBBB' : '#616161'),
+              strokeWidth: String(edge.strokeWidth || 2),
+              textColor: edge.textColor || (this.themeMgr.currentTheme === 'dark' ? '#D4D4D4' : '#212121')
+            };
+
+            document.getElementById('prop-edge-label').value = this.edgeInitialValues.label;
+            document.getElementById('prop-edge-type').value = this.edgeInitialValues.type;
+            const edgeColorInp = document.getElementById('prop-edge-color');
+            if (edgeColorInp) edgeColorInp.value = this.edgeInitialValues.color;
+            const edgeColorVal = document.getElementById('prop-edge-color-val');
+            if (edgeColorVal) edgeColorVal.textContent = this.edgeInitialValues.color;
+            const edgeWidthSel = document.getElementById('prop-edge-width');
+            if (edgeWidthSel) edgeWidthSel.value = this.edgeInitialValues.strokeWidth;
+            const edgeTxtColInp = document.getElementById('prop-edge-text-color');
+            if (edgeTxtColInp) edgeTxtColInp.value = this.edgeInitialValues.textColor;
+            const edgeTxtColVal = document.getElementById('prop-edge-text-color-val');
+            if (edgeTxtColVal) edgeTxtColVal.textContent = this.edgeInitialValues.textColor;
+            return;
+          }
+        }
+
         propEmpty.style.display = 'block';
         if (nodeForm) nodeForm.style.display = 'none';
         if (edgeForm) edgeForm.style.display = 'none';
@@ -972,6 +964,7 @@
           node.borderColor = document.getElementById('prop-node-border').value;
           node.fontColor = document.getElementById('prop-node-font').value;
 
+          this.graph.customRawCode = null;
           this.renderNodes();
           this.renderEdges();
           this.renderMinimap();
@@ -1077,6 +1070,7 @@
           const txtCol = document.getElementById('prop-edge-text-color')?.value;
           if (txtCol) edge.textColor = txtCol;
 
+          this.graph.customRawCode = null;
           this.renderEdges();
           this.updateMermaidCode();
           this.recordHistory();
