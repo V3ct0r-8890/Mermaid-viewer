@@ -2464,7 +2464,7 @@ class MultiDiagramVisualizer {
 
   static parseColorDirectives(code) {
     if (!code) return;
-    const matches = code.matchAll(/%%\s*@color:\s*([^=\n]+)\s*=\s*(#[A-Fa-f0-9]{3,8})/g);
+    const matches = code.matchAll(/%%\s*@color:\s*([^=\n]+)\s*=\\s*(#[A-Fa-f0-9]{3,8})/g);
     for (const m of matches) {
       const key = m[1].trim();
       const color = m[2].trim();
@@ -4559,7 +4559,7 @@ class MultiDiagramVisualizer {
       }
 
       // =========================================================================
-      // 2. CLASS DIAGRAM
+      // 2. CLASS DIAGRAM (UML)
       // =========================================================================
       case 'classdiagram': {
         const rawLines = (code || '').split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('%%') && !l.startsWith('classDiagram'));
@@ -4585,12 +4585,18 @@ class MultiDiagramVisualizer {
 
           const relMatch = line.match(/^([A-Za-z0-9_]+)\s*(<\|--|\*--|o--|-->|\.\.>|--)\s*([A-Za-z0-9_]+)(?:\s*:\s*(.+))?/);
           if (relMatch) {
-            relations.push({
-              src: relMatch[1],
-              type: relMatch[2],
-              tgt: relMatch[3],
-              label: relMatch[4] || ''
+            const src = relMatch[1];
+            const type = relMatch[2];
+            const tgt = relMatch[3];
+            const label = relMatch[4] || '';
+            [src, tgt].forEach(name => {
+              if (!classMap.has(name)) {
+                const c = { name, members: [], methods: [] };
+                classes.push(c);
+                classMap.set(name, c);
+              }
             });
+            relations.push({ src, type, tgt, label });
             return;
           }
 
@@ -4601,25 +4607,28 @@ class MultiDiagramVisualizer {
         });
 
         if (classes.length === 0) {
-          classes.push({ name: 'BankAccount', members: ['+String owner', '+Decimal balance'], methods: ['+deposit()', '+withdraw()'] });
-          classes.push({ name: 'SavingsAccount', members: ['+Decimal rate'], methods: ['+addInterest()'] });
-          relations.push({ src: 'BankAccount', type: '<|--', tgt: 'SavingsAccount', label: 'Inherits' });
+          classes.push({ name: 'BankAccount', members: ['+String owner', '+Decimal balance'], methods: ['+deposit(amount)', '+withdraw(amount)'] });
+          classes.push({ name: 'SavingsAccount', members: ['+Decimal interestRate'], methods: ['+addInterest()'] });
+          classes.push({ name: 'CheckingAccount', members: ['+Decimal overdraftLimit'], methods: [] });
+          relations.push({ src: 'BankAccount', type: '<|--', tgt: 'SavingsAccount', label: '' });
+          relations.push({ src: 'BankAccount', type: '<|--', tgt: 'CheckingAccount', label: '' });
         }
 
-        const colWidth = 190;
-        const colGap = 60;
-        const rowGap = 50;
+        const colW = 200;
+        const startX = 60;
+        const startY = 60;
 
         classes.forEach((c, idx) => {
-          const col = idx % 3;
-          const row = Math.floor(idx / 3);
-          const x = 60 + col * (colWidth + colGap);
-          const y = 60 + row * (150 + rowGap);
-          const h = 40 + (c.members.length + c.methods.length) * 18 + 20;
+          const col = idx % 2 === 0 ? 0 : 1;
+          const row = Math.floor(idx / 2);
+          const x = startX + (idx === 0 && classes.length >= 3 ? 150 : col * 280);
+          const y = startY + (idx === 0 && classes.length >= 3 ? 0 : 160);
+          const h = 40 + (c.members.length + c.methods.length) * 18 + 16;
 
-          c.x = x + colWidth / 2;
+          c.x = x + colW / 2;
           c.y = y + h / 2;
-          c.box = { x, y, w: colWidth, h };
+          c.topY = y;
+          c.bottomY = y + h;
 
           const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
           g.style.cursor = 'pointer';
@@ -4631,7 +4640,7 @@ class MultiDiagramVisualizer {
           const card = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
           card.setAttribute('x', `${x}`);
           card.setAttribute('y', `${y}`);
-          card.setAttribute('width', `${colWidth}`);
+          card.setAttribute('width', `${colW}`);
           card.setAttribute('height', `${h}`);
           card.setAttribute('rx', '6');
           card.setAttribute('fill', cFill);
@@ -4640,8 +4649,9 @@ class MultiDiagramVisualizer {
           if (isSelC) card.style.filter = selGlow;
           g.appendChild(card);
 
+          // Class Name Header
           const nameTxt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-          nameTxt.setAttribute('x', `${x + colWidth / 2}`);
+          nameTxt.setAttribute('x', `${x + colW / 2}`);
           nameTxt.setAttribute('y', `${y + 20}`);
           nameTxt.setAttribute('text-anchor', 'middle');
           nameTxt.setAttribute('fill', cFont);
@@ -4650,10 +4660,11 @@ class MultiDiagramVisualizer {
           nameTxt.textContent = c.name;
           g.appendChild(nameTxt);
 
+          // Header Divider
           const divLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
           divLine.setAttribute('x1', `${x}`);
           divLine.setAttribute('y1', `${y + 32}`);
-          divLine.setAttribute('x2', `${x + colWidth}`);
+          divLine.setAttribute('x2', `${x + colW}`);
           divLine.setAttribute('y2', `${y + 32}`);
           divLine.setAttribute('stroke', primaryBorder);
           divLine.setAttribute('stroke-width', '1');
@@ -4675,7 +4686,7 @@ class MultiDiagramVisualizer {
             const mDiv = document.createElementNS('http://www.w3.org/2000/svg', 'line');
             mDiv.setAttribute('x1', `${x}`);
             mDiv.setAttribute('y1', `${curItemY - 4}`);
-            mDiv.setAttribute('x2', `${x + colWidth}`);
+            mDiv.setAttribute('x2', `${x + colW}`);
             mDiv.setAttribute('y2', `${curItemY - 4}`);
             mDiv.setAttribute('stroke', primaryBorder);
             mDiv.setAttribute('stroke-width', '0.8');
@@ -4730,6 +4741,7 @@ class MultiDiagramVisualizer {
           nodesLayer.appendChild(g);
         });
 
+        // Draw UML Relationships
         relations.forEach(r => {
           const s = classMap.get(r.src);
           const t = classMap.get(r.tgt);
@@ -4738,15 +4750,30 @@ class MultiDiagramVisualizer {
           const relKey = `${r.src}->${r.tgt}`;
           const relColor = MultiDiagramVisualizer.getColor(relKey, linkColor);
 
-          const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-          line.setAttribute('x1', `${s.x}`);
-          line.setAttribute('y1', `${s.y}`);
-          line.setAttribute('x2', `${t.x}`);
-          line.setAttribute('y2', `${t.y}`);
-          line.setAttribute('stroke', relColor);
-          line.setAttribute('stroke-width', '1.8');
-          if (r.type === '..>') line.setAttribute('stroke-dasharray', '4,4');
-          edgesLayer.appendChild(line);
+          const x1 = s.x;
+          const y1 = s.bottomY;
+          const x2 = t.x;
+          const y2 = t.topY;
+
+          const lineG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+          const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+          const midY = (y1 + y2) / 2;
+          path.setAttribute('d', `M ${x1} ${y1} C ${x1} ${midY}, ${x2} ${midY}, ${x2} ${y2}`);
+          path.setAttribute('fill', 'none');
+          path.setAttribute('stroke', relColor);
+          path.setAttribute('stroke-width', '1.8');
+          if (r.type === '..>') path.setAttribute('stroke-dasharray', '4,4');
+          lineG.appendChild(path);
+
+          // Inheritance open triangle arrow
+          const tri = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+          tri.setAttribute('points', `${x1},${y1} ${x1 - 6},${y1 + 10} ${x1 + 6},${y1 + 10}`);
+          tri.setAttribute('fill', cardBg);
+          tri.setAttribute('stroke', relColor);
+          tri.setAttribute('stroke-width', '1.5');
+          lineG.appendChild(tri);
+
+          edgesLayer.appendChild(lineG);
         });
         break;
       }
@@ -4755,32 +4782,49 @@ class MultiDiagramVisualizer {
       // 3. STATE DIAGRAM
       // =========================================================================
       case 'statediagram': {
-        const rawLines = (code || '').split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('%%') && !l.startsWith('stateDiagram'));
-        const states = new Set();
+        const rawLines = (code || '').split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('%%') && !l.toLowerCase().startsWith('statediagram'));
+        const stateSet = new Set();
         const transitions = [];
 
         rawLines.forEach(line => {
-          const transMatch = line.match(/^([*A-Za-z0-9_]+)\s*-->\s*([*A-Za-z0-9_]+)(?:\s*:\s*(.+))?/);
+          const transMatch = line.match(/^(\[\*\]|[A-Za-z0-9_]+)\s*-->\s*(\[\*\]|[A-Za-z0-9_]+)(?:\s*:\s*(.+))?/);
           if (transMatch) {
             const from = transMatch[1];
             const to = transMatch[2];
-            if (from !== '[*]') states.add(from);
-            if (to !== '[*]') states.add(to);
+            if (from !== '[*]') stateSet.add(from);
+            if (to !== '[*]') stateSet.add(to);
             transitions.push({ from, to, label: transMatch[3] || '' });
           }
         });
 
-        const stateList = Array.from(states);
-        if (stateList.length === 0) stateList.push('Idle', 'Processing', 'Complete');
+        const stateList = Array.from(stateSet);
+        if (stateList.length === 0) stateList.push('Idle', 'Processing', 'Succeeded', 'Failed', 'Retrying');
 
-        const startX = 80;
-        const gapX = 170;
-        const stateMap = new Map();
+        // Layout states across clean 2D grid
+        const positions = {
+          '[*]': { x: 50, y: 100 },
+          'Idle': { x: 170, y: 100 },
+          'Processing': { x: 350, y: 100 },
+          'Succeeded': { x: 540, y: 100 },
+          'Failed': { x: 350, y: 220 },
+          'Retrying': { x: 520, y: 220 },
+          'DeadLetter': { x: 680, y: 220 }
+        };
+
+        // Draw start state ●
+        const startCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        startCircle.setAttribute('cx', '50');
+        startCircle.setAttribute('cy', '100');
+        startCircle.setAttribute('r', '14');
+        startCircle.setAttribute('fill', primaryText);
+        nodesLayer.appendChild(startCircle);
 
         stateList.forEach((sName, idx) => {
-          const x = startX + idx * gapX;
-          const y = 140;
-          stateMap.set(sName, { x: x + 60, y: y + 22 });
+          const pos = positions[sName] || { x: 160 + (idx % 3) * 180, y: 100 + Math.floor(idx / 3) * 110 };
+          const x = pos.x;
+          const y = pos.y;
+          const w = 120;
+          const h = 42;
 
           const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
           g.style.cursor = 'pointer';
@@ -4790,11 +4834,11 @@ class MultiDiagramVisualizer {
           const isSelS = (sName === selTitle);
 
           const capsule = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-          capsule.setAttribute('x', `${x}`);
-          capsule.setAttribute('y', `${y}`);
-          capsule.setAttribute('width', '120');
-          capsule.setAttribute('height', '44');
-          capsule.setAttribute('rx', '22');
+          capsule.setAttribute('x', `${x - w / 2}`);
+          capsule.setAttribute('y', `${y - h / 2}`);
+          capsule.setAttribute('width', `${w}`);
+          capsule.setAttribute('height', `${h}`);
+          capsule.setAttribute('rx', '21');
           capsule.setAttribute('fill', sFill);
           capsule.setAttribute('stroke', isSelS ? 'var(--selection-color)' : primaryBorder);
           capsule.setAttribute('stroke-width', isSelS ? '3' : '1.8');
@@ -4802,8 +4846,8 @@ class MultiDiagramVisualizer {
           g.appendChild(capsule);
 
           const sText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-          sText.setAttribute('x', `${x + 60}`);
-          sText.setAttribute('y', `${y + 23}`);
+          sText.setAttribute('x', `${x}`);
+          sText.setAttribute('y', `${y}`);
           sText.setAttribute('text-anchor', 'middle');
           sText.setAttribute('dominant-baseline', 'central');
           sText.setAttribute('fill', sFont);
@@ -4817,7 +4861,7 @@ class MultiDiagramVisualizer {
             e.stopPropagation();
             if (typeof AppController !== 'undefined' && AppController.instance) {
               AppController.instance.selectVisualObject({
-                type: 'State',
+                type: 'State Node',
                 title: sName,
                 fields: [
                   { key: 'name', label: 'State Name', type: 'text', value: sName },
@@ -4841,22 +4885,1869 @@ class MultiDiagramVisualizer {
           nodesLayer.appendChild(g);
         });
 
+        // Draw State Transitions
         transitions.forEach(tr => {
-          const s1 = stateMap.get(tr.from);
-          const s2 = stateMap.get(tr.to);
-          if (!s1 || !s2) return;
+          const p1 = positions[tr.from] || { x: 100, y: 100 };
+          const p2 = positions[tr.to] || (tr.to === '[*]' ? { x: 740, y: p1.y } : { x: 300, y: 200 });
 
           const trKey = `${tr.from}->${tr.to}`;
           const trColor = MultiDiagramVisualizer.getColor(trKey, linkColor);
+          const trFont = MultiDiagramVisualizer.getColor(trKey + ':font', textColor);
 
-          const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-          line.setAttribute('x1', `${s1.x}`);
-          line.setAttribute('y1', `${s1.y}`);
-          line.setAttribute('x2', `${s2.x}`);
-          line.setAttribute('y2', `${s2.y}`);
-          line.setAttribute('stroke', trColor);
-          line.setAttribute('stroke-width', '2');
-          edgesLayer.appendChild(line);
+          const lineG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+          lineG.style.cursor = 'pointer';
+
+          const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+          const midX = (p1.x + p2.x) / 2;
+          const midY = (p1.y + p2.y) / 2;
+
+          if (p1.y === p2.y) {
+            path.setAttribute('d', `M ${p1.x + 60} ${p1.y} L ${p2.x - (tr.to === '[*]' ? 14 : 60)} ${p2.y}`);
+          } else {
+            path.setAttribute('d', `M ${p1.x} ${p1.y + 21} C ${p1.x} ${midY}, ${p2.x} ${midY}, ${p2.x} ${p2.y - 21}`);
+          }
+          path.setAttribute('fill', 'none');
+          path.setAttribute('stroke', trColor);
+          path.setAttribute('stroke-width', '1.8');
+          lineG.appendChild(path);
+
+          if (tr.label) {
+            const lblBg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+            const lblW = tr.label.length * 6.5 + 16;
+            lblBg.setAttribute('x', `${midX - lblW / 2}`);
+            lblBg.setAttribute('y', `${midY - 9}`);
+            lblBg.setAttribute('width', `${lblW}`);
+            lblBg.setAttribute('height', '18');
+            lblBg.setAttribute('rx', '4');
+            lblBg.setAttribute('fill', cardBg);
+            lblBg.setAttribute('stroke', cardBorder);
+            lblBg.setAttribute('stroke-width', '1');
+            lineG.appendChild(lblBg);
+
+            const lblTxt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            lblTxt.setAttribute('x', `${midX}`);
+            lblTxt.setAttribute('y', `${midY}`);
+            lblTxt.setAttribute('text-anchor', 'middle');
+            lblTxt.setAttribute('dominant-baseline', 'central');
+            lblTxt.setAttribute('fill', trFont);
+            lblTxt.setAttribute('font-size', '10px');
+            lblTxt.textContent = tr.label;
+            lineG.appendChild(lblTxt);
+          }
+
+          lineG.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (typeof AppController !== 'undefined' && AppController.instance) {
+              AppController.instance.selectVisualObject({
+                type: 'State Transition',
+                title: `${tr.from} → ${tr.to}`,
+                fields: [
+                  { key: 'label', label: 'Transition Label', type: 'text', value: tr.label },
+                  { key: 'color', label: 'Transition Color', type: 'color', value: trColor },
+                  { key: 'font', label: 'Label Font Color', type: 'color', value: trFont }
+                ],
+                onSave: (vals) => {
+                  MultiDiagramVisualizer.setColor(trKey, vals.color);
+                  MultiDiagramVisualizer.setColor(trKey + ':font', vals.font);
+                  MultiDiagramVisualizer.syncColorToCode(trKey, vals.color);
+                  MultiDiagramVisualizer.syncColorToCode(trKey + ':font', vals.font);
+                  MultiDiagramVisualizer.updateCodeLine((curCode) => {
+                    const esc1 = tr.from.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\</body>');
+                    const esc2 = tr.to.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\</body>');
+                    const reg = new RegExp(`^\\s*${esc1}\\s*-->\\s*${esc2}(?:\\s*:.*)?<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mermaid Visual Editor & Offline Viewer</title>
+  <style>
+:root {
+      --bg-color: #FFFFFF;
+      --canvas-bg: #FAFAFA;
+      --text-color: #212121;
+      --text-muted: #757575;
+      --node-fill: #E3F2FD;
+      --node-border: #90CAF9;
+      --node-text: #0D47A1;
+      --selection-color: #2196F3;
+      --selection-box: rgba(33, 150, 243, 0.15);
+      --link-color: #616161;
+      --link-selected: #1976D2;
+      --toolbar-bg: #F5F5F7;
+      --panel-bg: #FFFFFF;
+      --border-color: #E0E0E0;
+      --hover-color: #ECEFF1;
+      --grid-dot: #D6D6D6;
+      --modal-bg: #FFFFFF;
+      --modal-overlay: rgba(0, 0, 0, 0.4);
+      --btn-primary: #1976D2;
+      --btn-primary-hover: #1565C0;
+      --btn-danger: #D32F2F;
+      --btn-secondary: #E0E0E0;
+      --shadow: 0 4px 12px rgba(0,0,0,0.08);
+      --shadow-sm: 0 2px 4px rgba(0,0,0,0.05);
+      --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      --code-font: "JetBrains Mono", "Fira Code", Menlo, Monaco, Consolas, monospace;
+    }
+
+    [data-theme="dark"] {
+      --bg-color: #1E1E1E;
+      --canvas-bg: #252526;
+      --text-color: #D4D4D4;
+      --text-muted: #8E8E8E;
+      --node-fill: #2D4A66;
+      --node-border: #4FC3F7;
+      --node-text: #E1F5FE;
+      --selection-color: #4FC3F7;
+      --selection-box: rgba(79, 195, 247, 0.2);
+      --link-color: #BBBBBB;
+      --link-selected: #4FC3F7;
+      --toolbar-bg: #2D2D2D;
+      --panel-bg: #1E1E1E;
+      --border-color: #383838;
+      --hover-color: #383838;
+      --grid-dot: #404040;
+      --modal-bg: #252526;
+      --modal-overlay: rgba(0, 0, 0, 0.65);
+      --btn-primary: #0288D1;
+      --btn-primary-hover: #039BE5;
+      --btn-danger: #F44336;
+      --btn-secondary: #3E3E42;
+      --shadow: 0 4px 14px rgba(0,0,0,0.4);
+      --shadow-sm: 0 2px 6px rgba(0,0,0,0.3);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+
+    body {
+      font-family: var(--font-family);
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* Toolbar */
+    #toolbar {
+      height: 48px;
+      background: var(--toolbar-bg);
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      padding: 0 12px;
+      gap: 4px;
+      z-index: 20;
+    }
+
+    .toolbar-group {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding-right: 6px;
+      margin-right: 6px;
+      border-right: 1px solid var(--border-color);
+    }
+
+    .toolbar-group:last-child {
+      border-right: none;
+      margin-left: auto;
+      padding-right: 0;
+      margin-right: 0;
+    }
+
+    .app-title {
+      font-weight: 700;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-right: 12px;
+      color: var(--text-color);
+    }
+    .app-title svg {
+      width: 20px;
+      height: 20px;
+      fill: var(--btn-primary);
+    }
+
+    .tb-select {
+      background: var(--bg-color);
+      border: 1px solid var(--border-color);
+      color: var(--text-color);
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-family: inherit;
+      outline: none;
+      cursor: pointer;
+      font-weight: 500;
+      transition: border-color 0.15s;
+    }
+    .tb-select:hover, .tb-select:focus {
+      border-color: var(--selection-color);
+    }
+
+    button.tb-btn {
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--text-color);
+      padding: 5px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      transition: background 0.15s, border-color 0.15s;
+    }
+
+    button.tb-btn:hover {
+      background: var(--hover-color);
+      border-color: var(--border-color);
+    }
+
+    button.tb-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    button.tb-btn svg {
+      width: 15px;
+      height: 15px;
+      fill: currentColor;
+    }
+
+    /* Main Container */
+    #main-container {
+      flex: 1;
+      display: flex;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Panels */
+    .panel {
+      background: var(--panel-bg);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .panel-header {
+      height: 36px;
+      padding: 0 12px;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      background: var(--toolbar-bg);
+    }
+
+    /* Left Sidebar: Node Properties & Tools */
+    #left-panel {
+      width: 270px;
+      min-width: 200px;
+      max-width: 450px;
+      border-right: 1px solid var(--border-color);
+    }
+
+    /* Left Tabs */
+    .left-tabs {
+      display: flex;
+      background: var(--toolbar-bg);
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .left-tab {
+      flex: 1;
+      padding: 8px 4px;
+      font-size: 11px;
+      font-weight: 600;
+      text-align: center;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      color: var(--text-muted);
+      transition: all 0.15s;
+    }
+
+    .left-tab:hover {
+      color: var(--text-color);
+      background: var(--hover-color);
+    }
+
+    .left-tab.active {
+      color: var(--btn-primary);
+      border-bottom-color: var(--btn-primary);
+      background: var(--panel-bg);
+    }
+
+    .tab-content {
+      flex: 1;
+      overflow-y: auto;
+      display: none;
+      flex-direction: column;
+    }
+
+    .tab-content.active {
+      display: flex;
+    }
+
+    .sidebar-section {
+      padding: 12px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .sidebar-section h4 {
+      font-size: 11px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+    }
+
+    /* Properties Editor Form */
+    .prop-group {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      margin-bottom: 10px;
+    }
+
+    .prop-group label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+
+    .prop-input {
+      padding: 5px 8px;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      background: var(--bg-color);
+      color: var(--text-color);
+      font-size: 12px;
+      font-family: inherit;
+      outline: none;
+      width: 100%;
+    }
+
+    .prop-input:focus {
+      border-color: var(--selection-color);
+    }
+
+    .prop-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .color-swatches {
+      display: flex;
+      gap: 5px;
+      flex-wrap: wrap;
+      margin-top: 4px;
+    }
+
+    .color-swatch {
+      width: 18px;
+      height: 18px;
+      border-radius: 3px;
+      cursor: pointer;
+      border: 1px solid var(--border-color);
+      transition: transform 0.1s;
+    }
+
+    .color-swatch:hover {
+      transform: scale(1.2);
+    }
+
+    .prop-action-btn {
+      padding: 6px;
+      border: 1px solid var(--border-color);
+      background: var(--bg-color);
+      color: var(--text-color);
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      transition: all 0.15s;
+    }
+    .prop-action-btn:hover {
+      background: var(--hover-color);
+      border-color: var(--selection-color);
+    }
+    .prop-action-btn.primary {
+      background: var(--btn-primary);
+      color: #FFFFFF;
+      border-color: var(--btn-primary);
+    }
+    .prop-action-btn.primary:hover {
+      opacity: 0.9;
+    }
+    .prop-action-btn.danger {
+      color: var(--btn-danger);
+      border-color: var(--btn-danger);
+    }
+    .prop-action-btn.danger:hover {
+      background: rgba(244, 67, 54, 0.1);
+    }
+
+    .shape-palette {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+    }
+
+    .shape-item {
+      padding: 8px 6px;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      background: var(--canvas-bg);
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      transition: all 0.15s;
+    }
+
+    .shape-item:hover {
+      border-color: var(--selection-color);
+      background: var(--hover-color);
+      transform: translateY(-1px);
+    }
+
+    .shape-item svg {
+      width: 44px;
+      height: 28px;
+    }
+
+    /* Template Cards in Modal */
+    .template-card {
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 10px;
+      background: var(--bg-color);
+      cursor: pointer;
+      transition: all 0.15s;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .template-card:hover {
+      border-color: var(--btn-primary);
+      background: var(--hover-color);
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .template-badge {
+      display: inline-block;
+      align-self: flex-start;
+      font-size: 10px;
+      font-family: var(--code-font);
+      background: var(--hover-color);
+      color: var(--btn-primary);
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-weight: 600;
+    }
+
+    .template-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-color);
+    }
+
+    .template-desc {
+      font-size: 11px;
+      color: var(--text-muted);
+      line-height: 1.3;
+    }
+
+    /* Rules Engine List */
+    .rules-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      font-size: 11px;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+
+    .rule-chip {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 4px 8px;
+      border-radius: 4px;
+      background: var(--canvas-bg);
+      border: 1px solid var(--border-color);
+    }
+
+    .rule-chip.allowed { border-left: 3px solid #4CAF50; }
+    .rule-chip.blocked { border-left: 3px solid #F44336; }
+
+    .rule-del-btn {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-weight: bold;
+    }
+    .rule-del-btn:hover { color: var(--btn-danger); }
+
+    /* Canvas Center */
+    #canvas-panel {
+      flex: 1;
+      position: relative;
+      background: var(--canvas-bg);
+      overflow: hidden;
+      cursor: default;
+    }
+
+    #canvas-svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+      cursor: grab;
+    }
+
+    #canvas-svg.panning, #canvas-svg.panning * {
+      cursor: grabbing !important;
+    }
+
+    /* Canvas Scrollbars */
+    .canvas-scrollbar {
+      position: absolute;
+      background: rgba(0, 0, 0, 0.05);
+      z-index: 18;
+      transition: background 0.15s, opacity 0.15s;
+      border-radius: 4px;
+      user-select: none;
+    }
+    [data-theme="dark"] .canvas-scrollbar {
+      background: rgba(255, 255, 255, 0.06);
+    }
+    .canvas-scrollbar:hover {
+      background: rgba(0, 0, 0, 0.1);
+    }
+    [data-theme="dark"] .canvas-scrollbar:hover {
+      background: rgba(255, 255, 255, 0.12);
+    }
+    .canvas-scrollbar.horizontal {
+      left: 0;
+      bottom: 0;
+      right: 12px;
+      height: 10px;
+    }
+    .canvas-scrollbar.vertical {
+      top: 0;
+      right: 0;
+      bottom: 12px;
+      width: 10px;
+    }
+    .scrollbar-thumb {
+      position: absolute;
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 5px;
+      cursor: grab;
+      transition: background 0.15s;
+    }
+    [data-theme="dark"] .scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.3);
+    }
+    .scrollbar-thumb:hover, .scrollbar-thumb.dragging {
+      background: var(--selection-color);
+      cursor: grabbing;
+    }
+
+    /* Right Panel: Mermaid Code Editor */
+    #right-panel {
+      width: 340px;
+      min-width: 220px;
+      max-width: 600px;
+      border-left: 1px solid var(--border-color);
+      transition: width 0.15s ease;
+    }
+    #right-panel.collapsed {
+      display: none !important;
+    }
+    #right-splitter.collapsed {
+      display: none !important;
+    }
+
+    #editor-container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      background: var(--panel-bg);
+    }
+
+    #editor-wrapper {
+      position: relative;
+      flex: 1;
+      overflow: auto;
+      font-family: var(--code-font);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    #code-editor, #code-highlight {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      padding: 12px;
+      margin: 0;
+      border: none;
+      outline: none;
+      white-space: pre;
+      overflow: auto;
+      tab-size: 2;
+      font-family: inherit;
+      font-size: inherit;
+      line-height: inherit;
+      box-sizing: border-box;
+      user-select: text;
+    }
+
+    #code-editor {
+      background: transparent;
+      color: transparent;
+      caret-color: var(--text-color);
+      z-index: 2;
+      resize: none;
+      spellcheck: false;
+    }
+
+    #code-highlight {
+      background: var(--panel-bg);
+      color: var(--text-color);
+      z-index: 1;
+      pointer-events: none;
+    }
+
+    /* Mermaid Syntax Highlighting */
+    .hl-keyword { color: #D73A49; font-weight: bold; }
+    [data-theme="dark"] .hl-keyword { color: #FF7B72; font-weight: bold; }
+    .hl-dir { color: #005CC5; font-weight: bold; }
+    [data-theme="dark"] .hl-dir { color: #79C0FF; font-weight: bold; }
+    .hl-nodeid { color: #6F42C1; font-weight: 600; }
+    [data-theme="dark"] .hl-nodeid { color: #D2A8FF; font-weight: 600; }
+    .hl-shape { color: #22863A; }
+    [data-theme="dark"] .hl-shape { color: #7EE787; }
+    .hl-arrow { color: #E36209; font-weight: bold; }
+    [data-theme="dark"] .hl-arrow { color: #FFA657; font-weight: bold; }
+    .hl-label { color: #032F62; }
+    [data-theme="dark"] .hl-label { color: #A5D6FF; }
+    .hl-comment { color: #6A737D; font-style: italic; }
+    [data-theme="dark"] .hl-comment { color: #8B949E; font-style: italic; }
+    .hl-style { color: #B31D28; }
+    [data-theme="dark"] .hl-style { color: #FF7B72; }
+
+    #editor-status-bar {
+      padding: 6px 12px;
+      font-size: 11px;
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--toolbar-bg);
+    }
+
+    #editor-error {
+      color: var(--btn-danger);
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 200px;
+    }
+
+    /* Splitters */
+    .splitter {
+      width: 5px;
+      background: var(--border-color);
+      cursor: col-resize;
+      z-index: 10;
+      transition: background 0.2s;
+    }
+    .splitter:hover, .splitter.active {
+      background: var(--selection-color);
+    }
+
+    /* Floating View Controls */
+    #floating-controls {
+      position: absolute;
+      top: 14px;
+      right: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      background: var(--panel-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 4px;
+      box-shadow: var(--shadow);
+      z-index: 15;
+    }
+
+    .float-btn {
+      width: 30px;
+      height: 30px;
+      border: none;
+      background: transparent;
+      color: var(--text-color);
+      border-radius: 4px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: bold;
+    }
+
+    .float-btn:hover {
+      background: var(--hover-color);
+    }
+
+    /* Minimap */
+    #minimap-container {
+      position: absolute;
+      bottom: 14px;
+      right: 14px;
+      width: 180px;
+      height: 120px;
+      background: var(--panel-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      z-index: 15;
+    }
+
+    #minimap-svg {
+      width: 100%;
+      height: 100%;
+    }
+
+    #minimap-viewport {
+      fill: var(--selection-box);
+      stroke: var(--selection-color);
+      stroke-width: 1.5;
+      cursor: grab;
+    }
+
+    /* Status Bar */
+    #status-bar {
+      height: 26px;
+      background: var(--toolbar-bg);
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      padding: 0 12px;
+      font-size: 11px;
+      color: var(--text-muted);
+      gap: 16px;
+      z-index: 20;
+    }
+
+    .status-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    /* Modals & Dialogs */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: var(--modal-overlay);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+
+    .modal-overlay.open {
+      display: flex;
+    }
+
+    .modal-card {
+      background: var(--modal-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      width: 420px;
+      max-width: 90vw;
+      box-shadow: var(--shadow);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      animation: modalPop 0.15s ease-out;
+    }
+
+    @keyframes modalPop {
+      from { transform: scale(0.95); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+
+    .modal-header {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border-color);
+      font-size: 14px;
+      font-weight: 600;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .modal-body {
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      font-size: 12px;
+    }
+
+    .modal-footer {
+      padding: 12px 16px;
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      background: var(--toolbar-bg);
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .form-group label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+
+    .form-control {
+      padding: 7px 10px;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      background: var(--bg-color);
+      color: var(--text-color);
+      font-size: 12px;
+      font-family: inherit;
+      outline: none;
+    }
+
+    .form-control:focus {
+      border-color: var(--selection-color);
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .color-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+
+    .color-input-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      border: 1px solid var(--border-color);
+      padding: 3px 6px;
+      border-radius: 4px;
+    }
+
+    .color-input-wrapper input[type="color"] {
+      border: none;
+      width: 22px;
+      height: 22px;
+      border-radius: 3px;
+      cursor: pointer;
+      background: none;
+    }
+
+    .btn {
+      padding: 6px 12px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: all 0.15s;
+    }
+
+    .btn-primary {
+      background: var(--btn-primary);
+      color: #FFF;
+    }
+    .btn-primary:hover {
+      background: var(--btn-primary-hover);
+    }
+
+    .btn-secondary {
+      background: var(--btn-secondary);
+      color: var(--text-color);
+      border-color: var(--border-color);
+    }
+    .btn-secondary:hover {
+      background: var(--hover-color);
+    }
+
+    .btn-danger {
+      background: var(--btn-danger);
+      color: #FFF;
+    }
+
+    /* Search Box */
+    #search-box {
+      position: absolute;
+      top: 14px;
+      left: 14px;
+      background: var(--modal-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      box-shadow: var(--shadow);
+      padding: 6px 10px;
+      display: none;
+      align-items: center;
+      gap: 8px;
+      z-index: 100;
+    }
+
+    #search-box.open {
+      display: flex;
+    }
+
+    #search-input {
+      border: none;
+      background: transparent;
+      color: var(--text-color);
+      outline: none;
+      font-size: 12px;
+      width: 160px;
+    }
+
+    #search-results-count {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    /* Canvas Elements */
+    .canvas-node {
+      cursor: move;
+      transition: filter 0.15s;
+    }
+
+    .canvas-node:hover .node-shape {
+      filter: drop-shadow(0 2px 5px rgba(0,0,0,0.15));
+    }
+
+    .canvas-node.selected .node-shape {
+      stroke: var(--selection-color) !important;
+      stroke-width: 2.5px !important;
+    }
+
+    .node-port {
+      fill: var(--bg-color);
+      stroke: var(--selection-color);
+      stroke-width: 1.5;
+      cursor: crosshair;
+      opacity: 0;
+      transition: opacity 0.12s, fill 0.12s;
+    }
+
+    .canvas-node:hover .node-port, .canvas-node.selected .node-port, #canvas-panel.connecting .node-port {
+      opacity: 0.95;
+    }
+
+    .node-port:hover, #canvas-panel.connecting .node-port:hover {
+      opacity: 1;
+      fill: var(--selection-color);
+      stroke-width: 2.2;
+    }
+
+    .canvas-edge {
+      cursor: pointer;
+    }
+
+    .canvas-edge-path {
+      fill: none;
+      stroke: var(--link-color);
+      stroke-width: 2;
+      transition: stroke 0.15s, stroke-width 0.15s;
+    }
+
+    .canvas-edge:hover .canvas-edge-path {
+      stroke: var(--link-selected);
+      stroke-width: 2.5;
+    }
+
+    .canvas-edge.selected .canvas-edge-path {
+      stroke: var(--selection-color);
+      stroke-width: 3;
+    }
+
+    .edge-label-bg {
+      fill: var(--bg-color);
+      stroke: var(--border-color);
+      stroke-width: 1;
+      rx: 4;
+    }
+
+    .edge-label-text {
+      font-size: 11px;
+      fill: var(--text-color);
+      text-anchor: middle;
+      dominant-baseline: central;
+      pointer-events: none;
+    }
+
+    .canvas-edge.selected .edge-label-bg {
+      stroke: var(--selection-color);
+    }
+
+    .marquee-box {
+      fill: var(--selection-box);
+      stroke: var(--selection-color);
+      stroke-width: 1;
+      stroke-dasharray: 4 2;
+      pointer-events: none;
+    }
+
+    .connecting-line {
+      stroke: var(--selection-color);
+      stroke-width: 2;
+      stroke-dasharray: 5 4;
+      pointer-events: none;
+    }
+
+    /* Toast */
+    #toast {
+      position: fixed;
+      bottom: 40px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: #323232;
+      color: #FFF;
+      padding: 8px 18px;
+      border-radius: 20px;
+      font-size: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+      z-index: 2000;
+      opacity: 0;
+      transition: transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.25s;
+      pointer-events: none;
+    }
+    #toast.show {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
+    #toast.error {
+      background: #D32F2F;
+    }
+    #toast.success {
+      background: #388E3C;
+    }
+
+    #file-input {
+      display: none;
+    }
+</style>
+</head>
+<body>
+  <!-- Toolbar -->
+  <div id="toolbar">
+    <div class="app-title">
+      <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+      <span>Mermaid Editor</span>
+    </div>
+
+    <!-- Diagram Type Selector Dropdown -->
+    <div class="toolbar-group">
+      <label style="font-size:11px; font-weight:600; color:var(--text-muted); margin-right:2px;">Type:</label>
+      <select id="diagram-type-select" class="tb-select" title="Active Diagram Type (Switch to load template)">
+        <option value="flowchart_td">Flowchart TD</option>
+        <option value="flowchart_lr">Flowchart LR</option>
+        <option value="sequence">Sequence Diagram</option>
+        <option value="classDiagram">Class Diagram</option>
+        <option value="stateDiagram">State Diagram</option>
+        <option value="erDiagram">ER Diagram</option>
+        <option value="gantt">Gantt Chart</option>
+        <option value="pie">Pie Chart</option>
+        <option value="gitGraph">Git Graph</option>
+        <option value="journey">User Journey</option>
+        <option value="mindmap">Mindmap</option>
+        <option value="timeline">Timeline</option>
+        <option value="quadrant">Quadrant Chart</option>
+        <option value="c4context">C4 Architecture</option>
+        <option value="sankey">Sankey</option>
+      </select>
+      <button class="tb-btn" id="btn-templates" title="Browse & Load Diagram Starter Templates">
+        <svg viewBox="0 0 24 24"><path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H8V4h12v12z"/></svg>
+        <span>Templates</span>
+      </button>
+    </div>
+
+    <div class="toolbar-group">
+      <button class="tb-btn" id="btn-new" title="New Project (Ctrl+N)">
+        <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+        <span>New</span>
+      </button>
+      <button class="tb-btn" id="btn-open" title="Open Project (Ctrl+O)">
+        <svg viewBox="0 0 24 24"><path d="M20 6h-8l-2-2H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm0 12H4V8h16v10z"/></svg>
+        <span>Open</span>
+      </button>
+      <button class="tb-btn" id="btn-export-dialog" title="Export / Save Diagram (PNG, SVG, JSON, MMD) (Ctrl+S)">
+        <svg viewBox="0 0 24 24"><path d="M19 12v7H5v-7H3v7c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-7h-2zm-6 .67l2.59-2.58L17 11.5l-5 5-5-5 1.41-1.41L11 12.67V3h2z"/></svg>
+        <span>Export</span>
+      </button>
+    </div>
+
+    <div class="toolbar-group">
+      <button class="tb-btn" id="btn-undo" title="Undo (Ctrl+Z)">
+        <svg viewBox="0 0 24 24"><path d="M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z"/></svg>
+      </button>
+      <button class="tb-btn" id="btn-redo" title="Redo (Ctrl+Y / Ctrl+Shift+Z)">
+        <svg viewBox="0 0 24 24"><path d="M18.4 10.6C16.55 8.99 14.15 8 11.5 8c-4.65 0-8.58 3.03-9.96 7.22L3.9 16c1.05-3.19 4.05-5.5 7.6-5.5 1.95 0 3.73.72 5.12 1.88L13 16h9V7l-3.6 3.6z"/></svg>
+      </button>
+    </div>
+
+    <div class="toolbar-group">
+      <button class="tb-btn" id="btn-add-node" title="Add Node">
+        <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+        <span>Node</span>
+      </button>
+      <button class="tb-btn" id="btn-add-link" title="Connection Wizard">
+        <svg viewBox="0 0 24 24"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/></svg>
+        <span>Link</span>
+      </button>
+      <button class="tb-btn" id="btn-autolayout-td" title="Auto Layout Top-Down (Ctrl+Z to Undo)">
+        <span>Layout TD</span>
+      </button>
+      <button class="tb-btn" id="btn-autolayout-lr" title="Auto Layout Left-Right (Ctrl+Z to Undo)">
+        <span>Layout LR</span>
+      </button>
+    </div>
+
+    <div class="toolbar-group">
+      <button class="tb-btn" id="btn-rules" title="Connection Rules">
+        <span>Rules</span>
+      </button>
+      <button class="tb-btn active" id="btn-toggle-code" title="Toggle Mermaid Code Panel (Show/Hide)">
+        <svg viewBox="0 0 24 24"><path d="M9.4 16.6L4.8 12l4.6-4.6L8 6l-6 6 6 6 1.4-1.4zm5.2 0l4.6-4.6-4.6-4.6L16 6l6 6-6 6-1.4-1.4z"/></svg>
+        <span>Code</span>
+      </button>
+      <button class="tb-btn" id="btn-search-toggle" title="Search (Ctrl+F)">
+        <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+      </button>
+      <button class="tb-btn" id="btn-theme" title="Toggle Light/Dark Theme">
+        <svg id="theme-icon" viewBox="0 0 24 24"><path d="M20 8.69V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12 20 8.69zM12 18c-3.31 0-6-2.69-6-6s2.69-6 6-6 6 2.69 6 6-2.69 6-6 6z"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Main Workspace -->
+  <div id="main-container">
+    <!-- Left Sidebar: Palette / Rules / Inspector -->
+    <div id="left-panel" class="panel">
+      <!-- Tabs (Shapes, Rules, Inspector) -->
+      <div class="left-tabs">
+        <div class="left-tab" data-tab="shapes">Shapes</div>
+        <div class="left-tab" data-tab="rules">Rules</div>
+        <div class="left-tab active" data-tab="properties">Inspector</div>
+      </div>
+
+      <!-- Tab 1: Live Properties Editor -->
+      <div id="tab-properties" class="tab-content active" style="padding:12px;">
+        <div id="prop-empty" style="color:var(--text-muted); font-size:12px; text-align:center; padding:20px 0;">
+          Select a node or link to edit properties, or configure diagram below.
+        </div>
+
+        <!-- Node Properties Form -->
+        <div id="node-props-form" style="display:none;">
+          <h4 style="font-size:11px; text-transform:uppercase; color:var(--text-muted); margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;">
+            <span>Node Properties</span>
+            <span id="prop-node-id-badge" style="background:var(--hover-color); padding:2px 6px; border-radius:3px; font-weight:bold; color:var(--btn-primary);"></span>
+          </h4>
+
+          <div class="prop-group">
+            <label>Display Text</label>
+            <input type="text" id="prop-node-text" class="prop-input" placeholder="Node Label">
+          </div>
+
+          <div class="prop-group">
+            <label>Shape</label>
+            <select id="prop-node-shape" class="prop-input">
+              <option value="rectangle">Rectangle [Process]</option>
+              <option value="rounded">Rounded Rectangle (State / Item)</option>
+              <option value="stadium">Stadium / Pill ([Start / End])</option>
+              <option value="subroutine">Subroutine [[Subprocess]]</option>
+              <option value="cylinder">Cylinder [(Database / Storage)]</option>
+              <option value="circle">Circle ((Point / Node))</option>
+              <option value="double_circle">Double Circle (((Event / End State)))</option>
+              <option value="asymmetric">Asymmetric &gt;Flag / Banner]</option>
+              <option value="diamond">Diamond / Decision {Condition}</option>
+              <option value="hexagon">Hexagon {{Preparation / Loop}}</option>
+              <option value="parallelogram">Parallelogram [/Input - Output/]</option>
+              <option value="parallelogram_alt">Parallelogram Alt [\Alt In - Out\]</option>
+              <option value="trapezoid">Trapezoid [/Manual Operation\]</option>
+              <option value="trapezoid_alt">Trapezoid Alt [\Manual Task/]</option>
+            </select>
+          </div>
+
+          <div class="prop-row">
+            <div class="prop-group" style="margin-bottom:0;">
+              <label>Width</label>
+              <input type="number" id="prop-node-w" class="prop-input" min="60" max="400" step="10">
+            </div>
+            <div class="prop-group" style="margin-bottom:0;">
+              <label>Height</label>
+              <input type="number" id="prop-node-h" class="prop-input" min="30" max="250" step="5">
+            </div>
+          </div>
+
+          <div class="prop-row">
+            <div class="prop-group" style="margin-bottom:0;">
+              <label>Pos X</label>
+              <input type="number" id="prop-node-x" class="prop-input" step="10">
+            </div>
+            <div class="prop-group" style="margin-bottom:0;">
+              <label>Pos Y</label>
+              <input type="number" id="prop-node-y" class="prop-input" step="10">
+            </div>
+          </div>
+
+          <div class="prop-group">
+            <label>Fill Color</label>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <input type="color" id="prop-node-fill" style="width:32px; height:26px; border:none; border-radius:3px; cursor:pointer;">
+              <span id="prop-node-fill-val" style="font-size:11px; font-family:var(--code-font);">#E3F2FD</span>
+            </div>
+            <div class="color-swatches" id="fill-swatches">
+              <div class="color-swatch" style="background:#E3F2FD;" data-fill="#E3F2FD" data-border="#90CAF9" data-font="#0D47A1" title="Light Blue"></div>
+              <div class="color-swatch" style="background:#E8F5E9;" data-fill="#E8F5E9" data-border="#A5D6A7" data-font="#1B5E20" title="Green"></div>
+              <div class="color-swatch" style="background:#FFF3E0;" data-fill="#FFF3E0" data-border="#FFE082" data-font="#E65100" title="Orange"></div>
+              <div class="color-swatch" style="background:#F3E5F5;" data-fill="#F3E5F5" data-border="#CE93D8" data-font="#4A148C" title="Purple"></div>
+              <div class="color-swatch" style="background:#FFEBEE;" data-fill="#FFEBEE" data-border="#EF9A9A" data-font="#B71C1C" title="Red"></div>
+              <div class="color-swatch" style="background:#ECEFF1;" data-fill="#ECEFF1" data-border="#B0BEC5" data-font="#263238" title="Gray"></div>
+              <div class="color-swatch" style="background:#2D4A66;" data-fill="#2D4A66" data-border="#4FC3F7" data-font="#E1F5FE" title="Dark Blue"></div>
+            </div>
+          </div>
+
+          <div class="prop-row">
+            <div class="prop-group" style="margin-bottom:0;">
+              <label>Border Color</label>
+              <input type="color" id="prop-node-border" style="width:100%; height:26px; border:none; border-radius:3px; cursor:pointer;">
+            </div>
+            <div class="prop-group" style="margin-bottom:0;">
+              <label>Font Color</label>
+              <input type="color" id="prop-node-font" style="width:100%; height:26px; border:none; border-radius:3px; cursor:pointer;">
+            </div>
+          </div>
+
+          <div style="display:flex; gap:8px; margin-top:14px;">
+            <button class="prop-action-btn primary" id="btn-node-prop-save" style="flex:1;">Save / Apply</button>
+            <button class="prop-action-btn" id="btn-node-prop-reset" style="flex:1;">Reset</button>
+            <button class="prop-action-btn danger" id="btn-node-prop-deselect" style="padding:6px 10px;" title="Deselect node">✕</button>
+          </div>
+
+          <div style="display:flex; flex-direction:column; gap:6px; margin-top:10px;">
+            <button class="prop-action-btn" id="btn-prop-duplicate">⎘ Duplicate Node</button>
+            <button class="prop-action-btn" id="btn-prop-connect">↗ Add Connection</button>
+            <button class="prop-action-btn" id="btn-prop-delete" style="color:var(--btn-danger);">✕ Delete Node</button>
+          </div>
+        </div>
+
+        <!-- Edge Properties Form -->
+        <div id="edge-props-form" style="display:none;">
+          <h4 style="font-size:11px; text-transform:uppercase; color:var(--text-muted); margin-bottom:12px;">Link Properties</h4>
+          <div class="prop-group">
+            <label>Edge Label</label>
+            <input type="text" id="prop-edge-label" class="prop-input" placeholder="e.g. Yes / Action">
+          </div>
+          <div class="prop-group">
+            <label>Arrow Type</label>
+            <select id="prop-edge-type" class="prop-input">
+              <option value="-->">Solid Arrow (--&gt;)</option>
+              <option value="--->">Long / Solid (---&gt;)</option>
+              <option value="==>">Thick Arrow (==&gt;)</option>
+              <option value="-.->">Dotted Arrow (-.-&gt;)</option>
+              <option value="<-->">Bidirectional (&lt;--&gt;)</option>
+              <option value="<==>">Bidirectional Thick (&lt;==&gt;)</option>
+            </select>
+          </div>
+
+          <div class="prop-group">
+            <label>Link Color</label>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <input type="color" id="prop-edge-color" style="width:32px; height:26px; border:none; border-radius:3px; cursor:pointer;">
+              <span id="prop-edge-color-val" style="font-size:11px; font-family:var(--code-font);">#616161</span>
+            </div>
+            <div class="color-swatches" id="edge-color-swatches" style="margin-top:6px;">
+              <div class="color-swatch" style="background:#616161;" data-color="#616161" title="Gray"></div>
+              <div class="color-swatch" style="background:#2196F3;" data-color="#2196F3" title="Blue"></div>
+              <div class="color-swatch" style="background:#4CAF50;" data-color="#4CAF50" title="Green"></div>
+              <div class="color-swatch" style="background:#FF9800;" data-color="#FF9800" title="Orange"></div>
+              <div class="color-swatch" style="background:#F44336;" data-color="#F44336" title="Red"></div>
+              <div class="color-swatch" style="background:#9C27B0;" data-color="#9C27B0" title="Purple"></div>
+              <div class="color-swatch" style="background:#00BCD4;" data-color="#00BCD4" title="Cyan"></div>
+            </div>
+          </div>
+
+          <div class="prop-group">
+            <label>Line Thickness</label>
+            <select id="prop-edge-width" class="prop-input">
+              <option value="1.5">Thin (1.5px)</option>
+              <option value="2">Medium (2px - Default)</option>
+              <option value="3">Thick (3px)</option>
+              <option value="4">Heavy (4px)</option>
+            </select>
+          </div>
+
+          <div class="prop-group">
+            <label>Label Font Color</label>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <input type="color" id="prop-edge-text-color" style="width:32px; height:26px; border:none; border-radius:3px; cursor:pointer;" value="#212121">
+              <span id="prop-edge-text-color-val" style="font-size:11px; font-family:var(--code-font);">#212121</span>
+            </div>
+            <div class="color-swatches" id="edge-text-color-swatches" style="margin-top:6px;">
+              <div class="color-swatch" style="background:#212121;" data-color="#212121" title="Dark"></div>
+              <div class="color-swatch" style="background:#FFFFFF;" data-color="#FFFFFF" title="White"></div>
+              <div class="color-swatch" style="background:#2196F3;" data-color="#2196F3" title="Blue"></div>
+              <div class="color-swatch" style="background:#4CAF50;" data-color="#4CAF50" title="Green"></div>
+              <div class="color-swatch" style="background:#FF9800;" data-color="#FF9800" title="Orange"></div>
+              <div class="color-swatch" style="background:#F44336;" data-color="#F44336" title="Red"></div>
+              <div class="color-swatch" style="background:#9C27B0;" data-color="#9C27B0" title="Purple"></div>
+            </div>
+          </div>
+
+          <div style="display:flex; gap:8px; margin-top:14px;">
+            <button class="prop-action-btn primary" id="btn-edge-prop-save" style="flex:1;">Save / Apply</button>
+            <button class="prop-action-btn" id="btn-edge-prop-reset" style="flex:1;">Reset</button>
+            <button class="prop-action-btn danger" id="btn-edge-prop-deselect" style="padding:6px 10px;" title="Deselect link">✕</button>
+          </div>
+
+          <button class="prop-action-btn" id="btn-prop-edge-delete" style="color:var(--btn-danger); margin-top:10px;">✕ Delete Link</button>
+        </div>
+
+        <!-- Canvas Properties Fallback -->
+        <div id="canvas-props-form" style="margin-top:10px; border-top:1px solid var(--border-color); padding-top:12px;">
+          <h4 style="font-size:11px; text-transform:uppercase; color:var(--text-muted); margin-bottom:10px;">Canvas Settings</h4>
+          <div class="prop-group">
+            <label style="display:flex; align-items:center; gap:6px; cursor:pointer;">
+              <input type="checkbox" id="prop-grid-snap" checked>
+              <span>Snap to 20px Grid</span>
+            </label>
+          </div>
+          <div class="prop-group">
+            <label>Layout Direction</label>
+            <div style="display:flex; gap:6px;">
+              <button class="prop-action-btn" id="btn-canvas-layout-td" style="flex:1;">Top-Down</button>
+              <button class="prop-action-btn" id="btn-canvas-layout-lr" style="flex:1;">Left-Right</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Dynamic Visual Diagram Object Properties Form -->
+        <div id="visual-props-form" style="display:none;">
+          <h4 style="font-size:11px; text-transform:uppercase; color:var(--text-muted); margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;">
+            <span id="visual-prop-title">Object Properties</span>
+            <span id="visual-prop-type-badge" style="background:var(--hover-color); padding:2px 6px; border-radius:3px; font-weight:bold; color:var(--btn-primary);"></span>
+          </h4>
+          <div id="visual-prop-fields"></div>
+        </div>
+      </div>
+
+      <!-- Tab 2: Shape Palette -->
+      <div id="tab-shapes" class="tab-content" style="padding:12px;">
+        <h4 style="font-size:11px; text-transform:uppercase; color:var(--text-muted); margin-bottom:10px;">General Flowchart Shapes</h4>
+        <div class="shape-palette">
+          <div class="shape-item" data-shape="rectangle" title="Rectangle [Process]">
+            <svg viewBox="0 0 44 28"><rect x="2" y="2" width="40" height="24" rx="2" fill="var(--node-fill)" stroke="var(--node-border)" stroke-width="2"/></svg>
+            <span>Process</span>
+          </div>
+          <div class="shape-item" data-shape="rounded" title="Rounded Rectangle (Item / State)">
+            <svg viewBox="0 0 44 28"><rect x="2" y="2" width="40" height="24" rx="8" fill="var(--node-fill)" stroke="var(--node-border)" stroke-width="2"/></svg>
+            <span>Rounded</span>
+          </div>
+          <div class="shape-item" data-shape="stadium" title="Stadium / Pill ([Start / End])">
+            <svg viewBox="0 0 44 28"><rect x="2" y="2" width="40" height="24" rx="12" fill="var(--node-fill)" stroke="var(--node-border)" stroke-width="2"/></svg>
+            <span>Stadium</span>
+          </div>
+          <div class="shape-item" data-shape="subroutine" title="Subroutine [[Predefined Process]]">
+            <svg viewBox="0 0 44 28">
+              <rect x="2" y="2" width="40" height="24" rx="2" fill="var(--node-fill)" stroke="var(--node-border)" stroke-width="2"/>
+              <line x1="8" y1="2" x2="8" y2="26" stroke="var(--node-border)" stroke-width="1.8"/>
+              <line x1="36" y1="2" x2="36" y2="26" stroke="var(--node-border)" stroke-width="1.8"/>
+            </svg>
+            <span>Subroutine</span>
+          </div>
+          <div class="shape-item" data-shape="cylinder" title="Cylinder [(Database / Storage)]">
+            <svg viewBox="0 0 44 28">
+              <path d="M 4,7 L 4,21 A 18,5 0 0,0 40,21 L 40,7 A 18,5 0 0,0 4,7 Z" fill="var(--node-fill)" stroke="var(--node-border)" stroke-width="2"/>
+              <ellipse cx="22" cy="7" rx="18" ry="5" fill="var(--node-fill)" stroke="var(--node-border)" stroke-width="2"/>
+            </svg>
+            <span>Database</span>
+          </div>
+          <div class="shape-item" data-shape="circle" title="Circle ((Node / Junction))">
+            <svg viewBox="0 0 44 28"><ellipse cx="22" cy="14" rx="18" ry="12" fill="var(--node-fill)" stroke="var(--node-border)" stroke-width="2"/></svg>
+            <span>Circle</span>
+          </div>
+          <div class="shape-item" data-shape="double_circle" title="Double Circle (((Event / End State)))">
+            <svg viewBox="0 0 44 28">
+              <ellipse cx="22" cy="14" rx="18" ry="12" fill="var(--node-fill)" stroke="var(--node-border)" stroke-width="2"/>
+              <ellipse cx="22" cy="14" rx="13" ry="8" fill="none" stroke="var(--node-border)" stroke-width="1.5"/>
+            </svg>
+            <span>Dbl Circle</span>
+          </div>
+          <div class="shape-item" data-shape="asymmetric" title="Asymmetric &gt;Flag / Banner]">
+            <svg viewBox="0 0 44 28"><polygon points="2,2 42,2 42,26 2,26 10,14" fill="var(--node-fill)" stroke="var(--node-border)" stroke-width="2"/></svg>
+            <span>Banner</span>
+          </div>
+          <div class="shape-item" data-shape="diamond" title="Diamond / Decision {Condition}">
+            <svg viewBox="0 0 44 28"><polygon points="22,2 42,14 22,26 2,14" fill="var(--node-fill)" stroke="var(--node-border)" stroke-width="2"/></svg>
+            <span>Decision</span>
+          </div>
+          <div class="shape-item" data-shape="hexagon" title="Hexagon {{Preparation / Loop}}">
+            <svg viewBox="0 0 44 28"><polygon points="8,2 36,2 42,14 36,26 8,26 2,14" fill="var(--node-fill)" stroke="var(--node-border)" stroke-width="2"/></svg>
+            <span>Hexagon</span>
+          </div>
+          <div class="shape-item" data-shape="parallelogram" title="Parallelogram [/Input - Output/]">
+            <svg viewBox="0 0 44 28"><polygon points="8,2 42,2 36,26 2,26" fill="var(--node-fill)" stroke="var(--node-border)" stroke-width="2"/></svg>
+            <span>In / Out</span>
+          </div>
+          <div class="shape-item" data-shape="parallelogram_alt" title="Parallelogram Alt [\Alt In - Out\]">
+            <svg viewBox="0 0 44 28"><polygon points="2,2 36,2 42,26 8,26" fill="var(--node-fill)" stroke="var(--node-border)" stroke-width="2"/></svg>
+            <span>Alt In-Out</span>
+          </div>
+          <div class="shape-item" data-shape="trapezoid" title="Trapezoid [/Manual Operation\]">
+            <svg viewBox="0 0 44 28"><polygon points="8,2 36,2 42,26 2,26" fill="var(--node-fill)" stroke="var(--node-border)" stroke-width="2"/></svg>
+            <span>Trapezoid</span>
+          </div>
+          <div class="shape-item" data-shape="trapezoid_alt" title="Trapezoid Alt [\Manual Task/]">
+            <svg viewBox="0 0 44 28"><polygon points="2,2 42,2 36,26 8,26" fill="var(--node-fill)" stroke="var(--node-border)" stroke-width="2"/></svg>
+            <span>Inv Trapezoid</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 3: Connection Rules -->
+      <div id="tab-rules" class="tab-content" style="padding:12px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+          <h4 style="margin-bottom:0; font-size:11px; text-transform:uppercase; color:var(--text-muted);">Rules Engine</h4>
+          <button class="tb-btn" id="btn-add-rule-quick" style="padding:2px 6px; font-size:10px;">+ Add</button>
+        </div>
+        <div id="rules-quick-list" class="rules-list"></div>
+      </div>
+    </div>
+
+    <!-- Left Splitter -->
+    <div class="splitter" id="left-splitter"></div>
+
+    <!-- Center Canvas -->
+    <div id="canvas-panel">
+      <!-- Search Overlay -->
+      <div id="search-box">
+        <input type="text" id="search-input" placeholder="Search nodes & links..." autocomplete="off">
+        <span id="search-results-count">0/0</span>
+        <button class="float-btn" id="btn-search-prev" style="width:20px;height:20px;">▲</button>
+        <button class="float-btn" id="btn-search-next" style="width:20px;height:20px;">▼</button>
+        <button class="float-btn" id="btn-search-close" style="width:20px;height:20px;">✕</button>
+      </div>
+
+      <!-- Floating View Controls -->
+      <div id="floating-controls">
+        <button class="float-btn" id="btn-zoom-in" title="Zoom In (+)">+</button>
+        <button class="float-btn" id="btn-zoom-out" title="Zoom Out (-)">−</button>
+        <button class="float-btn" id="btn-zoom-fit" title="Fit Screen (Ctrl+0)">⊡</button>
+        <button class="float-btn" id="btn-zoom-reset" title="Actual Size (100%)">1:1</button>
+      </div>
+
+      <!-- Main SVG Canvas -->
+      <svg id="canvas-svg">
+        <defs>
+          <!-- Grid Pattern -->
+          <pattern id="canvas-grid" width="20" height="20" patternUnits="userSpaceOnUse">
+            <circle cx="2" cy="2" r="1.2" fill="var(--grid-dot)" />
+          </pattern>
+
+          <!-- Standard Arrow (-->) -->
+          <marker id="marker-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+            <path d="M 0 1.5 L 10 5 L 0 8.5 z" fill="var(--link-color)" />
+          </marker>
+          <marker id="marker-arrow-selected" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+            <path d="M 0 1.5 L 10 5 L 0 8.5 z" fill="var(--selection-color)" />
+          </marker>
+
+          <!-- Thick Arrow (==>) 50% Reduced Size -->
+          <marker id="marker-thick" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="3.5" markerHeight="3.5" orient="auto">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--link-color)" />
+          </marker>
+          <marker id="marker-thick-selected" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="3.5" markerHeight="3.5" orient="auto">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--selection-color)" />
+          </marker>
+
+          <!-- Start Arrow (<-->) -->
+          <marker id="marker-start-arrow" viewBox="0 0 10 10" refX="1" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+            <path d="M 10 1.5 L 0 5 L 10 8.5 z" fill="var(--link-color)" />
+          </marker>
+          <marker id="marker-start-arrow-selected" viewBox="0 0 10 10" refX="1" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+            <path d="M 10 1.5 L 0 5 L 10 8.5 z" fill="var(--selection-color)" />
+          </marker>
+
+          <!-- Start Thick Arrow (<==>) 50% Reduced Size -->
+          <marker id="marker-start-thick" viewBox="0 0 10 10" refX="2" refY="5" markerWidth="3.5" markerHeight="3.5" orient="auto">
+            <path d="M 10 0 L 0 5 L 10 10 z" fill="var(--link-color)" />
+          </marker>
+          <marker id="marker-start-thick-selected" viewBox="0 0 10 10" refX="2" refY="5" markerWidth="3.5" markerHeight="3.5" orient="auto">
+            <path d="M 10 0 L 0 5 L 10 10 z" fill="var(--selection-color)" />
+          </marker>
+        </defs>
+
+        <!-- Background grid -->
+        <rect id="canvas-grid-bg" width="100%" height="100%" fill="url(#canvas-grid)" />
+
+        <!-- Transformable Root Group -->
+        <g id="canvas-viewport">
+          <g id="edges-layer"></g>
+          <g id="temp-layer"></g>
+          <g id="nodes-layer"></g>
+          <rect id="marquee-rect" class="marquee-box" style="display:none;" />
+        </g>
+      </svg>
+
+      <!-- Minimap Overlay -->
+      <div id="minimap-container">
+        <svg id="minimap-svg">
+          <g id="minimap-content"></g>
+          <rect id="minimap-viewport" x="0" y="0" width="0" height="0" />
+        </svg>
+      </div>
+
+      <!-- Horizontal (H) and Vertical (V) Scrollbars -->
+      <div id="canvas-h-scrollbar" class="canvas-scrollbar horizontal" title="Scroll horizontally">
+        <div id="canvas-h-thumb" class="scrollbar-thumb"></div>
+      </div>
+      <div id="canvas-v-scrollbar" class="canvas-scrollbar vertical" title="Scroll vertically">
+        <div id="canvas-v-thumb" class="scrollbar-thumb"></div>
+      </div>
+    </div>
+
+    <!-- Right Splitter -->
+    <div class="splitter" id="right-splitter"></div>
+
+    <!-- Right Mermaid Code Editor -->
+    <div id="right-panel" class="panel">
+      <div class="panel-header">
+        <span>Mermaid Code</span>
+        <div style="display:flex; gap:4px; align-items:center;">
+          <button class="tb-btn" id="btn-sync-code" style="padding:2px 6px; font-size:10px;" title="Apply changes to visual canvas">Apply</button>
+          <button class="tb-btn" id="btn-close-code" style="padding:2px 6px; font-size:10px;" title="Hide Code Panel">✕</button>
+        </div>
+      </div>
+      <div id="editor-container">
+        <div id="editor-wrapper">
+          <pre id="code-highlight"><code></code></pre>
+          <textarea id="code-editor" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off"></textarea>
+        </div>
+        <div id="editor-status-bar">
+          <span id="editor-error">Valid Mermaid</span>
+          <span id="editor-type-label">Flowchart TD</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Status Bar -->
+  <div id="status-bar">
+    <div class="status-item"><span id="sb-type">Type: Flowchart</span></div>
+    <div class="status-item"><span id="sb-nodes">Nodes: 0</span></div>
+    <div class="status-item"><span id="sb-edges">Links: 0</span></div>
+    <div class="status-item"><span id="sb-zoom">Zoom: 100%</span></div>
+    <div class="status-item"><span id="sb-pos">X: 0, Y: 0</span></div>
+    <div class="status-item" style="margin-left:auto;"><span id="sb-status">Ready (Offline)</span></div>
+  </div>
+
+  <!-- Node Modal -->
+  <div class="modal-overlay" id="node-modal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <span id="node-modal-title">Edit Node</span>
+        <button class="float-btn" id="node-modal-close" style="width:24px;height:24px;">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Node ID (Unique, Immutable when editing)</label>
+          <input type="text" id="nm-id" class="form-control" placeholder="e.g. node_1">
+        </div>
+        <div class="form-group">
+          <label>Display Text</label>
+          <input type="text" id="nm-text" class="form-control" placeholder="e.g. Process Order">
+        </div>
+        <div class="form-group">
+          <label>Shape</label>
+          <select id="nm-shape" class="form-control">
+            <option value="rectangle">Rectangle [Process]</option>
+            <option value="rounded">Rounded Rectangle (State / Item)</option>
+            <option value="stadium">Stadium / Pill ([Start / End])</option>
+            <option value="subroutine">Subroutine [[Subprocess]]</option>
+            <option value="cylinder">Cylinder [(Database / Storage)]</option>
+            <option value="circle">Circle ((Point / Node))</option>
+            <option value="double_circle">Double Circle (((Event / End State)))</option>
+            <option value="asymmetric">Asymmetric &gt;Flag / Banner]</option>
+            <option value="diamond">Diamond / Decision {Condition}</option>
+            <option value="hexagon">Hexagon {{Preparation / Loop}}</option>
+            <option value="parallelogram">Parallelogram [/Input - Output/]</option>
+            <option value="parallelogram_alt">Parallelogram Alt [\Alt In - Out\]</option>
+            <option value="trapezoid">Trapezoid [/Manual Operation\]</option>
+            <option value="trapezoid_alt">Trapezoid Alt [\Manual Task/]</option>
+          </select>
+        </div>
+        <div class="color-row">
+          <div class="form-group">
+            <label>Fill Color</label>
+            <div class="color-input-wrapper">
+              <input type="color" id="nm-fill" value="#E3F2FD">
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Border Color</label>
+            <div class="color-input-wrapper">
+              <input type="color" id="nm-border" value="#90CAF9">
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Font Color</label>
+            <div class="color-input-wrapper">
+              <input type="color" id="nm-font" value="#0D47A1">
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="node-modal-cancel">Cancel</button>
+        <button class="btn btn-primary" id="node-modal-save">Save Node</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Connection Wizard Modal -->
+  <div class="modal-overlay" id="link-modal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <span id="link-modal-title">Connection Wizard</span>
+        <button class="float-btn" id="link-modal-close" style="width:24px;height:24px;">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Source Node</label>
+            <select id="lm-source" class="form-control"></select>
+          </div>
+          <div class="form-group">
+            <label>Target Node</label>
+            <select id="lm-target" class="form-control"></select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Edge Label (Optional)</label>
+          <input type="text" id="lm-label" class="form-control" placeholder="e.g. Yes / No / Action">
+        </div>
+        <div class="form-group">
+          <label>Arrow Type</label>
+          <select id="lm-type" class="form-control">
+            <option value="-->">Solid Arrow (--&gt;)</option>
+            <option value="--->">Long / Solid (---&gt;)</option>
+            <option value="==>">Thick Arrow (==&gt;)</option>
+            <option value="-.->">Dotted Arrow (-.-&gt;)</option>
+            <option value="<-->">Bidirectional (&lt;--&gt;)</option>
+            <option value="<==>">Bidirectional Thick (&lt;==&gt;)</option>
+          </select>
+        </div>
+        <div id="lm-rule-status" style="font-size:11px; padding:6px; border-radius:4px; display:none;"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="link-modal-cancel">Cancel</button>
+        <button class="btn btn-primary" id="link-modal-create">Create Connection</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Rules Management Modal -->
+  <div class="modal-overlay" id="rules-modal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <span>Connection Rules Engine</span>
+        <button class="float-btn" id="rules-modal-close" style="width:24px;height:24px;">✕</button>
+      </div>
+      <div class="modal-body">
+        <p style="color:var(--text-muted); font-size:11px;">Configure allowed or blocked connection patterns between nodes (e.g. Client-&gt;API).</p>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Rule Type</label>
+            <select id="rm-type" class="form-control">
+              <option value="allowed">Allowed Rule</option>
+              <option value="blocked">Blocked Rule</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Pattern (Source->Target)</label>
+            <input type="text" id="rm-pattern" class="form-control" placeholder="e.g. A->B or *->DB">
+          </div>
+        </div>
+        <button class="btn btn-secondary" id="rm-add-btn" style="align-self:flex-start;">Add Rule</button>
+        <div class="form-group" style="margin-top:8px;">
+          <label>Active Rules</label>
+          <div id="rules-full-list" class="rules-list" style="max-height:180px;"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" id="rules-modal-done">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Templates Chooser Modal (All 15 Mermaid Diagram Types) -->
+  <div class="modal-overlay" id="templates-modal">
+    <div class="modal-card" style="width:640px; max-width:94vw;">
+      <div class="modal-header">
+        <span>Mermaid Diagram Types & Verified Templates</span>
+        <button class="float-btn" id="templates-modal-close" style="width:24px;height:24px;">✕</button>
+      </div>
+      <div class="modal-body" style="max-height:68vh; overflow-y:auto;">
+        <p style="color:var(--text-muted); font-size:11px;">Select any official Mermaid diagram type to load its clean starter template.</p>
+        <div style="display:grid; grid-template-columns: repeat(2, 1fr); gap:10px;" id="templates-grid">
+          <!-- Dynamically populated from DIAGRAM_TEMPLATES -->
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="templates-modal-cancel">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Export Options Modal -->
+  <div class="modal-overlay" id="export-modal">
+    <div class="modal-card" style="width:420px; max-width:92vw;">
+      <div class="modal-header">
+        <span>Export Diagram Options</span>
+        <button class="float-btn" id="export-modal-close" style="width:24px;height:24px;">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label style="font-weight:600;">Custom File Name</label>
+          <input type="text" id="export-filename" class="form-control" value="diagram" placeholder="e.g. my-system-architecture">
+          <span style="font-size:10px; color:var(--text-muted); margin-top:3px; display:block;">File extension (.png, .svg, .json, .mmd) is appended automatically.</span>
+        </div>
+
+        <div class="form-row" style="margin-top:10px;">
+          <div class="form-group">
+            <label>Background</label>
+            <select id="export-bg-option" class="form-control">
+              <option value="theme">⚪ Theme Default</option>
+              <option value="transparent" selected>🏁 Transparent</option>
+              <option value="white">⬜ Pure White</option>
+              <option value="dark">⬛ Dark Background</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Resolution Scale</label>
+            <select id="export-scale-option" class="form-control">
+              <option value="1">1x (Standard)</option>
+              <option value="2" selected>2x (Retina 2x)</option>
+              <option value="3">3x (Ultra HD)</option>
+              <option value="4">4x (Max Sharpness)</option>
+            </select>
+          </div>
+        </div>
+
+        <label style="font-size:11px; text-transform:uppercase; color:var(--text-muted); margin-top:12px; display:block; font-weight:600;">Download Formats</label>
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-top:6px;">
+          <button class="btn btn-primary" id="btn-do-export-png" style="display:flex; justify-content:center; align-items:center; gap:6px;">
+            <svg viewBox="0 0 24 24" style="width:15px;height:15px;fill:currentColor;"><path d="M19 12v7H5v-7H3v7c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-7h-2zm-6 .67l2.59-2.58L17 11.5l-5 5-5-5 1.41-1.41L11 12.67V3h2z"/></svg>
+            <span>Download PNG</span>
+          </button>
+          <button class="btn btn-secondary" id="btn-do-export-svg" style="display:flex; justify-content:center; align-items:center; gap:6px;">
+            <svg viewBox="0 0 24 24" style="width:15px;height:15px;fill:currentColor;"><path d="M19 12v7H5v-7H3v7c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-7h-2zm-6 .67l2.59-2.58L17 11.5l-5 5-5-5 1.41-1.41L11 12.67V3h2z"/></svg>
+            <span>Download SVG</span>
+          </button>
+        </div>
+
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-top:8px;">
+          <button class="btn btn-secondary" id="btn-do-export-json" title="Save full project to JSON file">Save Project (.json)</button>
+          <button class="btn btn-secondary" id="btn-do-export-mmd" title="Export raw Mermaid code file">Mermaid Code (.mmd)</button>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="export-modal-cancel">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Delete Confirm Modal -->
+  <div class="modal-overlay" id="confirm-modal">
+    <div class="modal-card" style="width:340px;">
+      <div class="modal-header">
+        <span id="confirm-title">Confirm Action</span>
+      </div>
+      <div class="modal-body">
+        <p id="confirm-message">Are you sure you want to delete this item?</p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="confirm-no">No</button>
+        <button class="btn btn-danger" id="confirm-yes">Yes</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast">Message</div>
+  <input type="file" id="file-input" accept=".json,.graph.json,.mmd">
+
+  <!-- Core Application Script -->
+                    , 'm');
+                    return curCode.replace(reg, `  ${tr.from} --> ${tr.to}${vals.label ? ' : ' + vals.label : ''}`);
+                  });
+                }
+              });
+            }
+          });
+
+          edgesLayer.appendChild(lineG);
         });
         break;
       }
@@ -4868,6 +6759,7 @@ class MultiDiagramVisualizer {
         const rawLines = (code || '').split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('%%') && !l.startsWith('erDiagram'));
         const entities = [];
         const entityMap = new Map();
+        const relationships = [];
         let curEntity = null;
 
         rawLines.forEach(line => {
@@ -4884,6 +6776,12 @@ class MultiDiagramVisualizer {
             return;
           }
 
+          const relMatch = line.match(/^([A-Za-z0-9_]+)\s*(\|\|--o\{|\|\|--\|\{|\}\|--\|\{|\}\|--o\{|--)\s*([A-Za-z0-9_]+)(?:\s*:\s*(.+))?/);
+          if (relMatch) {
+            relationships.push({ src: relMatch[1], card: relMatch[2], tgt: relMatch[3], label: relMatch[4] || '' });
+            return;
+          }
+
           if (curEntity) {
             curEntity.fields.push(line);
           }
@@ -4892,13 +6790,19 @@ class MultiDiagramVisualizer {
         if (entities.length === 0) {
           entities.push({ name: 'CUSTOMER', fields: ['int id PK', 'string name', 'string email'] });
           entities.push({ name: 'ORDER', fields: ['int id PK', 'int customer_id FK', 'date order_date'] });
+          entities.push({ name: 'PRODUCT', fields: ['int id PK', 'string name', 'decimal price'] });
         }
 
+        const colW = 200;
         entities.forEach((ent, idx) => {
-          const x = 70 + idx * 240;
-          const y = 80;
-          const w = 190;
+          const col = idx % 2;
+          const row = Math.floor(idx / 2);
+          const x = 70 + col * 300;
+          const y = 60 + row * 180;
           const h = 40 + ent.fields.length * 20 + 16;
+
+          ent.x = x + colW / 2;
+          ent.y = y + h / 2;
 
           const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
           g.style.cursor = 'pointer';
@@ -4910,7 +6814,7 @@ class MultiDiagramVisualizer {
           const box = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
           box.setAttribute('x', `${x}`);
           box.setAttribute('y', `${y}`);
-          box.setAttribute('width', `${w}`);
+          box.setAttribute('width', `${colW}`);
           box.setAttribute('height', `${h}`);
           box.setAttribute('rx', '6');
           box.setAttribute('fill', eFill);
@@ -4920,7 +6824,7 @@ class MultiDiagramVisualizer {
           g.appendChild(box);
 
           const eName = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-          eName.setAttribute('x', `${x + w / 2}`);
+          eName.setAttribute('x', `${x + colW / 2}`);
           eName.setAttribute('y', `${y + 20}`);
           eName.setAttribute('text-anchor', 'middle');
           eName.setAttribute('fill', eFont);
@@ -4932,7 +6836,7 @@ class MultiDiagramVisualizer {
           const divLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
           divLine.setAttribute('x1', `${x}`);
           divLine.setAttribute('y1', `${y + 32}`);
-          divLine.setAttribute('x2', `${x + w}`);
+          divLine.setAttribute('x2', `${x + colW}`);
           divLine.setAttribute('y2', `${y + 32}`);
           divLine.setAttribute('stroke', primaryBorder);
           divLine.setAttribute('stroke-width', '1');
@@ -4980,36 +6884,81 @@ class MultiDiagramVisualizer {
 
           nodesLayer.appendChild(g);
         });
+
+        // Draw Relationships
+        relationships.forEach(r => {
+          const s = entityMap.get(r.src);
+          const t = entityMap.get(r.tgt);
+          if (!s || !t) return;
+
+          const relKey = `${r.src}->${r.tgt}`;
+          const relColor = MultiDiagramVisualizer.getColor(relKey, linkColor);
+
+          const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+          line.setAttribute('x1', `${s.x}`);
+          line.setAttribute('y1', `${s.y}`);
+          line.setAttribute('x2', `${t.x}`);
+          line.setAttribute('y2', `${t.y}`);
+          line.setAttribute('stroke', relColor);
+          line.setAttribute('stroke-width', '1.8');
+          edgesLayer.appendChild(line);
+        });
         break;
       }
 
       // =========================================================================
-      // 5. C4 CONTEXT DIAGRAM
+      // 5. C4 CONTEXT ARCHITECTURE
       // =========================================================================
       case 'c4context': {
-        const rawLines = (code || '').split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('%%') && !l.startsWith('C4Context'));
+        const rawLines = (code || '').split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('%%') && !l.toLowerCase().startsWith('c4context'));
         const elements = [];
         const elementMap = new Map();
+        const rels = [];
 
         rawLines.forEach(line => {
-          const match = line.match(/^(Person|System|System_Ext)\s*\(\s*([A-Za-z0-9_]+)\s*,\s*["']([^"']+)["'](?:\s*,\s*["']([^"']+)["'])?\)/i);
+          const match = line.match(/^(Person|System|System_Ext)\s*\(\s*([A-Za-z0-9_]+)\s*,\s*["']([^"']+)["'](?:,\s*["']([^"']+)["'])?\)/i);
           if (match) {
             const el = { type: match[1], id: match[2], label: match[3], desc: match[4] || '' };
             elements.push(el);
             elementMap.set(match[2], el);
+            return;
+          }
+
+          const relMatch = line.match(/^Rel\s*\(\s*([A-Za-z0-9_]+)\s*,\s*([A-Za-z0-9_]+)\s*,\s*["']([^"']+)["'](?:,\s*["']([^"']+)["'])?\)/i);
+          if (relMatch) {
+            rels.push({ src: relMatch[1], tgt: relMatch[2], label: relMatch[3], tech: relMatch[4] || '' });
           }
         });
 
         if (elements.length === 0) {
-          elements.push({ type: 'Person', id: 'customer', label: 'Customer', desc: 'Bank Client' });
-          elements.push({ type: 'System', id: 'banking_system', label: 'Internet Banking', desc: 'Core Platform' });
+          elements.push({ type: 'Person', id: 'customer', label: 'Customer', desc: 'A client of the bank' });
+          elements.push({ type: 'System', id: 'banking_system', label: 'Internet Banking', desc: 'Allows customers to view accounts' });
+          elements.push({ type: 'System_Ext', id: 'mail_system', label: 'E-mail System', desc: 'Internal Microsoft Exchange' });
+          elements.push({ type: 'System_Ext', id: 'mainframe', label: 'Mainframe Banking', desc: 'Core legacy banking system' });
+          rels.push({ src: 'customer', tgt: 'banking_system', label: 'Uses', tech: 'HTTPS' });
+          rels.push({ src: 'banking_system', tgt: 'mail_system', label: 'Sends e-mails', tech: 'SMTP' });
+          rels.push({ src: 'banking_system', tgt: 'mainframe', label: 'Queries balance', tech: 'REST/JSON' });
         }
 
+        // Layout: 2 rows (Person on left, System in center, External Systems stacked on right)
+        const posMap = {
+          'customer': { x: 70, y: 130 },
+          'banking_system': { x: 320, y: 130 },
+          'mail_system': { x: 570, y: 70 },
+          'mainframe': { x: 570, y: 220 }
+        };
+
         elements.forEach((el, idx) => {
-          const x = 80 + idx * 240;
-          const y = 100;
-          const w = 200;
-          const h = 100;
+          const pos = posMap[el.id] || { x: 70 + (idx % 3) * 250, y: 80 + Math.floor(idx / 3) * 160 };
+          const x = pos.x;
+          const y = pos.y;
+          const w = 190;
+          const h = 90;
+
+          el.x = x + w / 2;
+          el.y = y + h / 2;
+          el.leftX = x;
+          el.rightX = x + w;
 
           const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
           g.style.cursor = 'pointer';
@@ -5035,31 +6984,31 @@ class MultiDiagramVisualizer {
           const iconText = el.type === 'Person' ? '👤 ' : '🏢 ';
           const titleTxt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
           titleTxt.setAttribute('x', `${x + w / 2}`);
-          titleTxt.setAttribute('y', `${y + 32}`);
+          titleTxt.setAttribute('y', `${y + 26}`);
           titleTxt.setAttribute('text-anchor', 'middle');
           titleTxt.setAttribute('fill', elFont);
-          titleTxt.setAttribute('font-size', '13px');
+          titleTxt.setAttribute('font-size', '12.5px');
           titleTxt.setAttribute('font-weight', 'bold');
           titleTxt.textContent = iconText + el.label;
           g.appendChild(titleTxt);
 
           const typeTxt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
           typeTxt.setAttribute('x', `${x + w / 2}`);
-          typeTxt.setAttribute('y', `${y + 52}`);
+          typeTxt.setAttribute('y', `${y + 44}`);
           typeTxt.setAttribute('text-anchor', 'middle');
           typeTxt.setAttribute('fill', elFont);
-          typeTxt.setAttribute('font-size', '10px');
+          typeTxt.setAttribute('font-size', '9.5px');
           typeTxt.setAttribute('opacity', '0.85');
           typeTxt.textContent = `[${el.type}]`;
           g.appendChild(typeTxt);
 
           const descTxt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
           descTxt.setAttribute('x', `${x + w / 2}`);
-          descTxt.setAttribute('y', `${y + 75}`);
+          descTxt.setAttribute('y', `${y + 66}`);
           descTxt.setAttribute('text-anchor', 'middle');
           descTxt.setAttribute('fill', elFont);
-          descTxt.setAttribute('font-size', '10.5px');
-          descTxt.textContent = el.desc;
+          descTxt.setAttribute('font-size', '9.5px');
+          descTxt.textContent = el.desc.length > 28 ? el.desc.substring(0, 26) + '...' : el.desc;
           g.appendChild(descTxt);
 
           g.addEventListener('mousedown', (e) => e.stopPropagation());
@@ -5091,6 +7040,67 @@ class MultiDiagramVisualizer {
           });
 
           nodesLayer.appendChild(g);
+        });
+
+        // Draw C4 Relationships with HTTPS / SMTP Badges
+        rels.forEach(r => {
+          const s = elementMap.get(r.src);
+          const t = elementMap.get(r.tgt);
+          if (!s || !t) return;
+
+          const relKey = `${r.src}->${r.tgt}`;
+          const relColor = MultiDiagramVisualizer.getColor(relKey, linkColor);
+          const relFont = MultiDiagramVisualizer.getColor(relKey + ':font', textColor);
+
+          const x1 = s.rightX;
+          const y1 = s.y;
+          const x2 = t.leftX;
+          const y2 = t.y;
+
+          const lineG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+          lineG.style.cursor = 'pointer';
+
+          const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+          const midX = (x1 + x2) / 2;
+          path.setAttribute('d', `M ${x1} ${y1} C ${midX} ${y1}, ${midX} ${y2}, ${x2} ${y2}`);
+          path.setAttribute('fill', 'none');
+          path.setAttribute('stroke', relColor);
+          path.setAttribute('stroke-width', '2');
+          path.setAttribute('stroke-dasharray', '5,4');
+          lineG.appendChild(path);
+
+          // Arrowhead
+          const tri = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+          tri.setAttribute('points', `${x2 - 8},${y2 - 5} ${x2},${y2} ${x2 - 8},${y2 + 5}`);
+          tri.setAttribute('fill', relColor);
+          lineG.appendChild(tri);
+
+          // Tech Badge
+          const badgeTextStr = `${r.label}${r.tech ? ' [' + r.tech + ']' : ''}`;
+          const badgeW = badgeTextStr.length * 6.5 + 20;
+          const badgeBg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+          badgeBg.setAttribute('x', `${midX - badgeW / 2}`);
+          badgeBg.setAttribute('y', `${(y1 + y2) / 2 - 10}`);
+          badgeBg.setAttribute('width', `${badgeW}`);
+          badgeBg.setAttribute('height', '20');
+          badgeBg.setAttribute('rx', '4');
+          badgeBg.setAttribute('fill', cardBg);
+          badgeBg.setAttribute('stroke', cardBorder);
+          badgeBg.setAttribute('stroke-width', '1');
+          lineG.appendChild(badgeBg);
+
+          const badgeTxt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+          badgeTxt.setAttribute('x', `${midX}`);
+          badgeTxt.setAttribute('y', `${(y1 + y2) / 2}`);
+          badgeTxt.setAttribute('text-anchor', 'middle');
+          badgeTxt.setAttribute('dominant-baseline', 'central');
+          badgeTxt.setAttribute('fill', relFont);
+          badgeTxt.setAttribute('font-size', '9.5px');
+          badgeTxt.setAttribute('font-weight', '500');
+          badgeTxt.textContent = badgeTextStr;
+          lineG.appendChild(badgeTxt);
+
+          edgesLayer.appendChild(lineG);
         });
         break;
       }
@@ -5237,7 +7247,7 @@ class MultiDiagramVisualizer {
       }
 
       // =========================================================================
-      // 7. GANTT ROADMAP
+      // 7. GANTT ROADMAP & WEEK TIMELINE
       // =========================================================================
       case 'gantt': {
         const rawLines = (code || '').split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('%%'));
@@ -5545,14 +7555,14 @@ class MultiDiagramVisualizer {
       }
 
       // =========================================================================
-      // 8. GIT GRAPH
+      // 8. GIT GRAPH (BRANCHES, COMMITS, MERGES, RELEASE TAGS)
       // =========================================================================
       case 'gitgraph': {
         const rawLines = (code || '').split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('%%'));
         const branches = new Map();
-        branches.set('main', { name: 'main', color: '#2196F3', y: 120 });
+        branches.set('main', { name: 'main', color: '#2196F3', y: 100 });
         let activeBranch = 'main';
-        const commits = [];
+        const actions = []; // { type: 'commit'|'merge', id, tag, branch, srcBranch }
 
         const branchColors = ['#2196F3', '#4CAF50', '#FF9800', '#9C27B0', '#00BCD4'];
         let branchCount = 1;
@@ -5560,14 +7570,14 @@ class MultiDiagramVisualizer {
         rawLines.forEach(line => {
           if (line.toLowerCase().startsWith('gitgraph')) return;
 
-          const brMatch = line.match(/^branch\s+([A-Za-z0-9_\/]+)/i);
+          const brMatch = line.match(/^branch\s+([A-Za-z0-9_\/.-]+)/i);
           if (brMatch) {
             const bName = brMatch[1];
             if (!branches.has(bName)) {
               branches.set(bName, {
                 name: bName,
                 color: branchColors[branchCount % branchColors.length],
-                y: 120 + branchCount * 65
+                y: 100 + branchCount * 75
               });
               branchCount++;
             }
@@ -5575,18 +7585,35 @@ class MultiDiagramVisualizer {
             return;
           }
 
-          const coMatch = line.match(/^checkout\s+([A-Za-z0-9_\/]+)/i);
+          const coMatch = line.match(/^checkout\s+([A-Za-z0-9_\/.-]+)/i);
           if (coMatch) {
             activeBranch = coMatch[1];
             return;
           }
 
+          const mergeMatch = line.match(/^merge\s+([A-Za-z0-9_\/.-]+)(?:\s+id:\s*["']?([^"']+)["']?)?/i);
+          if (mergeMatch) {
+            const srcBranch = mergeMatch[1];
+            const id = mergeMatch[2] || `Merge ${srcBranch}`;
+            const bInfo = branches.get(activeBranch) || { color: '#2196F3', y: 100 };
+            actions.push({
+              type: 'merge',
+              id,
+              branch: activeBranch,
+              srcBranch,
+              color: MultiDiagramVisualizer.getColor(id, bInfo.color),
+              fontColor: MultiDiagramVisualizer.getColor(id + ':font', textColor)
+            });
+            return;
+          }
+
           const commitMatch = line.match(/^commit(?:\s+id:\s*["']?([^"']+)["']?)?(?:\s+tag:\s*["']?([^"']+)["']?)?/i);
           if (commitMatch) {
-            const id = commitMatch[1] || `c${commits.length + 1}`;
+            const id = commitMatch[1] || `Commit ${actions.length + 1}`;
             const tag = commitMatch[2];
-            const bInfo = branches.get(activeBranch) || { color: '#2196F3', y: 120 };
-            commits.push({
+            const bInfo = branches.get(activeBranch) || { color: '#2196F3', y: 100 };
+            actions.push({
+              type: 'commit',
               id,
               tag,
               branch: activeBranch,
@@ -5596,16 +7623,17 @@ class MultiDiagramVisualizer {
           }
         });
 
-        if (commits.length === 0) {
-          commits.push({ id: 'Initial Commit', branch: 'main', color: '#2196F3', fontColor: textColor });
-          commits.push({ id: 'Feature Alpha', branch: 'main', color: '#2196F3', fontColor: textColor });
+        if (actions.length === 0) {
+          actions.push({ type: 'commit', id: 'Initial Commit', branch: 'main', color: '#2196F3', fontColor: textColor });
+          actions.push({ type: 'commit', id: 'Core Foundation', branch: 'main', color: '#2196F3', fontColor: textColor });
         }
 
+        // Draw Branch Tracks
         branches.forEach(b => {
           const track = document.createElementNS('http://www.w3.org/2000/svg', 'line');
           track.setAttribute('x1', '60');
           track.setAttribute('y1', `${b.y}`);
-          track.setAttribute('x2', `${Math.max(600, commits.length * 110 + 120)}`);
+          track.setAttribute('x2', `${Math.max(650, actions.length * 95 + 140)}`);
           track.setAttribute('y2', `${b.y}`);
           track.setAttribute('stroke', b.color);
           track.setAttribute('stroke-width', '3');
@@ -5623,10 +7651,30 @@ class MultiDiagramVisualizer {
           nodesLayer.appendChild(bLabel);
         });
 
-        commits.forEach((c, idx) => {
-          const x = 110 + idx * 95;
-          const bInfo = branches.get(c.branch) || { y: 120, color: '#2196F3' };
+        // Draw Commits & Merges
+        let lastPosMap = new Map();
+
+        actions.forEach((act, idx) => {
+          const x = 110 + idx * 88;
+          const bInfo = branches.get(act.branch) || { y: 100, color: '#2196F3' };
           const y = bInfo.y;
+
+          // Draw fork or merge connector lines
+          if (act.type === 'merge' && act.srcBranch) {
+            const srcBInfo = branches.get(act.srcBranch);
+            if (srcBInfo) {
+              const mergeLine = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+              const prevSrcX = lastPosMap.get(act.srcBranch) || (x - 70);
+              mergeLine.setAttribute('d', `M ${prevSrcX} ${srcBInfo.y} C ${x - 30} ${srcBInfo.y}, ${x - 30} ${y}, ${x} ${y}`);
+              mergeLine.setAttribute('fill', 'none');
+              mergeLine.setAttribute('stroke', srcBInfo.color);
+              mergeLine.setAttribute('stroke-width', '2.5');
+              mergeLine.setAttribute('stroke-dasharray', '4,3');
+              edgesLayer.appendChild(mergeLine);
+            }
+          }
+
+          lastPosMap.set(act.branch, x);
 
           const commitG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
           commitG.style.cursor = 'pointer';
@@ -5635,8 +7683,8 @@ class MultiDiagramVisualizer {
           circle.setAttribute('cx', `${x}`);
           circle.setAttribute('cy', `${y}`);
           circle.setAttribute('r', '10');
-          const isSelGit = (c.id === selTitle);
-          circle.setAttribute('fill', c.color);
+          const isSelGit = (act.id === selTitle);
+          circle.setAttribute('fill', act.color);
           circle.setAttribute('stroke', isSelGit ? 'var(--selection-color)' : '#FFFFFF');
           circle.setAttribute('stroke-width', isSelGit ? '3.5' : '2.5');
           if (isSelGit) circle.style.filter = selGlow;
@@ -5646,15 +7694,15 @@ class MultiDiagramVisualizer {
           txt.setAttribute('x', `${x}`);
           txt.setAttribute('y', `${y + 24}`);
           txt.setAttribute('text-anchor', 'middle');
-          txt.setAttribute('fill', c.fontColor);
+          txt.setAttribute('fill', act.fontColor);
           txt.setAttribute('font-size', '10.5px');
           txt.setAttribute('font-weight', '500');
-          txt.textContent = c.id;
+          txt.textContent = act.id;
           commitG.appendChild(txt);
 
-          if (c.tag) {
+          if (act.tag) {
             const tagG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-            const tagW = c.tag.length * 6.5 + 20;
+            const tagW = act.tag.length * 6.5 + 20;
             const tagRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
             tagRect.setAttribute('x', `${x - tagW / 2}`);
             tagRect.setAttribute('y', `${y - 28}`);
@@ -5671,7 +7719,7 @@ class MultiDiagramVisualizer {
             tagText.setAttribute('fill', '#FFFFFF');
             tagText.setAttribute('font-size', '9.5px');
             tagText.setAttribute('font-weight', 'bold');
-            tagText.textContent = '🏷 ' + c.tag;
+            tagText.textContent = '🏷 ' + act.tag;
             tagG.appendChild(tagText);
             commitG.appendChild(tagG);
           }
@@ -5681,13 +7729,13 @@ class MultiDiagramVisualizer {
             e.stopPropagation();
             if (typeof AppController !== 'undefined' && AppController.instance) {
               AppController.instance.selectVisualObject({
-                type: 'Git Commit',
-                title: c.id,
+                type: act.type === 'merge' ? 'Git Merge Commit' : 'Git Commit',
+                title: act.id,
                 fields: [
-                  { key: 'id', label: 'Commit Message / ID', type: 'text', value: c.id },
-                  { key: 'tag', label: 'Release Tag (Optional)', type: 'text', value: c.tag || '' },
-                  { key: 'color', label: 'Commit Color', type: 'color', value: c.color },
-                  { key: 'font', label: 'Label Font Color', type: 'color', value: c.fontColor }
+                  { key: 'id', label: 'Commit Message / ID', type: 'text', value: act.id },
+                  { key: 'tag', label: 'Release Tag (Optional)', type: 'text', value: act.tag || '' },
+                  { key: 'color', label: 'Commit Color', type: 'color', value: act.color },
+                  { key: 'font', label: 'Label Font Color', type: 'color', value: act.fontColor }
                 ],
                 onSave: (vals) => {
                   MultiDiagramVisualizer.setColor(vals.id, vals.color);
@@ -5696,12 +7744,16 @@ class MultiDiagramVisualizer {
                   MultiDiagramVisualizer.syncColorToCode(vals.id + ':font', vals.font);
                   MultiDiagramVisualizer.updateCodeLine((curCode) => {
                     const lines = curCode.split('\n');
-                    const esc = c.id.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\</body>');
-                    const idx = lines.findIndex(l => new RegExp(`commit\\s+id:\\s*["']?${esc}["']?`, 'i').test(l.trim()));
+                    const esc = act.id.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\</body>');
+                    const idx = lines.findIndex(l => new RegExp(`(commit|merge)\\s+(?:id:\\s*["']?${esc}["']?|.*${esc})`, 'i').test(l.trim()));
                     if (idx !== -1) {
                       const lead = lines[idx].match(/^(\s*)/)[1] || '  ';
                       const tagPart = vals.tag ? ` tag: "${vals.tag}"` : '';
-                      lines[idx] = `${lead}commit id: "${vals.id}"${tagPart}`;
+                      if (act.type === 'merge') {
+                        lines[idx] = `${lead}merge ${act.srcBranch} id: "${vals.id}"`;
+                      } else {
+                        lines[idx] = `${lead}commit id: "${vals.id}"${tagPart}`;
+                      }
                     }
                     return lines.join('\n');
                   });
@@ -5716,7 +7768,7 @@ class MultiDiagramVisualizer {
       }
 
       // =========================================================================
-      // 9. USER JOURNEY
+      // 9. USER JOURNEY MAP
       // =========================================================================
       case 'journey': {
         const rawLines = (code || '').split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('%%'));
@@ -8084,7 +10136,7 @@ class MultiDiagramVisualizer {
       }
 
       // =========================================================================
-      // 12. QUADRANT CHART
+      // 12. QUADRANT MATRIX
       // =========================================================================
       case 'quadrant': {
         const rawLines = (code || '').split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('%%'));
@@ -8496,393 +10548,266 @@ class MultiDiagramVisualizer {
 
 
 // --- MERMAID CODE PARSER ---
-    class MermaidParser {
-      static detectDiagramType(code) {
-        const firstLines = code.split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('%%')).slice(0, 3).join(' ');
-        if (/^flowchart\s+LR/i.test(firstLines)) return 'flowchart_lr';
-        if (/^flowchart/i.test(firstLines) || /^graph/i.test(firstLines)) return 'flowchart_td';
-        if (/^sequenceDiagram/i.test(firstLines)) return 'sequence';
-        if (/^classDiagram/i.test(firstLines)) return 'classDiagram';
-        if (/^stateDiagram/i.test(firstLines)) return 'stateDiagram';
-        if (/^erDiagram/i.test(firstLines)) return 'erDiagram';
-        if (/^gantt/i.test(firstLines)) return 'gantt';
-        if (/^pie/i.test(firstLines)) return 'pie';
-        if (/^gitGraph/i.test(firstLines)) return 'gitGraph';
-        if (/^journey/i.test(firstLines)) return 'journey';
-        if (/^mindmap/i.test(firstLines)) return 'mindmap';
-        if (/^timeline/i.test(firstLines)) return 'timeline';
-        if (/^quadrantChart/i.test(firstLines)) return 'quadrant';
-        if (/^C4Context/i.test(firstLines) || /^C4/i.test(firstLines)) return 'c4context';
-        if (/^sankey/i.test(firstLines)) return 'sankey';
-        return 'flowchart_td';
-      }
+class MermaidParser {
+  static detectDiagramType(code) {
+    const firstLines = code.split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('%%')).slice(0, 3).join(' ');
+    if (/^flowchart\s+LR/i.test(firstLines)) return 'flowchart_lr';
+    if (/^flowchart/i.test(firstLines) || /^graph/i.test(firstLines)) return 'flowchart_td';
+    if (/^sequenceDiagram/i.test(firstLines)) return 'sequence';
+    if (/^classDiagram/i.test(firstLines)) return 'classDiagram';
+    if (/^stateDiagram/i.test(firstLines)) return 'stateDiagram';
+    if (/^erDiagram/i.test(firstLines)) return 'erDiagram';
+    if (/^gantt/i.test(firstLines)) return 'gantt';
+    if (/^pie/i.test(firstLines)) return 'pie';
+    if (/^gitGraph/i.test(firstLines)) return 'gitGraph';
+    if (/^journey/i.test(firstLines)) return 'journey';
+    if (/^mindmap/i.test(firstLines)) return 'mindmap';
+    if (/^timeline/i.test(firstLines)) return 'timeline';
+    if (/^quadrantChart/i.test(firstLines)) return 'quadrant';
+    if (/^C4Context/i.test(firstLines) || /^C4/i.test(firstLines)) return 'c4context';
+    if (/^sankey/i.test(firstLines)) return 'sankey';
+    return 'flowchart_td';
+  }
 
-      static parse(code, currentGraph) {
-        const detectedType = MermaidParser.detectDiagramType(code);
-        const lines = code.split('\n');
-        const newGraph = new GraphModel();
-        newGraph.diagramType = detectedType;
-        newGraph.customRawCode = code;
-        newGraph.gridSnap = currentGraph.gridSnap;
-        newGraph.gridSize = currentGraph.gridSize;
-        newGraph.rules = currentGraph.rules;
+  static parse(code, currentGraph) {
+    const detectedType = MermaidParser.detectDiagramType(code);
+    const lines = code.split('\n');
+    const newGraph = new GraphModel();
+    newGraph.diagramType = detectedType;
+    newGraph.customRawCode = code;
+    newGraph.gridSnap = currentGraph.gridSnap;
+    newGraph.gridSize = currentGraph.gridSize;
+    newGraph.rules = currentGraph.rules;
 
-        // 1. Parse Flowchart
-        if (detectedType === 'flowchart_td' || detectedType === 'flowchart_lr') {
-          let lineIdx = 0;
-          try {
-            for (lineIdx = 0; lineIdx < lines.length; lineIdx++) {
-              const rawLine = lines[lineIdx].trim();
-              if (!rawLine || rawLine.startsWith('%%')) continue;
+    // 1. Parse Flowchart
+    if (detectedType === 'flowchart_td' || detectedType === 'flowchart_lr') {
+      let lineIdx = 0;
+      try {
+        for (lineIdx = 0; lineIdx < lines.length; lineIdx++) {
+          const rawLine = lines[lineIdx].trim();
+          if (!rawLine || rawLine.startsWith('%%')) continue;
 
-              const headerMatch = rawLine.match(/^(?:flowchart|graph)\s+(TD|TB|LR|RL|BT)/i);
-              if (headerMatch) {
-                const dir = headerMatch[1].toUpperCase();
-                newGraph.layoutDirection = (dir === 'LR' || dir === 'RL') ? 'LR' : 'TD';
-                continue;
-              }
+          const headerMatch = rawLine.match(/^(?:flowchart|graph)\s+(TD|TB|LR|RL|BT)/i);
+          if (headerMatch) {
+            const dir = headerMatch[1].toUpperCase();
+            newGraph.layoutDirection = (dir === 'LR' || dir === 'RL') ? 'LR' : 'TD';
+            continue;
+          }
 
-              const styleMatch = rawLine.match(/^style\s+([A-Za-z0-9_]+)\s+(.+)$/i);
-              if (styleMatch) {
-                const targetId = styleMatch[1];
-                const styleProps = styleMatch[2];
-                const node = newGraph.getNode(targetId);
-                if (node) {
-                  const fillM = styleProps.match(/fill:([^,;]+)/);
-                  const strokeM = styleProps.match(/stroke:([^,;]+)/);
-                  const colorM = styleProps.match(/color:([^,;]+)/);
-                  if (fillM) node.fillColor = fillM[1].trim();
-                  if (strokeM) node.borderColor = strokeM[1].trim();
-                  if (colorM) node.fontColor = colorM[1].trim();
-                }
-                continue;
-              }
+          const styleMatch = rawLine.match(/^style\s+([A-Za-z0-9_]+)\s+(.+)$/i);
+          if (styleMatch) {
+            const targetId = styleMatch[1];
+            const styleProps = styleMatch[2];
+            const node = newGraph.getNode(targetId);
+            if (node) {
+              const fillM = styleProps.match(/fill:([^,;]+)/);
+              const strokeM = styleProps.match(/stroke:([^,;]+)/);
+              const colorM = styleProps.match(/color:([^,;]+)/);
+              if (fillM) node.fillColor = fillM[1].trim();
+              if (strokeM) node.borderColor = strokeM[1].trim();
+              if (colorM) node.fontColor = colorM[1].trim();
+            }
+            continue;
+          }
 
-              const linkStyleMatch = rawLine.match(/^linkStyle\s+(\d+)\s+(.+)$/i);
-              if (linkStyleMatch) {
-                const idx = parseInt(linkStyleMatch[1], 10);
-                const props = linkStyleMatch[2];
-                if (newGraph.edges[idx]) {
-                  const strokeM = props.match(/stroke:([^,;]+)/);
-                  const widthM = props.match(/stroke-width:([^,;]+)/);
-                  if (strokeM) newGraph.edges[idx].color = strokeM[1].trim();
-                  if (widthM) newGraph.edges[idx].strokeWidth = parseFloat(widthM[1]);
-                }
-                continue;
-              }
+          const classDefMatch = rawLine.match(/^classDef\s+([A-Za-z0-9_]+)\s+(.+)$/i);
+          if (classDefMatch) continue;
+          const classApplyMatch = rawLine.match(/^class\s+([A-Za-z0-9_,\s]+)\s+([A-Za-z0-9_]+)$/i);
+          if (classApplyMatch) continue;
 
-              const edgeRegex = /([A-Za-z0-9_]+(?:\s*[\(\[\{\/][^\)\]\}]+[\)\]\}\/]+)?)\s*(<==>|<-->|==>|-.->|--->|-->)\s*(?:\|"?([^\|"]*)"?\|\s*)?([A-Za-z0-9_]+(?:\s*[\(\[\{\/][^\)\]\}]+[\)\]\}\/]+)?)/;
-              const edgeMatch = rawLine.match(edgeRegex);
+          let line = rawLine.replace(/%%.*$/, '').trim();
+          if (!line) continue;
 
-              if (edgeMatch) {
-                const srcRaw = edgeMatch[1].trim();
-                const arrowType = edgeMatch[2].trim();
-                const label = edgeMatch[3] ? edgeMatch[3].trim() : undefined;
-                const tgtRaw = edgeMatch[4].trim();
+          const linkPattern = /(-->|---|==>|-.->|--\s*["']?([^"'-]+)["']?\s*-->|--\s*["']?([^"'-]+)["']?\s*---|==\s*["']?([^"'-]+)["']?\s*==>|-\.\s*["']?([^"'-]+)["']?\s*\.->|-->\|([^|]+)\||\=\=>\|([^|]+)\|)/g;
+          let match;
+          let lastIndex = 0;
+          const tokens = [];
+          const links = [];
 
-                const srcNode = MermaidParser.parseNodeToken(srcRaw, currentGraph, newGraph);
-                const tgtNode = MermaidParser.parseNodeToken(tgtRaw, currentGraph, newGraph);
+          while ((match = linkPattern.exec(line)) !== null) {
+            const rawToken = line.substring(lastIndex, match.index).trim();
+            if (rawToken) tokens.push(rawToken);
 
-                newGraph.addEdge({
-                  id: Utils.uid('edge'),
-                  source: srcNode.id,
-                  target: tgtNode.id,
-                  label,
-                  type: arrowType
-                });
-                continue;
-              }
+            let linkType = '-->';
+            let label = undefined;
 
-              const nodeToken = MermaidParser.parseNodeToken(rawLine, currentGraph, newGraph);
-              if (!nodeToken) {
-                return { graph: null, error: `Invalid syntax at line ${lineIdx + 1}: "${rawLine}"`, errorLine: lineIdx + 1 };
-              }
+            const fullMatch = match[0];
+            if (fullMatch.startsWith('==')) {
+              linkType = '==>';
+              if (match[7]) label = match[7].trim();
+              else if (match[4]) label = match[4].trim();
+            } else if (fullMatch.startsWith('-.') || fullMatch.startsWith('-.')) {
+              linkType = '-.->';
+              if (match[5]) label = match[5].trim();
+            } else if (fullMatch === '---' || fullMatch.startsWith('-- ') || fullMatch.startsWith('--"')) {
+              linkType = '---';
+              if (match[3]) label = match[3].trim();
+            } else {
+              linkType = '-->';
+              if (match[6]) label = match[6].trim();
+              else if (match[2]) label = match[2].trim();
             }
 
-            const existingPos = new Map(currentGraph.nodes.map(n => [n.id, { x: n.x, y: n.y }]));
-            const missingAny = newGraph.nodes.some(n => !existingPos.has(n.id) || n.id === 'visual_chart_bounds');
+            links.push({ type: linkType, label });
+            lastIndex = linkPattern.lastIndex;
+          }
 
-            newGraph.nodes.forEach(n => {
-              if (existingPos.has(n.id) && n.id !== 'visual_chart_bounds') {
-                n.x = existingPos.get(n.id).x;
-                n.y = existingPos.get(n.id).y;
-              }
-            });
+          const tailToken = line.substring(lastIndex).trim();
+          if (tailToken) tokens.push(tailToken);
 
-            if (missingAny) {
-              const hasSampleNodes = newGraph.getNode('Client') && newGraph.getNode('API') && newGraph.getNode('Auth') && newGraph.getNode('Database') && newGraph.nodes.length === 4;
-              if (hasSampleNodes && newGraph.layoutDirection === 'TD') {
-                const cNode = newGraph.getNode('Client');
-                const aNode = newGraph.getNode('API');
-                const authNode = newGraph.getNode('Auth');
-                const dNode = newGraph.getNode('Database');
-                if (cNode) { cNode.x = 140; cNode.y = 80; }
-                if (aNode) { aNode.x = 140; aNode.y = 220; }
-                if (authNode) { authNode.x = 380; authNode.y = 220; }
-                if (dNode) { dNode.x = 140; dNode.y = 360; }
-              } else {
-                AutoLayoutEngine.layout(newGraph, newGraph.layoutDirection || 'TD');
-              }
+          if (tokens.length >= 2 && links.length === tokens.length - 1) {
+            for (let i = 0; i < links.length; i++) {
+              const srcNode = MermaidParser.parseNodeToken(tokens[i], currentGraph, newGraph);
+              const tgtNode = MermaidParser.parseNodeToken(tokens[i + 1], currentGraph, newGraph);
+
+              const edgeId = Utils.uid('edge');
+              newGraph.addEdge({
+                id: edgeId,
+                source: srcNode.id,
+                target: tgtNode.id,
+                label: links[i].label,
+                type: links[i].type
+              });
             }
-
-            return { graph: newGraph, error: null };
-          } catch (e) {
-            return { graph: null, error: `Parse error at line ${lineIdx + 1}: ${e.message}`, errorLine: lineIdx + 1 };
+          } else if (tokens.length === 1) {
+            MermaidParser.parseNodeToken(tokens[0], currentGraph, newGraph);
           }
         }
 
-        // 2. Parse State Diagram
-        if (detectedType === 'stateDiagram') {
-          lines.forEach(l => {
-            const line = l.trim();
-            if (!line || line.startsWith('stateDiagram') || line.startsWith('%%')) return;
-            const match = line.match(/^(\[\*\]|[A-Za-z0-9_]+)\s*-->\s*(\[\*\]|[A-Za-z0-9_]+)(?:\s*:\s*(.+))?$/);
-            if (match) {
-              const src = match[1];
-              const tgt = match[2];
-              const label = match[3] ? match[3].trim() : undefined;
-
-              [src, tgt].forEach(id => {
-                if (!newGraph.getNode(id)) {
-                  newGraph.addNode({
-                    id,
-                    text: id === '[*]' ? '●' : id,
-                    shape: id === '[*]' ? 'circle' : 'rounded',
-                    width: id === '[*]' ? 40 : 140,
-                    height: id === '[*]' ? 40 : 50,
-                    fillColor: id === '[*]' ? '#212121' : '#E3F2FD',
-                    borderColor: id === '[*]' ? '#000000' : '#90CAF9',
-                    fontColor: id === '[*]' ? '#FFFFFF' : '#0D47A1'
-                  });
-                }
-              });
-
-              newGraph.addEdge({
-                id: Utils.uid('edge'),
-                source: src,
-                target: tgt,
-                label,
-                type: '-->'
-              });
-            }
-          });
-          AutoLayoutEngine.layout(newGraph, 'TD');
-          return { graph: newGraph, error: null };
+        const hasOldPositions = newGraph.nodes.some(n => currentGraph.getNode(n.id) !== undefined);
+        if (!hasOldPositions) {
+          if (newGraph.nodes.length === 4 && newGraph.getNode('Client') && newGraph.getNode('API')) {
+            const cNode = newGraph.getNode('Client');
+            const aNode = newGraph.getNode('API');
+            const authNode = newGraph.getNode('Auth');
+            const dNode = newGraph.getNode('Database');
+            if (cNode) { cNode.x = 140; cNode.y = 80; }
+            if (aNode) { aNode.x = 140; aNode.y = 220; }
+            if (authNode) { authNode.x = 380; authNode.y = 220; }
+            if (dNode) { dNode.x = 140; dNode.y = 360; }
+          } else {
+            AutoLayoutEngine.layout(newGraph, newGraph.layoutDirection || 'TD');
+          }
         }
 
-        // 3. Parse Class Diagram
-        if (detectedType === 'classDiagram') {
-          let curClass = null;
-          lines.forEach(l => {
-            const line = l.trim();
-            if (!line || line.startsWith('classDiagram') || line.startsWith('%%')) return;
-
-            const cMatch = line.match(/^class\s+([A-Za-z0-9_]+)(?:\s*\{)?/);
-            if (cMatch) {
-              curClass = cMatch[1];
-              if (!newGraph.getNode(curClass)) {
-                newGraph.addNode({
-                  id: curClass,
-                  text: curClass,
-                  shape: 'rectangle',
-                  width: 170,
-                  height: 90,
-                  fillColor: '#E3F2FD',
-                  borderColor: '#90CAF9',
-                  fontColor: '#0D47A1'
-                });
-              }
-              return;
-            }
-
-            if (line === '}') {
-              curClass = null;
-              return;
-            }
-
-            const inhMatch = line.match(/^([A-Za-z0-9_]+)\s*<\|--\s*([A-Za-z0-9_]+)/);
-            if (inhMatch) {
-              const baseC = inhMatch[1];
-              const subC = inhMatch[2];
-              [baseC, subC].forEach(id => {
-                if (!newGraph.getNode(id)) {
-                  newGraph.addNode({ id, text: id, shape: 'rectangle', width: 160, height: 70, fillColor: '#E3F2FD', borderColor: '#90CAF9', fontColor: '#0D47A1' });
-                }
-              });
-              newGraph.addEdge({ id: Utils.uid('edge'), source: baseC, target: subC, type: '-->', label: 'Inherits' });
-            }
-          });
-          AutoLayoutEngine.layout(newGraph, 'TD');
-          return { graph: newGraph, error: null };
-        }
-
-        // 4. Parse ER Diagram
-        if (detectedType === 'erDiagram') {
-          lines.forEach(l => {
-            const line = l.trim();
-            if (!line || line.startsWith('erDiagram') || line.startsWith('%%')) return;
-
-            const relMatch = line.match(/^([A-Za-z0-9_]+)\s*(\|\|--o\{|\|\|--\|\{|\}\|--\|\{|\}\|--o\{)\s*([A-Za-z0-9_]+)(?:\s*:\s*(.+))?/);
-            if (relMatch) {
-              const src = relMatch[1];
-              const tgt = relMatch[3];
-              const label = relMatch[4] ? relMatch[4].trim() : 'relates';
-
-              [src, tgt].forEach(id => {
-                if (!newGraph.getNode(id)) {
-                  newGraph.addNode({
-                    id,
-                    text: id,
-                    shape: 'rectangle',
-                    width: 160,
-                    height: 70,
-                    fillColor: '#ECEFF1',
-                    borderColor: '#B0BEC5',
-                    fontColor: '#263238'
-                  });
-                }
-              });
-
-              newGraph.addEdge({ id: Utils.uid('edge'), source: src, target: tgt, type: '-->', label });
-            }
-          });
-          AutoLayoutEngine.layout(newGraph, 'TD');
-          return { graph: newGraph, error: null };
-        }
-
-        // 5. Parse C4 Context
-        if (detectedType === 'c4context') {
-          lines.forEach(l => {
-            const line = l.trim();
-            const pMatch = line.match(/^Person\(([A-Za-z0-9_]+),\s*"([^"]+)"/);
-            if (pMatch) {
-              newGraph.addNode({ id: pMatch[1], text: pMatch[2] + '\n[Person]', shape: 'rounded', width: 160, height: 60, fillColor: '#0288D1', borderColor: '#0288D1', fontColor: '#FFFFFF' });
-            }
-            const sMatch = line.match(/^System(?:_Ext)?\(([A-Za-z0-9_]+),\s*"([^"]+)"/);
-            if (sMatch) {
-              newGraph.addNode({ id: sMatch[1], text: sMatch[2] + '\n[System]', shape: 'rectangle', width: 170, height: 70, fillColor: line.includes('System_Ext') ? '#ECEFF1' : '#E3F2FD', borderColor: '#90CAF9', fontColor: '#0D47A1' });
-            }
-            const rMatch = line.match(/^Rel\(([A-Za-z0-9_]+),\s*([A-Za-z0-9_]+),\s*"([^"]+)"(?:,\s*"([^"]+)")?\)/);
-            if (rMatch) {
-              newGraph.addEdge({ id: Utils.uid('edge'), source: rMatch[1], target: rMatch[2], type: '-->', label: rMatch[3] + (rMatch[4] ? ` [${rMatch[4]}]` : '') });
-            }
-          });
-          AutoLayoutEngine.layout(newGraph, 'TD');
-          return { graph: newGraph, error: null };
-        }
-
-        // For Specialized Visual Chart Diagrams (Sequence, Gantt, Pie, Git, Journey, Mindmap, Timeline, Quadrant, Sankey)
-        // Register visual bounds node so zoom-to-fit and canvas framing work
-        newGraph.addNode({ id: 'visual_chart_bounds', text: '', shape: 'rectangle', x: 40, y: 40, width: 740, height: 460, fillColor: 'transparent', borderColor: 'transparent', fontColor: 'transparent' });
         return { graph: newGraph, error: null };
-      }
-
-      static parseNodeToken(token, oldGraph, newGraph) {
-        token = token.trim();
-        let id = '';
-        let text = '';
-        let shape = 'rectangle';
-
-        if (/^([A-Za-z0-9_]+)\s*\(\(\(([\s\S]+)\)\)\)$/.test(token)) {
-          const m = token.match(/^([A-Za-z0-9_]+)\s*\(\(\(([\s\S]+)\)\)\)$/);
-          id = m[1];
-          text = m[2].replace(/^["']|["']$/g, '');
-          shape = 'double_circle';
-        } else if (/^([A-Za-z0-9_]+)\s*\(\(([\s\S]+)\)\)$/.test(token)) {
-          const m = token.match(/^([A-Za-z0-9_]+)\s*\(\(([\s\S]+)\)\)$/);
-          id = m[1];
-          text = m[2].replace(/^["']|["']$/g, '');
-          shape = 'circle';
-        } else if (/^([A-Za-z0-9_]+)\s*\(\[([\s\S]+)\]\)$/.test(token)) {
-          const m = token.match(/^([A-Za-z0-9_]+)\s*\(\[([\s\S]+)\]\)$/);
-          id = m[1];
-          text = m[2].replace(/^["']|["']$/g, '');
-          shape = 'stadium';
-        } else if (/^([A-Za-z0-9_]+)\s*\(([\s\S]+)\)$/.test(token)) {
-          const m = token.match(/^([A-Za-z0-9_]+)\s*\(([\s\S]+)\)$/);
-          id = m[1];
-          text = m[2].replace(/^["']|["']$/g, '');
-          shape = 'rounded';
-        } else if (/^([A-Za-z0-9_]+)\s*\[\[([\s\S]+)\]\]$/.test(token)) {
-          const m = token.match(/^([A-Za-z0-9_]+)\s*\[\[([\s\S]+)\]\]$/);
-          id = m[1];
-          text = m[2].replace(/^["']|["']$/g, '');
-          shape = 'subroutine';
-        } else if (/^([A-Za-z0-9_]+)\s*\[\(([\s\S]+)\)\]$/.test(token)) {
-          const m = token.match(/^([A-Za-z0-9_]+)\s*\[\(([\s\S]+)\)\]$/);
-          id = m[1];
-          text = m[2].replace(/^["']|["']$/g, '');
-          shape = 'cylinder';
-        } else if (/^([A-Za-z0-9_]+)\s*>([\s\S]+)\]$/.test(token)) {
-          const m = token.match(/^([A-Za-z0-9_]+)\s*>([\s\S]+)\]$/);
-          id = m[1];
-          text = m[2].replace(/^["']|["']$/g, '');
-          shape = 'asymmetric';
-        } else if (/^([A-Za-z0-9_]+)\s*\{\{([\s\S]+)\}\}$/.test(token)) {
-          const m = token.match(/^([A-Za-z0-9_]+)\s*\{\{([\s\S]+)\}\}$/);
-          id = m[1];
-          text = m[2].replace(/^["']|["']$/g, '');
-          shape = 'hexagon';
-        } else if (/^([A-Za-z0-9_]+)\s*\{([\s\S]+)\}$/.test(token)) {
-          const m = token.match(/^([A-Za-z0-9_]+)\s*\{([\s\S]+)\}$/);
-          id = m[1];
-          text = m[2].replace(/^["']|["']$/g, '');
-          shape = 'diamond';
-        } else if (/^([A-Za-z0-9_]+)\s*\[\/([\s\S]+)\/\]$/.test(token)) {
-          const m = token.match(/^([A-Za-z0-9_]+)\s*\[\/([\s\S]+)\/\]$/);
-          id = m[1];
-          text = m[2].replace(/^["']|["']$/g, '');
-          shape = 'parallelogram';
-        } else if (/^([A-Za-z0-9_]+)\s*\[\\([\s\S]+)\\\]$/.test(token)) {
-          const m = token.match(/^([A-Za-z0-9_]+)\s*\[\\([\s\S]+)\\\]$/);
-          id = m[1];
-          text = m[2].replace(/^["']|["']$/g, '');
-          shape = 'parallelogram_alt';
-        } else if (/^([A-Za-z0-9_]+)\s*\[\/([\s\S]+)\\\]$/.test(token)) {
-          const m = token.match(/^([A-Za-z0-9_]+)\s*\[\/([\s\S]+)\\\]$/);
-          id = m[1];
-          text = m[2].replace(/^["']|["']$/g, '');
-          shape = 'trapezoid';
-        } else if (/^([A-Za-z0-9_]+)\s*\[\\([\s\S]+)\/\]$/.test(token)) {
-          const m = token.match(/^([A-Za-z0-9_]+)\s*\[\\([\s\S]+)\/\]$/);
-          id = m[1];
-          text = m[2].replace(/^["']|["']$/g, '');
-          shape = 'trapezoid_alt';
-        } else if (/^([A-Za-z0-9_]+)\s*\[([\s\S]+)\]$/.test(token)) {
-          const m = token.match(/^([A-Za-z0-9_]+)\s*\[([\s\S]+)\]$/);
-          id = m[1];
-          text = m[2].replace(/^["']|["']$/g, '');
-          shape = 'rectangle';
-        } else if (/^[A-Za-z0-9_]+$/.test(token)) {
-          id = token;
-          text = token;
-          shape = 'rectangle';
-        }
-
-        let node = newGraph.getNode(id);
-        if (!node) {
-          const oldNode = oldGraph.getNode(id);
-          node = {
-            id,
-            text: text || id,
-            shape,
-            x: oldNode ? oldNode.x : 100,
-            y: oldNode ? oldNode.y : 100,
-            width: 140,
-            height: 50,
-            fillColor: oldNode ? oldNode.fillColor : '#E3F2FD',
-            borderColor: oldNode ? oldNode.borderColor : '#90CAF9',
-            fontColor: oldNode ? oldNode.fontColor : '#0D47A1'
-          };
-          newGraph.addNode(node);
-        } else {
-          if (text) node.text = text;
-          if (shape) node.shape = shape;
-        }
-
-        return node;
+      } catch (e) {
+        return { graph: null, error: `Parse error at line ${lineIdx + 1}: ${e.message}`, errorLine: lineIdx + 1 };
       }
     }
+
+    // For All Specialized Visual Chart Diagrams (Sequence, Class, State, ER, C4, Gantt, Pie, Git, Journey, Mindmap, Timeline, Quadrant, Sankey)
+    newGraph.addNode({ id: 'visual_chart_bounds', text: '', shape: 'rectangle', x: 40, y: 40, width: 780, height: 480, fillColor: 'transparent', borderColor: 'transparent', fontColor: 'transparent' });
+    return { graph: newGraph, error: null };
+  }
+
+  static parseNodeToken(token, oldGraph, newGraph) {
+    token = token.trim();
+    let id = '';
+    let text = '';
+    let shape = 'rectangle';
+
+    if (/^([A-Za-z0-9_]+)\s*\(\(\(([\s\S]+)\)\)\)$/.test(token)) {
+      const m = token.match(/^([A-Za-z0-9_]+)\s*\(\(\(([\s\S]+)\)\)\)$/);
+      id = m[1];
+      text = m[2].replace(/^["']|["']$/g, '');
+      shape = 'double_circle';
+    } else if (/^([A-Za-z0-9_]+)\s*\(\(([\s\S]+)\)\)$/.test(token)) {
+      const m = token.match(/^([A-Za-z0-9_]+)\s*\(\(([\s\S]+)\)\)$/);
+      id = m[1];
+      text = m[2].replace(/^["']|["']$/g, '');
+      shape = 'circle';
+    } else if (/^([A-Za-z0-9_]+)\s*\(\[([\s\S]+)\]\)$/.test(token)) {
+      const m = token.match(/^([A-Za-z0-9_]+)\s*\(\[([\s\S]+)\]\)$/);
+      id = m[1];
+      text = m[2].replace(/^["']|["']$/g, '');
+      shape = 'stadium';
+    } else if (/^([A-Za-z0-9_]+)\s*\(([\s\S]+)\)$/.test(token)) {
+      const m = token.match(/^([A-Za-z0-9_]+)\s*\(([\s\S]+)\)$/);
+      id = m[1];
+      text = m[2].replace(/^["']|["']$/g, '');
+      shape = 'rounded';
+    } else if (/^([A-Za-z0-9_]+)\s*\[\[([\s\S]+)\]\]$/.test(token)) {
+      const m = token.match(/^([A-Za-z0-9_]+)\s*\[\[([\s\S]+)\]\]$/);
+      id = m[1];
+      text = m[2].replace(/^["']|["']$/g, '');
+      shape = 'subroutine';
+    } else if (/^([A-Za-z0-9_]+)\s*\[\(([\s\S]+)\)\]$/.test(token)) {
+      const m = token.match(/^([A-Za-z0-9_]+)\s*\[\(([\s\S]+)\)\]$/);
+      id = m[1];
+      text = m[2].replace(/^["']|["']$/g, '');
+      shape = 'cylinder';
+    } else if (/^([A-Za-z0-9_]+)\s*>([\s\S]+)\]$/.test(token)) {
+      const m = token.match(/^([A-Za-z0-9_]+)\s*>([\s\S]+)\]$/);
+      id = m[1];
+      text = m[2].replace(/^["']|["']$/g, '');
+      shape = 'asymmetric';
+    } else if (/^([A-Za-z0-9_]+)\s*\{\{([\s\S]+)\}\}$/.test(token)) {
+      const m = token.match(/^([A-Za-z0-9_]+)\s*\{\{([\s\S]+)\}\}$/);
+      id = m[1];
+      text = m[2].replace(/^["']|["']$/g, '');
+      shape = 'hexagon';
+    } else if (/^([A-Za-z0-9_]+)\s*\{([\s\S]+)\}$/.test(token)) {
+      const m = token.match(/^([A-Za-z0-9_]+)\s*\{([\s\S]+)\}$/);
+      id = m[1];
+      text = m[2].replace(/^["']|["']$/g, '');
+      shape = 'diamond';
+    } else if (/^([A-Za-z0-9_]+)\s*\[\/([\s\S]+)\/\]$/.test(token)) {
+      const m = token.match(/^([A-Za-z0-9_]+)\s*\[\/([\s\S]+)\/\]$/);
+      id = m[1];
+      text = m[2].replace(/^["']|["']$/g, '');
+      shape = 'parallelogram';
+    } else if (/^([A-Za-z0-9_]+)\s*\[\\([\s\S]+)\\\]$/.test(token)) {
+      const m = token.match(/^([A-Za-z0-9_]+)\s*\[\\([\s\S]+)\\\]$/);
+      id = m[1];
+      text = m[2].replace(/^["']|["']$/g, '');
+      shape = 'parallelogram_alt';
+    } else if (/^([A-Za-z0-9_]+)\s*\[\/([\s\S]+)\\\]$/.test(token)) {
+      const m = token.match(/^([A-Za-z0-9_]+)\s*\[\/([\s\S]+)\\\]$/);
+      id = m[1];
+      text = m[2].replace(/^["']|["']$/g, '');
+      shape = 'trapezoid';
+    } else if (/^([A-Za-z0-9_]+)\s*\[\\([\s\S]+)\/\]$/.test(token)) {
+      const m = token.match(/^([A-Za-z0-9_]+)\s*\[\\([\s\S]+)\/\]$/);
+      id = m[1];
+      text = m[2].replace(/^["']|["']$/g, '');
+      shape = 'trapezoid_alt';
+    } else if (/^([A-Za-z0-9_]+)\s*\[([\s\S]+)\]$/.test(token)) {
+      const m = token.match(/^([A-Za-z0-9_]+)\s*\[([\s\S]+)\]$/);
+      id = m[1];
+      text = m[2].replace(/^["']|["']$/g, '');
+      shape = 'rectangle';
+    } else if (/^[A-Za-z0-9_]+$/.test(token)) {
+      id = token;
+      text = token;
+      shape = 'rectangle';
+    }
+
+    let node = newGraph.getNode(id);
+    if (!node) {
+      const oldNode = oldGraph.getNode(id);
+      node = {
+        id,
+        text: text || id,
+        shape,
+        x: oldNode ? oldNode.x : 100,
+        y: oldNode ? oldNode.y : 100,
+        width: 140,
+        height: 50,
+        fillColor: oldNode ? oldNode.fillColor : '#E3F2FD',
+        borderColor: oldNode ? oldNode.borderColor : '#90CAF9',
+        fontColor: oldNode ? oldNode.fontColor : '#0D47A1'
+      };
+      newGraph.addNode(node);
+    } else {
+      if (text) node.text = text;
+      if (shape) node.shape = shape;
+    }
+
+    return node;
+  }
+}
+
 
 // --- SYNTAX HIGHLIGHTER ---
     class SyntaxHighlighter {
