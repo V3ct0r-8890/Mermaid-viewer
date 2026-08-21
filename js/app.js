@@ -405,12 +405,13 @@
             d = `M ${sx} ${sy} C ${cx1} ${cy1}, ${cx2} ${cy2}, ${tx} ${ty}`;
           }
 
-          // Invisible 24px wide hitbox for effortless mouse clicking
+          // Safari & Chrome compatible invisible 28px wide hitbox
           const hitPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
           hitPath.setAttribute('d', d);
           hitPath.setAttribute('fill', 'none');
-          hitPath.setAttribute('stroke', 'transparent');
-          hitPath.setAttribute('stroke-width', '24');
+          hitPath.setAttribute('stroke', '#000000');
+          hitPath.setAttribute('stroke-width', '28');
+          hitPath.setAttribute('opacity', '0.001');
           hitPath.style.cursor = 'pointer';
           hitPath.style.pointerEvents = 'stroke';
           g.appendChild(hitPath);
@@ -418,6 +419,8 @@
           const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
           path.setAttribute('d', d);
           path.setAttribute('class', 'canvas-edge-path');
+          path.style.cursor = 'pointer';
+          path.style.pointerEvents = 'stroke';
 
           const isThick = edge.type === '==>' || edge.type === '<==>';
           const isDashed = edge.type === '-.->';
@@ -446,7 +449,7 @@
           }
 
           if (isSelected) {
-            path.style.filter = 'drop-shadow(0 0 5px rgba(33, 150, 243, 0.8))';
+            path.style.filter = 'drop-shadow(0 0 6px rgba(33, 150, 243, 0.9))';
           }
 
           g.appendChild(path);
@@ -467,8 +470,8 @@
             labelText.textContent = edge.label;
             labelG.appendChild(labelText);
 
-            const textWidth = edge.label.length * 6.5 + 14;
-            const textHeight = 18;
+            const textWidth = edge.label.length * 6.5 + 16;
+            const textHeight = 20;
 
             const labelBg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
             labelBg.setAttribute('class', 'edge-label-bg');
@@ -476,9 +479,11 @@
             labelBg.setAttribute('y', `${-textHeight / 2}`);
             labelBg.setAttribute('width', `${textWidth}`);
             labelBg.setAttribute('height', `${textHeight}`);
+            labelBg.setAttribute('rx', '4');
             if (isSelected) {
               labelBg.style.stroke = 'var(--selection-color)';
-              labelBg.style.strokeWidth = '2';
+              labelBg.style.strokeWidth = '2.5';
+              labelBg.style.filter = 'drop-shadow(0 0 5px rgba(33, 150, 243, 0.8))';
             }
 
             labelG.insertBefore(labelBg, labelText);
@@ -488,40 +493,21 @@
           const selectThisEdge = () => {
             this.selectedNodeIds.clear();
             this.selectedEdgeId = edge.id;
-            this.selectVisualObject({
-              type: 'Flowchart Link',
-              title: `${edge.source} → ${edge.target}`,
-              fields: [
-                { key: 'label', label: 'Link Label (Optional)', type: 'text', value: edge.label || '' },
-                { key: 'type', label: 'Link Type', type: 'select', value: edge.type || '-->', options: [
-                  { value: '-->', label: 'Arrow (-->)' },
-                  { value: '---', label: 'Open Line (---)' },
-                  { value: '==>', label: 'Thick Arrow (==>)' },
-                  { value: '-.->', label: 'Dotted Arrow (-.->)' }
-                ]},
-                { key: 'color', label: 'Line / Arrow Color', type: 'color', value: edge.color || (this.themeMgr.isDarkTheme() ? '#BBBBBB' : '#616161') },
-                { key: 'font', label: 'Label Font Color', type: 'color', value: edge.textColor || (this.themeMgr.isDarkTheme() ? '#D4D4D4' : '#212121') }
-              ],
-              onSave: (vals) => {
-                edge.label = vals.label || undefined;
-                edge.type = vals.type;
-                edge.color = vals.color;
-                edge.textColor = vals.font;
-                this.graph.customRawCode = null;
-                this.updateMermaidCode();
-                this.renderAll();
-                Utils.showToast(`Updated link ${edge.source} → ${edge.target}`, 'success');
-              }
-            });
+            this.selectedVisualObject = null;
+            this.renderAll();
+            this.updatePropertiesPanel();
+            document.querySelector('.left-tab[data-tab="properties"]')?.click();
           };
 
-          g.addEventListener('mousedown', (e) => {
-            e.stopPropagation();
-          });
-
-          g.addEventListener('click', (e) => {
-            e.stopPropagation();
-            selectThisEdge();
+          [g, hitPath, path].forEach(el => {
+            el.addEventListener('mousedown', (e) => {
+              e.stopPropagation();
+              selectThisEdge();
+            });
+            el.addEventListener('click', (e) => {
+              e.stopPropagation();
+              selectThisEdge();
+            });
           });
 
           g.addEventListener('dblclick', (e) => {
@@ -1566,6 +1552,7 @@
         }
 
         this.selectedEdgeId = null;
+        this.selectedVisualObject = null;
         this.renderAll();
 
         document.querySelector('.left-tab[data-tab="properties"]')?.click();
