@@ -643,8 +643,6 @@
 
       // --- LIVE PROPERTIES EDITOR ---
       selectVisualObject(info) {
-        this.selectedNodeIds.clear();
-        this.selectedEdgeId = null;
         this.selectedVisualObject = info;
 
         const inspectorTab = document.querySelector('.left-tab[data-tab="properties"]');
@@ -681,8 +679,8 @@
         const visualForm = document.getElementById('visual-props-form');
         const visualFields = document.getElementById('visual-prop-fields');
 
-        // 1. Auto-wrap single selected node for Flowchart diagrams
-        if (this.selectedNodeIds.size === 1 && !this.selectedVisualObject) {
+        // Priority 1: Single Selected Node (Flowchart)
+        if (this.selectedNodeIds && this.selectedNodeIds.size === 1) {
           const nodeId = Array.from(this.selectedNodeIds)[0];
           const node = this.graph.getNode(nodeId);
           if (node) {
@@ -723,9 +721,8 @@
             };
           }
         }
-
-        // 2. Auto-wrap single selected edge for Flowchart diagrams
-        if (this.selectedEdgeId && !this.selectedVisualObject) {
+        // Priority 2: Selected Edge / Arrow (Flowchart)
+        else if (this.selectedEdgeId) {
           const edge = this.graph.getEdge(this.selectedEdgeId);
           if (edge) {
             this.selectedVisualObject = {
@@ -737,7 +734,9 @@
                   { value: '-->', label: 'Arrow (-->)' },
                   { value: '---', label: 'Open Line (---)' },
                   { value: '==>', label: 'Thick Arrow (==>)' },
-                  { value: '-.->', label: 'Dotted Arrow (-.->)' }
+                  { value: '-.->', label: 'Dotted Arrow (-.->)' },
+                  { value: '<-->', label: 'Bidirectional (<-->)' },
+                  { value: '<==>', label: 'Bidirectional Thick (<==>)' }
                 ]},
                 { key: 'color', label: 'Line / Arrow Color', type: 'color', value: edge.color || (this.themeMgr.isDarkTheme() ? '#BBBBBB' : '#616161') },
                 { key: 'font', label: 'Label Font Color', type: 'color', value: edge.textColor || (this.themeMgr.isDarkTheme() ? '#D4D4D4' : '#212121') }
@@ -747,7 +746,8 @@
                 edge.type = vals.type;
                 edge.color = vals.color;
                 edge.textColor = vals.font;
-                this.updateCodeFromGraph();
+                this.graph.customRawCode = null;
+                this.updateMermaidCode();
                 this.renderAll();
                 Utils.showToast(`Updated link ${edge.source} → ${edge.target}`, 'success');
               }
@@ -755,6 +755,7 @@
           }
         }
 
+        // Priority 3: Custom Visual Object (Sequence, Class, State, ER, C4, Gantt, etc.)
         if (this.selectedVisualObject) {
           propEmpty.style.display = 'none';
           if (nodeForm) nodeForm.style.display = 'none';
@@ -909,7 +910,6 @@
                   });
                   this.renderAll();
                   this.recordHistory();
-                  Utils.showToast('Properties updated and applied', 'success');
                 }
               });
 

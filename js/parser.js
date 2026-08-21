@@ -61,6 +61,18 @@ class MermaidParser {
             continue;
           }
 
+                    const linkStyleMatch = rawLine.match(/^linkStyle\s+([0-9]+)\s+(.+)$/i);
+          if (linkStyleMatch) {
+            const edgeIdx = parseInt(linkStyleMatch[1]);
+            const styleProps = linkStyleMatch[2];
+            if (newGraph.edges[edgeIdx]) {
+              const strokeM = styleProps.match(/stroke:([^,;]+)/);
+              const strokeWM = styleProps.match(/stroke-width:([^,;]+)/);
+              if (strokeM) newGraph.edges[edgeIdx].color = strokeM[1].trim();
+              if (strokeWM) newGraph.edges[edgeIdx].strokeWidth = parseFloat(strokeWM[1].trim());
+            }
+            continue;
+          }
           const classDefMatch = rawLine.match(/^classDef\s+([A-Za-z0-9_]+)\s+(.+)$/i);
           if (classDefMatch) continue;
           const classApplyMatch = rawLine.match(/^class\s+([A-Za-z0-9_,\s]+)\s+([A-Za-z0-9_]+)$/i);
