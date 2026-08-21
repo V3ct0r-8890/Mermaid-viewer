@@ -375,6 +375,7 @@
           const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
           g.setAttribute('class', `canvas-edge ${isSelected ? 'selected' : ''}`);
           g.setAttribute('data-id', edge.id);
+          g.style.cursor = 'pointer';
 
           const { sx, sy, tx, ty, srcDir, tgtDir } = this.calculateEdgeEndpoints(src, tgt);
 
@@ -403,6 +404,16 @@
 
             d = `M ${sx} ${sy} C ${cx1} ${cy1}, ${cx2} ${cy2}, ${tx} ${ty}`;
           }
+
+          // Invisible 24px wide hitbox for effortless mouse clicking
+          const hitPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+          hitPath.setAttribute('d', d);
+          hitPath.setAttribute('fill', 'none');
+          hitPath.setAttribute('stroke', 'transparent');
+          hitPath.setAttribute('stroke-width', '24');
+          hitPath.style.cursor = 'pointer';
+          hitPath.style.pointerEvents = 'stroke';
+          g.appendChild(hitPath);
 
           const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
           path.setAttribute('d', d);
@@ -434,6 +445,10 @@
             path.setAttribute('stroke-dasharray', '5,4');
           }
 
+          if (isSelected) {
+            path.style.filter = 'drop-shadow(0 0 5px rgba(33, 150, 243, 0.8))';
+          }
+
           g.appendChild(path);
 
           if (edge.label) {
@@ -442,6 +457,7 @@
 
             const labelG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
             labelG.setAttribute('transform', `translate(${midX}, ${midY})`);
+            labelG.style.cursor = 'pointer';
 
             const labelText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
             labelText.setAttribute('class', 'edge-label-text');
@@ -451,7 +467,7 @@
             labelText.textContent = edge.label;
             labelG.appendChild(labelText);
 
-            const textWidth = edge.label.length * 6.5 + 12;
+            const textWidth = edge.label.length * 6.5 + 14;
             const textHeight = 18;
 
             const labelBg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
@@ -460,13 +476,16 @@
             labelBg.setAttribute('y', `${-textHeight / 2}`);
             labelBg.setAttribute('width', `${textWidth}`);
             labelBg.setAttribute('height', `${textHeight}`);
+            if (isSelected) {
+              labelBg.style.stroke = 'var(--selection-color)';
+              labelBg.style.strokeWidth = '2';
+            }
 
             labelG.insertBefore(labelBg, labelText);
             g.appendChild(labelG);
           }
 
-          g.addEventListener('click', (e) => {
-            e.stopPropagation();
+          const selectThisEdge = () => {
             this.selectedNodeIds.clear();
             this.selectedEdgeId = edge.id;
             this.selectVisualObject({
@@ -488,11 +507,21 @@
                 edge.type = vals.type;
                 edge.color = vals.color;
                 edge.textColor = vals.font;
-                this.updateCodeFromGraph();
+                this.graph.customRawCode = null;
+                this.updateMermaidCode();
                 this.renderAll();
                 Utils.showToast(`Updated link ${edge.source} → ${edge.target}`, 'success');
               }
             });
+          };
+
+          g.addEventListener('mousedown', (e) => {
+            e.stopPropagation();
+          });
+
+          g.addEventListener('click', (e) => {
+            e.stopPropagation();
+            selectThisEdge();
           });
 
           g.addEventListener('dblclick', (e) => {
@@ -686,7 +715,8 @@
                 node.fillColor = vals.fill;
                 node.fontColor = vals.font;
                 node.borderColor = vals.border;
-                this.updateCodeFromGraph();
+                this.graph.customRawCode = null;
+                this.updateMermaidCode();
                 this.renderAll();
                 Utils.showToast(`Updated node "${vals.text}"`, 'success');
               }
