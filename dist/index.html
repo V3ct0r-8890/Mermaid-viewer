@@ -2464,7 +2464,7 @@ class MultiDiagramVisualizer {
 
   static parseColorDirectives(code) {
     if (!code) return;
-    const matches = code.matchAll(/%%\s*@color:\s*([^=\n]+)\s*=\\s*(#[A-Fa-f0-9]{3,8})/g);
+    const matches = code.matchAll(/%%\s*@color:\s*([^=\n]+)\s*=\s*(#[A-Fa-f0-9]{3,8})/g);
     for (const m of matches) {
       const key = m[1].trim();
       const color = m[2].trim();
@@ -4614,16 +4614,15 @@ class MultiDiagramVisualizer {
           relations.push({ src: 'BankAccount', type: '<|--', tgt: 'CheckingAccount', label: '' });
         }
 
-        const colW = 200;
+        const colW = 210;
         const startX = 60;
         const startY = 60;
 
         classes.forEach((c, idx) => {
           const col = idx % 2 === 0 ? 0 : 1;
-          const row = Math.floor(idx / 2);
-          const x = startX + (idx === 0 && classes.length >= 3 ? 150 : col * 280);
-          const y = startY + (idx === 0 && classes.length >= 3 ? 0 : 160);
-          const h = 40 + (c.members.length + c.methods.length) * 18 + 16;
+          const x = startX + (idx === 0 && classes.length >= 3 ? 160 : col * 290);
+          const y = startY + (idx === 0 && classes.length >= 3 ? 0 : 170);
+          const h = 42 + (c.members.length + c.methods.length) * 18 + 16;
 
           c.x = x + colW / 2;
           c.y = y + h / 2;
@@ -4652,7 +4651,7 @@ class MultiDiagramVisualizer {
           // Class Name Header
           const nameTxt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
           nameTxt.setAttribute('x', `${x + colW / 2}`);
-          nameTxt.setAttribute('y', `${y + 20}`);
+          nameTxt.setAttribute('y', `${y + 22}`);
           nameTxt.setAttribute('text-anchor', 'middle');
           nameTxt.setAttribute('fill', cFont);
           nameTxt.setAttribute('font-size', '13px');
@@ -4663,23 +4662,23 @@ class MultiDiagramVisualizer {
           // Header Divider
           const divLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
           divLine.setAttribute('x1', `${x}`);
-          divLine.setAttribute('y1', `${y + 32}`);
+          divLine.setAttribute('y1', `${y + 34}`);
           divLine.setAttribute('x2', `${x + colW}`);
-          divLine.setAttribute('y2', `${y + 32}`);
+          divLine.setAttribute('y2', `${y + 34}`);
           divLine.setAttribute('stroke', primaryBorder);
           divLine.setAttribute('stroke-width', '1');
           g.appendChild(divLine);
 
-          let curItemY = y + 48;
+          let curItemY = y + 50;
           c.members.forEach(m => {
             const mTxt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
             mTxt.setAttribute('x', `${x + 12}`);
             mTxt.setAttribute('y', `${curItemY}`);
             mTxt.setAttribute('fill', cFont);
-            mTxt.setAttribute('font-size', '10.5px');
+            mTxt.setAttribute('font-size', '11px');
             mTxt.textContent = m;
             g.appendChild(mTxt);
-            curItemY += 17;
+            curItemY += 18;
           });
 
           if (c.methods.length > 0) {
@@ -4699,10 +4698,10 @@ class MultiDiagramVisualizer {
               mtTxt.setAttribute('x', `${x + 12}`);
               mtTxt.setAttribute('y', `${curItemY}`);
               mtTxt.setAttribute('fill', cFont);
-              mtTxt.setAttribute('font-size', '10.5px');
+              mtTxt.setAttribute('font-size', '11px');
               mtTxt.textContent = mt;
               g.appendChild(mtTxt);
-              curItemY += 17;
+              curItemY += 18;
             });
           }
 
@@ -4741,7 +4740,7 @@ class MultiDiagramVisualizer {
           nodesLayer.appendChild(g);
         });
 
-        // Draw UML Relationships
+        // Draw UML Relationships with Full Click Configuration
         relations.forEach(r => {
           const s = classMap.get(r.src);
           const t = classMap.get(r.tgt);
@@ -4749,6 +4748,8 @@ class MultiDiagramVisualizer {
 
           const relKey = `${r.src}->${r.tgt}`;
           const relColor = MultiDiagramVisualizer.getColor(relKey, linkColor);
+          const relFont = MultiDiagramVisualizer.getColor(relKey + ':font', textColor);
+          const isSelRel = (`${r.src} → ${r.tgt}` === selTitle);
 
           const x1 = s.x;
           const y1 = s.bottomY;
@@ -4756,22 +4757,1845 @@ class MultiDiagramVisualizer {
           const y2 = t.topY;
 
           const lineG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+          lineG.style.cursor = 'pointer';
+
           const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
           const midY = (y1 + y2) / 2;
           path.setAttribute('d', `M ${x1} ${y1} C ${x1} ${midY}, ${x2} ${midY}, ${x2} ${y2}`);
           path.setAttribute('fill', 'none');
-          path.setAttribute('stroke', relColor);
-          path.setAttribute('stroke-width', '1.8');
+          path.setAttribute('stroke', isSelRel ? 'var(--selection-color)' : relColor);
+          path.setAttribute('stroke-width', isSelRel ? '3' : '2');
           if (r.type === '..>') path.setAttribute('stroke-dasharray', '4,4');
+          if (isSelRel) path.style.filter = selGlow;
           lineG.appendChild(path);
 
           // Inheritance open triangle arrow
           const tri = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
           tri.setAttribute('points', `${x1},${y1} ${x1 - 6},${y1 + 10} ${x1 + 6},${y1 + 10}`);
           tri.setAttribute('fill', cardBg);
-          tri.setAttribute('stroke', relColor);
-          tri.setAttribute('stroke-width', '1.5');
+          tri.setAttribute('stroke', isSelRel ? 'var(--selection-color)' : relColor);
+          tri.setAttribute('stroke-width', '1.8');
           lineG.appendChild(tri);
+
+          lineG.addEventListener('mousedown', (e) => e.stopPropagation());
+          lineG.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (typeof AppController !== 'undefined' && AppController.instance) {
+              AppController.instance.selectVisualObject({
+                type: 'UML Relationship',
+                title: `${r.src} → ${r.tgt}`,
+                fields: [
+                  { key: 'type', label: 'Relationship Type', type: 'select', value: r.type || '<|--', options: [
+                    { value: '<|--', label: 'Inherits (<|--)' },
+                    { value: '*--', label: 'Composition (*--)' },
+                    { value: 'o--', label: 'Aggregation (o--)' },
+                    { value: '-->', label: 'Association (-->)' },
+                    { value: '..>', label: 'Dependency (..>)' }
+                  ]},
+                  { key: 'label', label: 'Relation Label (Optional)', type: 'text', value: r.label || '' },
+                  { key: 'color', label: 'Line / Arrow Color', type: 'color', value: relColor },
+                  { key: 'font', label: 'Label Font Color', type: 'color', value: relFont }
+                ],
+                onSave: (vals) => {
+                  MultiDiagramVisualizer.setColor(relKey, vals.color);
+                  MultiDiagramVisualizer.setColor(relKey + ':font', vals.font);
+                  MultiDiagramVisualizer.syncColorToCode(relKey, vals.color);
+                  MultiDiagramVisualizer.syncColorToCode(relKey + ':font', vals.font);
+                  MultiDiagramVisualizer.updateCodeLine((curCode) => {
+                    const esc1 = r.src.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\</body>');
+                    const esc2 = r.tgt.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\</body>');
+                    const reg = new RegExp(`^\\s*${esc1}\\s*(?:<\\|--|\\*--|o--|-->|\\.\\.>|--)\\s*${esc2}(?:\\s*:.*)?<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mermaid Visual Editor & Offline Viewer</title>
+  <style>
+:root {
+      --bg-color: #FFFFFF;
+      --canvas-bg: #FAFAFA;
+      --text-color: #212121;
+      --text-muted: #757575;
+      --node-fill: #E3F2FD;
+      --node-border: #90CAF9;
+      --node-text: #0D47A1;
+      --selection-color: #2196F3;
+      --selection-box: rgba(33, 150, 243, 0.15);
+      --link-color: #616161;
+      --link-selected: #1976D2;
+      --toolbar-bg: #F5F5F7;
+      --panel-bg: #FFFFFF;
+      --border-color: #E0E0E0;
+      --hover-color: #ECEFF1;
+      --grid-dot: #D6D6D6;
+      --modal-bg: #FFFFFF;
+      --modal-overlay: rgba(0, 0, 0, 0.4);
+      --btn-primary: #1976D2;
+      --btn-primary-hover: #1565C0;
+      --btn-danger: #D32F2F;
+      --btn-secondary: #E0E0E0;
+      --shadow: 0 4px 12px rgba(0,0,0,0.08);
+      --shadow-sm: 0 2px 4px rgba(0,0,0,0.05);
+      --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      --code-font: "JetBrains Mono", "Fira Code", Menlo, Monaco, Consolas, monospace;
+    }
+
+    [data-theme="dark"] {
+      --bg-color: #1E1E1E;
+      --canvas-bg: #252526;
+      --text-color: #D4D4D4;
+      --text-muted: #8E8E8E;
+      --node-fill: #2D4A66;
+      --node-border: #4FC3F7;
+      --node-text: #E1F5FE;
+      --selection-color: #4FC3F7;
+      --selection-box: rgba(79, 195, 247, 0.2);
+      --link-color: #BBBBBB;
+      --link-selected: #4FC3F7;
+      --toolbar-bg: #2D2D2D;
+      --panel-bg: #1E1E1E;
+      --border-color: #383838;
+      --hover-color: #383838;
+      --grid-dot: #404040;
+      --modal-bg: #252526;
+      --modal-overlay: rgba(0, 0, 0, 0.65);
+      --btn-primary: #0288D1;
+      --btn-primary-hover: #039BE5;
+      --btn-danger: #F44336;
+      --btn-secondary: #3E3E42;
+      --shadow: 0 4px 14px rgba(0,0,0,0.4);
+      --shadow-sm: 0 2px 6px rgba(0,0,0,0.3);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+
+    body {
+      font-family: var(--font-family);
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* Toolbar */
+    #toolbar {
+      height: 48px;
+      background: var(--toolbar-bg);
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      padding: 0 12px;
+      gap: 4px;
+      z-index: 20;
+    }
+
+    .toolbar-group {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding-right: 6px;
+      margin-right: 6px;
+      border-right: 1px solid var(--border-color);
+    }
+
+    .toolbar-group:last-child {
+      border-right: none;
+      margin-left: auto;
+      padding-right: 0;
+      margin-right: 0;
+    }
+
+    .app-title {
+      font-weight: 700;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-right: 12px;
+      color: var(--text-color);
+    }
+    .app-title svg {
+      width: 20px;
+      height: 20px;
+      fill: var(--btn-primary);
+    }
+
+    .tb-select {
+      background: var(--bg-color);
+      border: 1px solid var(--border-color);
+      color: var(--text-color);
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-family: inherit;
+      outline: none;
+      cursor: pointer;
+      font-weight: 500;
+      transition: border-color 0.15s;
+    }
+    .tb-select:hover, .tb-select:focus {
+      border-color: var(--selection-color);
+    }
+
+    button.tb-btn {
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--text-color);
+      padding: 5px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      transition: background 0.15s, border-color 0.15s;
+    }
+
+    button.tb-btn:hover {
+      background: var(--hover-color);
+      border-color: var(--border-color);
+    }
+
+    button.tb-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    button.tb-btn svg {
+      width: 15px;
+      height: 15px;
+      fill: currentColor;
+    }
+
+    /* Main Container */
+    #main-container {
+      flex: 1;
+      display: flex;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Panels */
+    .panel {
+      background: var(--panel-bg);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .panel-header {
+      height: 36px;
+      padding: 0 12px;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      background: var(--toolbar-bg);
+    }
+
+    /* Left Sidebar: Node Properties & Tools */
+    #left-panel {
+      width: 270px;
+      min-width: 200px;
+      max-width: 450px;
+      border-right: 1px solid var(--border-color);
+    }
+
+    /* Left Tabs */
+    .left-tabs {
+      display: flex;
+      background: var(--toolbar-bg);
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .left-tab {
+      flex: 1;
+      padding: 8px 4px;
+      font-size: 11px;
+      font-weight: 600;
+      text-align: center;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      color: var(--text-muted);
+      transition: all 0.15s;
+    }
+
+    .left-tab:hover {
+      color: var(--text-color);
+      background: var(--hover-color);
+    }
+
+    .left-tab.active {
+      color: var(--btn-primary);
+      border-bottom-color: var(--btn-primary);
+      background: var(--panel-bg);
+    }
+
+    .tab-content {
+      flex: 1;
+      overflow-y: auto;
+      display: none;
+      flex-direction: column;
+    }
+
+    .tab-content.active {
+      display: flex;
+    }
+
+    .sidebar-section {
+      padding: 12px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .sidebar-section h4 {
+      font-size: 11px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+    }
+
+    /* Properties Editor Form */
+    .prop-group {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      margin-bottom: 10px;
+    }
+
+    .prop-group label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+
+    .prop-input {
+      padding: 5px 8px;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      background: var(--bg-color);
+      color: var(--text-color);
+      font-size: 12px;
+      font-family: inherit;
+      outline: none;
+      width: 100%;
+    }
+
+    .prop-input:focus {
+      border-color: var(--selection-color);
+    }
+
+    .prop-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .color-swatches {
+      display: flex;
+      gap: 5px;
+      flex-wrap: wrap;
+      margin-top: 4px;
+    }
+
+    .color-swatch {
+      width: 18px;
+      height: 18px;
+      border-radius: 3px;
+      cursor: pointer;
+      border: 1px solid var(--border-color);
+      transition: transform 0.1s;
+    }
+
+    .color-swatch:hover {
+      transform: scale(1.2);
+    }
+
+    .prop-action-btn {
+      padding: 6px;
+      border: 1px solid var(--border-color);
+      background: var(--bg-color);
+      color: var(--text-color);
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      transition: all 0.15s;
+    }
+    .prop-action-btn:hover {
+      background: var(--hover-color);
+      border-color: var(--selection-color);
+    }
+    .prop-action-btn.primary {
+      background: var(--btn-primary);
+      color: #FFFFFF;
+      border-color: var(--btn-primary);
+    }
+    .prop-action-btn.primary:hover {
+      opacity: 0.9;
+    }
+    .prop-action-btn.danger {
+      color: var(--btn-danger);
+      border-color: var(--btn-danger);
+    }
+    .prop-action-btn.danger:hover {
+      background: rgba(244, 67, 54, 0.1);
+    }
+
+    .shape-palette {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+    }
+
+    .shape-item {
+      padding: 8px 6px;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      background: var(--canvas-bg);
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      transition: all 0.15s;
+    }
+
+    .shape-item:hover {
+      border-color: var(--selection-color);
+      background: var(--hover-color);
+      transform: translateY(-1px);
+    }
+
+    .shape-item svg {
+      width: 44px;
+      height: 28px;
+    }
+
+    /* Template Cards in Modal */
+    .template-card {
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 10px;
+      background: var(--bg-color);
+      cursor: pointer;
+      transition: all 0.15s;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .template-card:hover {
+      border-color: var(--btn-primary);
+      background: var(--hover-color);
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .template-badge {
+      display: inline-block;
+      align-self: flex-start;
+      font-size: 10px;
+      font-family: var(--code-font);
+      background: var(--hover-color);
+      color: var(--btn-primary);
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-weight: 600;
+    }
+
+    .template-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-color);
+    }
+
+    .template-desc {
+      font-size: 11px;
+      color: var(--text-muted);
+      line-height: 1.3;
+    }
+
+    /* Rules Engine List */
+    .rules-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      font-size: 11px;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+
+    .rule-chip {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 4px 8px;
+      border-radius: 4px;
+      background: var(--canvas-bg);
+      border: 1px solid var(--border-color);
+    }
+
+    .rule-chip.allowed { border-left: 3px solid #4CAF50; }
+    .rule-chip.blocked { border-left: 3px solid #F44336; }
+
+    .rule-del-btn {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-weight: bold;
+    }
+    .rule-del-btn:hover { color: var(--btn-danger); }
+
+    /* Canvas Center */
+    #canvas-panel {
+      flex: 1;
+      position: relative;
+      background: var(--canvas-bg);
+      overflow: hidden;
+      cursor: default;
+    }
+
+    #canvas-svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+      cursor: grab;
+    }
+
+    #canvas-svg.panning, #canvas-svg.panning * {
+      cursor: grabbing !important;
+    }
+
+    /* Canvas Scrollbars */
+    .canvas-scrollbar {
+      position: absolute;
+      background: rgba(0, 0, 0, 0.05);
+      z-index: 18;
+      transition: background 0.15s, opacity 0.15s;
+      border-radius: 4px;
+      user-select: none;
+    }
+    [data-theme="dark"] .canvas-scrollbar {
+      background: rgba(255, 255, 255, 0.06);
+    }
+    .canvas-scrollbar:hover {
+      background: rgba(0, 0, 0, 0.1);
+    }
+    [data-theme="dark"] .canvas-scrollbar:hover {
+      background: rgba(255, 255, 255, 0.12);
+    }
+    .canvas-scrollbar.horizontal {
+      left: 0;
+      bottom: 0;
+      right: 12px;
+      height: 10px;
+    }
+    .canvas-scrollbar.vertical {
+      top: 0;
+      right: 0;
+      bottom: 12px;
+      width: 10px;
+    }
+    .scrollbar-thumb {
+      position: absolute;
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 5px;
+      cursor: grab;
+      transition: background 0.15s;
+    }
+    [data-theme="dark"] .scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.3);
+    }
+    .scrollbar-thumb:hover, .scrollbar-thumb.dragging {
+      background: var(--selection-color);
+      cursor: grabbing;
+    }
+
+    /* Right Panel: Mermaid Code Editor */
+    #right-panel {
+      width: 340px;
+      min-width: 220px;
+      max-width: 600px;
+      border-left: 1px solid var(--border-color);
+      transition: width 0.15s ease;
+    }
+    #right-panel.collapsed {
+      display: none !important;
+    }
+    #right-splitter.collapsed {
+      display: none !important;
+    }
+
+    #editor-container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      background: var(--panel-bg);
+    }
+
+    #editor-wrapper {
+      position: relative;
+      flex: 1;
+      overflow: auto;
+      font-family: var(--code-font);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    #code-editor, #code-highlight {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      padding: 12px;
+      margin: 0;
+      border: none;
+      outline: none;
+      white-space: pre;
+      overflow: auto;
+      tab-size: 2;
+      font-family: inherit;
+      font-size: inherit;
+      line-height: inherit;
+      box-sizing: border-box;
+      user-select: text;
+    }
+
+    #code-editor {
+      background: transparent;
+      color: transparent;
+      caret-color: var(--text-color);
+      z-index: 2;
+      resize: none;
+      spellcheck: false;
+    }
+
+    #code-highlight {
+      background: var(--panel-bg);
+      color: var(--text-color);
+      z-index: 1;
+      pointer-events: none;
+    }
+
+    /* Mermaid Syntax Highlighting */
+    .hl-keyword { color: #D73A49; font-weight: bold; }
+    [data-theme="dark"] .hl-keyword { color: #FF7B72; font-weight: bold; }
+    .hl-dir { color: #005CC5; font-weight: bold; }
+    [data-theme="dark"] .hl-dir { color: #79C0FF; font-weight: bold; }
+    .hl-nodeid { color: #6F42C1; font-weight: 600; }
+    [data-theme="dark"] .hl-nodeid { color: #D2A8FF; font-weight: 600; }
+    .hl-shape { color: #22863A; }
+    [data-theme="dark"] .hl-shape { color: #7EE787; }
+    .hl-arrow { color: #E36209; font-weight: bold; }
+    [data-theme="dark"] .hl-arrow { color: #FFA657; font-weight: bold; }
+    .hl-label { color: #032F62; }
+    [data-theme="dark"] .hl-label { color: #A5D6FF; }
+    .hl-comment { color: #6A737D; font-style: italic; }
+    [data-theme="dark"] .hl-comment { color: #8B949E; font-style: italic; }
+    .hl-style { color: #B31D28; }
+    [data-theme="dark"] .hl-style { color: #FF7B72; }
+
+    #editor-status-bar {
+      padding: 6px 12px;
+      font-size: 11px;
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--toolbar-bg);
+    }
+
+    #editor-error {
+      color: var(--btn-danger);
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 200px;
+    }
+
+    /* Splitters */
+    .splitter {
+      width: 5px;
+      background: var(--border-color);
+      cursor: col-resize;
+      z-index: 10;
+      transition: background 0.2s;
+    }
+    .splitter:hover, .splitter.active {
+      background: var(--selection-color);
+    }
+
+    /* Floating View Controls */
+    #floating-controls {
+      position: absolute;
+      top: 14px;
+      right: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      background: var(--panel-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 4px;
+      box-shadow: var(--shadow);
+      z-index: 15;
+    }
+
+    .float-btn {
+      width: 30px;
+      height: 30px;
+      border: none;
+      background: transparent;
+      color: var(--text-color);
+      border-radius: 4px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: bold;
+    }
+
+    .float-btn:hover {
+      background: var(--hover-color);
+    }
+
+    /* Minimap */
+    #minimap-container {
+      position: absolute;
+      bottom: 14px;
+      right: 14px;
+      width: 180px;
+      height: 120px;
+      background: var(--panel-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      z-index: 15;
+    }
+
+    #minimap-svg {
+      width: 100%;
+      height: 100%;
+    }
+
+    #minimap-viewport {
+      fill: var(--selection-box);
+      stroke: var(--selection-color);
+      stroke-width: 1.5;
+      cursor: grab;
+    }
+
+    /* Status Bar */
+    #status-bar {
+      height: 26px;
+      background: var(--toolbar-bg);
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      padding: 0 12px;
+      font-size: 11px;
+      color: var(--text-muted);
+      gap: 16px;
+      z-index: 20;
+    }
+
+    .status-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    /* Modals & Dialogs */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: var(--modal-overlay);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+
+    .modal-overlay.open {
+      display: flex;
+    }
+
+    .modal-card {
+      background: var(--modal-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      width: 420px;
+      max-width: 90vw;
+      box-shadow: var(--shadow);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      animation: modalPop 0.15s ease-out;
+    }
+
+    @keyframes modalPop {
+      from { transform: scale(0.95); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+
+    .modal-header {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border-color);
+      font-size: 14px;
+      font-weight: 600;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .modal-body {
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      font-size: 12px;
+    }
+
+    .modal-footer {
+      padding: 12px 16px;
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      background: var(--toolbar-bg);
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .form-group label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+
+    .form-control {
+      padding: 7px 10px;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      background: var(--bg-color);
+      color: var(--text-color);
+      font-size: 12px;
+      font-family: inherit;
+      outline: none;
+    }
+
+    .form-control:focus {
+      border-color: var(--selection-color);
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .color-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+
+    .color-input-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      border: 1px solid var(--border-color);
+      padding: 3px 6px;
+      border-radius: 4px;
+    }
+
+    .color-input-wrapper input[type="color"] {
+      border: none;
+      width: 22px;
+      height: 22px;
+      border-radius: 3px;
+      cursor: pointer;
+      background: none;
+    }
+
+    .btn {
+      padding: 6px 12px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: all 0.15s;
+    }
+
+    .btn-primary {
+      background: var(--btn-primary);
+      color: #FFF;
+    }
+    .btn-primary:hover {
+      background: var(--btn-primary-hover);
+    }
+
+    .btn-secondary {
+      background: var(--btn-secondary);
+      color: var(--text-color);
+      border-color: var(--border-color);
+    }
+    .btn-secondary:hover {
+      background: var(--hover-color);
+    }
+
+    .btn-danger {
+      background: var(--btn-danger);
+      color: #FFF;
+    }
+
+    /* Search Box */
+    #search-box {
+      position: absolute;
+      top: 14px;
+      left: 14px;
+      background: var(--modal-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      box-shadow: var(--shadow);
+      padding: 6px 10px;
+      display: none;
+      align-items: center;
+      gap: 8px;
+      z-index: 100;
+    }
+
+    #search-box.open {
+      display: flex;
+    }
+
+    #search-input {
+      border: none;
+      background: transparent;
+      color: var(--text-color);
+      outline: none;
+      font-size: 12px;
+      width: 160px;
+    }
+
+    #search-results-count {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    /* Canvas Elements */
+    .canvas-node {
+      cursor: move;
+      transition: filter 0.15s;
+    }
+
+    .canvas-node:hover .node-shape {
+      filter: drop-shadow(0 2px 5px rgba(0,0,0,0.15));
+    }
+
+    .canvas-node.selected .node-shape {
+      stroke: var(--selection-color) !important;
+      stroke-width: 2.5px !important;
+    }
+
+    .node-port {
+      fill: var(--bg-color);
+      stroke: var(--selection-color);
+      stroke-width: 1.5;
+      cursor: crosshair;
+      opacity: 0;
+      transition: opacity 0.12s, fill 0.12s;
+    }
+
+    .canvas-node:hover .node-port, .canvas-node.selected .node-port, #canvas-panel.connecting .node-port {
+      opacity: 0.95;
+    }
+
+    .node-port:hover, #canvas-panel.connecting .node-port:hover {
+      opacity: 1;
+      fill: var(--selection-color);
+      stroke-width: 2.2;
+    }
+
+    .canvas-edge {
+      cursor: pointer;
+    }
+
+    .canvas-edge-path {
+      fill: none;
+      stroke: var(--link-color);
+      stroke-width: 2;
+      transition: stroke 0.15s, stroke-width 0.15s;
+    }
+
+    .canvas-edge:hover .canvas-edge-path {
+      stroke: var(--link-selected);
+      stroke-width: 2.5;
+    }
+
+    .canvas-edge.selected .canvas-edge-path {
+      stroke: var(--selection-color);
+      stroke-width: 3;
+    }
+
+    .edge-label-bg {
+      fill: var(--bg-color);
+      stroke: var(--border-color);
+      stroke-width: 1;
+      rx: 4;
+    }
+
+    .edge-label-text {
+      font-size: 11px;
+      fill: var(--text-color);
+      text-anchor: middle;
+      dominant-baseline: central;
+      pointer-events: none;
+    }
+
+    .canvas-edge.selected .edge-label-bg {
+      stroke: var(--selection-color);
+    }
+
+    .marquee-box {
+      fill: var(--selection-box);
+      stroke: var(--selection-color);
+      stroke-width: 1;
+      stroke-dasharray: 4 2;
+      pointer-events: none;
+    }
+
+    .connecting-line {
+      stroke: var(--selection-color);
+      stroke-width: 2;
+      stroke-dasharray: 5 4;
+      pointer-events: none;
+    }
+
+    /* Toast */
+    #toast {
+      position: fixed;
+      bottom: 40px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: #323232;
+      color: #FFF;
+      padding: 8px 18px;
+      border-radius: 20px;
+      font-size: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+      z-index: 2000;
+      opacity: 0;
+      transition: transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.25s;
+      pointer-events: none;
+    }
+    #toast.show {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
+    #toast.error {
+      background: #D32F2F;
+    }
+    #toast.success {
+      background: #388E3C;
+    }
+
+    #file-input {
+      display: none;
+    }
+</style>
+</head>
+<body>
+  <!-- Toolbar -->
+  <div id="toolbar">
+    <div class="app-title">
+      <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+      <span>Mermaid Editor</span>
+    </div>
+
+    <!-- Diagram Type Selector Dropdown -->
+    <div class="toolbar-group">
+      <label style="font-size:11px; font-weight:600; color:var(--text-muted); margin-right:2px;">Type:</label>
+      <select id="diagram-type-select" class="tb-select" title="Active Diagram Type (Switch to load template)">
+        <option value="flowchart_td">Flowchart TD</option>
+        <option value="flowchart_lr">Flowchart LR</option>
+        <option value="sequence">Sequence Diagram</option>
+        <option value="classDiagram">Class Diagram</option>
+        <option value="stateDiagram">State Diagram</option>
+        <option value="erDiagram">ER Diagram</option>
+        <option value="gantt">Gantt Chart</option>
+        <option value="pie">Pie Chart</option>
+        <option value="gitGraph">Git Graph</option>
+        <option value="journey">User Journey</option>
+        <option value="mindmap">Mindmap</option>
+        <option value="timeline">Timeline</option>
+        <option value="quadrant">Quadrant Chart</option>
+        <option value="c4context">C4 Architecture</option>
+        <option value="sankey">Sankey</option>
+      </select>
+      <button class="tb-btn" id="btn-templates" title="Browse & Load Diagram Starter Templates">
+        <svg viewBox="0 0 24 24"><path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H8V4h12v12z"/></svg>
+        <span>Templates</span>
+      </button>
+    </div>
+
+    <div class="toolbar-group">
+      <button class="tb-btn" id="btn-new" title="New Project (Ctrl+N)">
+        <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+        <span>New</span>
+      </button>
+      <button class="tb-btn" id="btn-open" title="Open Project (Ctrl+O)">
+        <svg viewBox="0 0 24 24"><path d="M20 6h-8l-2-2H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm0 12H4V8h16v10z"/></svg>
+        <span>Open</span>
+      </button>
+      <button class="tb-btn" id="btn-export-dialog" title="Export / Save Diagram (PNG, SVG, JSON, MMD) (Ctrl+S)">
+        <svg viewBox="0 0 24 24"><path d="M19 12v7H5v-7H3v7c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-7h-2zm-6 .67l2.59-2.58L17 11.5l-5 5-5-5 1.41-1.41L11 12.67V3h2z"/></svg>
+        <span>Export</span>
+      </button>
+    </div>
+
+    <div class="toolbar-group">
+      <button class="tb-btn" id="btn-undo" title="Undo (Ctrl+Z)">
+        <svg viewBox="0 0 24 24"><path d="M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z"/></svg>
+      </button>
+      <button class="tb-btn" id="btn-redo" title="Redo (Ctrl+Y / Ctrl+Shift+Z)">
+        <svg viewBox="0 0 24 24"><path d="M18.4 10.6C16.55 8.99 14.15 8 11.5 8c-4.65 0-8.58 3.03-9.96 7.22L3.9 16c1.05-3.19 4.05-5.5 7.6-5.5 1.95 0 3.73.72 5.12 1.88L13 16h9V7l-3.6 3.6z"/></svg>
+      </button>
+    </div>
+
+    <div class="toolbar-group">
+      <button class="tb-btn" id="btn-add-node" title="Add Node">
+        <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+        <span>Node</span>
+      </button>
+      <button class="tb-btn" id="btn-add-link" title="Connection Wizard">
+        <svg viewBox="0 0 24 24"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/></svg>
+        <span>Link</span>
+      </button>
+      <button class="tb-btn" id="btn-autolayout-td" title="Auto Layout Top-Down (Ctrl+Z to Undo)">
+        <span>Layout TD</span>
+      </button>
+      <button class="tb-btn" id="btn-autolayout-lr" title="Auto Layout Left-Right (Ctrl+Z to Undo)">
+        <span>Layout LR</span>
+      </button>
+    </div>
+
+    <div class="toolbar-group">
+      <button class="tb-btn" id="btn-rules" title="Connection Rules">
+        <span>Rules</span>
+      </button>
+      <button class="tb-btn active" id="btn-toggle-code" title="Toggle Mermaid Code Panel (Show/Hide)">
+        <svg viewBox="0 0 24 24"><path d="M9.4 16.6L4.8 12l4.6-4.6L8 6l-6 6 6 6 1.4-1.4zm5.2 0l4.6-4.6-4.6-4.6L16 6l6 6-6 6-1.4-1.4z"/></svg>
+        <span>Code</span>
+      </button>
+      <button class="tb-btn" id="btn-search-toggle" title="Search (Ctrl+F)">
+        <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+      </button>
+      <button class="tb-btn" id="btn-theme" title="Toggle Light/Dark Theme">
+        <svg id="theme-icon" viewBox="0 0 24 24"><path d="M20 8.69V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12 20 8.69zM12 18c-3.31 0-6-2.69-6-6s2.69-6 6-6 6 2.69 6 6-2.69 6-6 6z"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Main Workspace -->
+  <div id="main-container">
+    <!-- Left Sidebar: Palette / Rules / Inspector -->
+    <div id="left-panel" class="panel">
+      <!-- Tabs (Shapes, Rules, Inspector) -->
+      <div class="left-tabs">
+        <div class="left-tab" data-tab="shapes">Shapes</div>
+        <div class="left-tab" data-tab="rules">Rules</div>
+        <div class="left-tab active" data-tab="properties">Inspector</div>
+      </div>
+
+      <!-- Tab 1: Live Properties Editor -->
+      <div id="tab-properties" class="tab-content active" style="padding:12px;">
+        <div id="prop-empty" style="color:var(--text-muted); font-size:12px; text-align:center; padding:20px 0;">
+          Select a node or link to edit properties, or configure diagram below.
+        </div>
+
+        <!-- Node Properties Form -->
+        <div id="node-props-form" style="display:none;">
+          <h4 style="font-size:11px; text-transform:uppercase; color:var(--text-muted); margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;">
+            <span>Node Properties</span>
+            <span id="prop-node-id-badge" style="background:var(--hover-color); padding:2px 6px; border-radius:3px; font-weight:bold; color:var(--btn-primary);"></span>
+          </h4>
+
+          <div class="prop-group">
+            <label>Display Text</label>
+            <input type="text" id="prop-node-text" class="prop-input" placeholder="Node Label">
+          </div>
+
+          <div class="prop-group">
+            <label>Shape</label>
+            <select id="prop-node-shape" class="prop-input">
+              <option value="rectangle">Rectangle [Process]</option>
+              <option value="rounded">Rounded Rectangle (State / Item)</option>
+              <option value="stadium">Stadium / Pill ([Start / End])</option>
+              <option value="subroutine">Subroutine [[Subprocess]]</option>
+              <option value="cylinder">Cylinder [(Database / Storage)]</option>
+              <option value="circle">Circle ((Point / Node))</option>
+              <option value="double_circle">Double Circle (((Event / End State)))</option>
+              <option value="asymmetric">Asymmetric &gt;Flag / Banner]</option>
+              <option value="diamond">Diamond / Decision {Condition}</option>
+              <option value="hexagon">Hexagon {{Preparation / Loop}}</option>
+              <option value="parallelogram">Parallelogram [/Input - Output/]</option>
+              <option value="parallelogram_alt">Parallelogram Alt [\Alt In - Out\]</option>
+              <option value="trapezoid">Trapezoid [/Manual Operation\]</option>
+              <option value="trapezoid_alt">Trapezoid Alt [\Manual Task/]</option>
+            </select>
+          </div>
+
+          <div class="prop-row">
+            <div class="prop-group" style="margin-bottom:0;">
+              <label>Width</label>
+              <input type="number" id="prop-node-w" class="prop-input" min="60" max="400" step="10">
+            </div>
+            <div class="prop-group" style="margin-bottom:0;">
+              <label>Height</label>
+              <input type="number" id="prop-node-h" class="prop-input" min="30" max="250" step="5">
+            </div>
+          </div>
+
+          <div class="prop-row">
+            <div class="prop-group" style="margin-bottom:0;">
+              <label>Pos X</label>
+              <input type="number" id="prop-node-x" class="prop-input" step="10">
+            </div>
+            <div class="prop-group" style="margin-bottom:0;">
+              <label>Pos Y</label>
+              <input type="number" id="prop-node-y" class="prop-input" step="10">
+            </div>
+          </div>
+
+          <div class="prop-group">
+            <label>Fill Color</label>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <input type="color" id="prop-node-fill" style="width:32px; height:26px; border:none; border-radius:3px; cursor:pointer;">
+              <span id="prop-node-fill-val" style="font-size:11px; font-family:var(--code-font);">#E3F2FD</span>
+            </div>
+            <div class="color-swatches" id="fill-swatches">
+              <div class="color-swatch" style="background:#E3F2FD;" data-fill="#E3F2FD" data-border="#90CAF9" data-font="#0D47A1" title="Light Blue"></div>
+              <div class="color-swatch" style="background:#E8F5E9;" data-fill="#E8F5E9" data-border="#A5D6A7" data-font="#1B5E20" title="Green"></div>
+              <div class="color-swatch" style="background:#FFF3E0;" data-fill="#FFF3E0" data-border="#FFE082" data-font="#E65100" title="Orange"></div>
+              <div class="color-swatch" style="background:#F3E5F5;" data-fill="#F3E5F5" data-border="#CE93D8" data-font="#4A148C" title="Purple"></div>
+              <div class="color-swatch" style="background:#FFEBEE;" data-fill="#FFEBEE" data-border="#EF9A9A" data-font="#B71C1C" title="Red"></div>
+              <div class="color-swatch" style="background:#ECEFF1;" data-fill="#ECEFF1" data-border="#B0BEC5" data-font="#263238" title="Gray"></div>
+              <div class="color-swatch" style="background:#2D4A66;" data-fill="#2D4A66" data-border="#4FC3F7" data-font="#E1F5FE" title="Dark Blue"></div>
+            </div>
+          </div>
+
+          <div class="prop-row">
+            <div class="prop-group" style="margin-bottom:0;">
+              <label>Border Color</label>
+              <input type="color" id="prop-node-border" style="width:100%; height:26px; border:none; border-radius:3px; cursor:pointer;">
+            </div>
+            <div class="prop-group" style="margin-bottom:0;">
+              <label>Font Color</label>
+              <input type="color" id="prop-node-font" style="width:100%; height:26px; border:none; border-radius:3px; cursor:pointer;">
+            </div>
+          </div>
+
+          <div style="display:flex; gap:8px; margin-top:14px;">
+            <button class="prop-action-btn primary" id="btn-node-prop-save" style="flex:1;">Save / Apply</button>
+            <button class="prop-action-btn" id="btn-node-prop-reset" style="flex:1;">Reset</button>
+            <button class="prop-action-btn danger" id="btn-node-prop-deselect" style="padding:6px 10px;" title="Deselect node">✕</button>
+          </div>
+
+          <div style="display:flex; flex-direction:column; gap:6px; margin-top:10px;">
+            <button class="prop-action-btn" id="btn-prop-duplicate">⎘ Duplicate Node</button>
+            <button class="prop-action-btn" id="btn-prop-connect">↗ Add Connection</button>
+            <button class="prop-action-btn" id="btn-prop-delete" style="color:var(--btn-danger);">✕ Delete Node</button>
+          </div>
+        </div>
+
+        <!-- Edge Properties Form -->
+        <div id="edge-props-form" style="display:none;">
+          <h4 style="font-size:11px; text-transform:uppercase; color:var(--text-muted); margin-bottom:12px;">Link Properties</h4>
+          <div class="prop-group">
+            <label>Edge Label</label>
+            <input type="text" id="prop-edge-label" class="prop-input" placeholder="e.g. Yes / Action">
+          </div>
+          <div class="prop-group">
+            <label>Arrow Type</label>
+            <select id="prop-edge-type" class="prop-input">
+              <option value="-->">Solid Arrow (--&gt;)</option>
+              <option value="--->">Long / Solid (---&gt;)</option>
+              <option value="==>">Thick Arrow (==&gt;)</option>
+              <option value="-.->">Dotted Arrow (-.-&gt;)</option>
+              <option value="<-->">Bidirectional (&lt;--&gt;)</option>
+              <option value="<==>">Bidirectional Thick (&lt;==&gt;)</option>
+            </select>
+          </div>
+
+          <div class="prop-group">
+            <label>Link Color</label>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <input type="color" id="prop-edge-color" style="width:32px; height:26px; border:none; border-radius:3px; cursor:pointer;">
+              <span id="prop-edge-color-val" style="font-size:11px; font-family:var(--code-font);">#616161</span>
+            </div>
+            <div class="color-swatches" id="edge-color-swatches" style="margin-top:6px;">
+              <div class="color-swatch" style="background:#616161;" data-color="#616161" title="Gray"></div>
+              <div class="color-swatch" style="background:#2196F3;" data-color="#2196F3" title="Blue"></div>
+              <div class="color-swatch" style="background:#4CAF50;" data-color="#4CAF50" title="Green"></div>
+              <div class="color-swatch" style="background:#FF9800;" data-color="#FF9800" title="Orange"></div>
+              <div class="color-swatch" style="background:#F44336;" data-color="#F44336" title="Red"></div>
+              <div class="color-swatch" style="background:#9C27B0;" data-color="#9C27B0" title="Purple"></div>
+              <div class="color-swatch" style="background:#00BCD4;" data-color="#00BCD4" title="Cyan"></div>
+            </div>
+          </div>
+
+          <div class="prop-group">
+            <label>Line Thickness</label>
+            <select id="prop-edge-width" class="prop-input">
+              <option value="1.5">Thin (1.5px)</option>
+              <option value="2">Medium (2px - Default)</option>
+              <option value="3">Thick (3px)</option>
+              <option value="4">Heavy (4px)</option>
+            </select>
+          </div>
+
+          <div class="prop-group">
+            <label>Label Font Color</label>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <input type="color" id="prop-edge-text-color" style="width:32px; height:26px; border:none; border-radius:3px; cursor:pointer;" value="#212121">
+              <span id="prop-edge-text-color-val" style="font-size:11px; font-family:var(--code-font);">#212121</span>
+            </div>
+            <div class="color-swatches" id="edge-text-color-swatches" style="margin-top:6px;">
+              <div class="color-swatch" style="background:#212121;" data-color="#212121" title="Dark"></div>
+              <div class="color-swatch" style="background:#FFFFFF;" data-color="#FFFFFF" title="White"></div>
+              <div class="color-swatch" style="background:#2196F3;" data-color="#2196F3" title="Blue"></div>
+              <div class="color-swatch" style="background:#4CAF50;" data-color="#4CAF50" title="Green"></div>
+              <div class="color-swatch" style="background:#FF9800;" data-color="#FF9800" title="Orange"></div>
+              <div class="color-swatch" style="background:#F44336;" data-color="#F44336" title="Red"></div>
+              <div class="color-swatch" style="background:#9C27B0;" data-color="#9C27B0" title="Purple"></div>
+            </div>
+          </div>
+
+          <div style="display:flex; gap:8px; margin-top:14px;">
+            <button class="prop-action-btn primary" id="btn-edge-prop-save" style="flex:1;">Save / Apply</button>
+            <button class="prop-action-btn" id="btn-edge-prop-reset" style="flex:1;">Reset</button>
+            <button class="prop-action-btn danger" id="btn-edge-prop-deselect" style="padding:6px 10px;" title="Deselect link">✕</button>
+          </div>
+
+          <button class="prop-action-btn" id="btn-prop-edge-delete" style="color:var(--btn-danger); margin-top:10px;">✕ Delete Link</button>
+        </div>
+
+        <!-- Canvas Properties Fallback -->
+        <div id="canvas-props-form" style="margin-top:10px; border-top:1px solid var(--border-color); padding-top:12px;">
+          <h4 style="font-size:11px; text-transform:uppercase; color:var(--text-muted); margin-bottom:10px;">Canvas Settings</h4>
+          <div class="prop-group">
+            <label style="display:flex; align-items:center; gap:6px; cursor:pointer;">
+              <input type="checkbox" id="prop-grid-snap" checked>
+              <span>Snap to 20px Grid</span>
+            </label>
+          </div>
+          <div class="prop-group">
+            <label>Layout Direction</label>
+            <div style="display:flex; gap:6px;">
+              <button class="prop-action-btn" id="btn-canvas-layout-td" style="flex:1;">Top-Down</button>
+              <button class="prop-action-btn" id="btn-canvas-layout-lr" style="flex:1;">Left-Right</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Dynamic Visual Diagram Object Properties Form -->
+        <div id="visual-props-form" style="display:none;">
+          <h4 style="font-size:11px; text-transform:uppercase; color:var(--text-muted); margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;">
+            <span id="visual-prop-title">Object Properties</span>
+            <span id="visual-prop-type-badge" style="background:var(--hover-color); padding:2px 6px; border-radius:3px; font-weight:bold; color:var(--btn-primary);"></span>
+          </h4>
+          <div id="visual-prop-fields"></div>
+        </div>
+      </div>
+
+      <!-- Tab 2: Shape Palette -->
+      <div id="tab-shapes" class="tab-content" style="padding:12px;">
+        <h4 style="font-size:11px; text-transform:uppercase; color:var(--text-muted); margin-bottom:10px;">General Flowchart Shapes</h4>
+        <div class="shape-palette">
+          <div class="shape-item" data-shape="rectangle" title="Rectangle [Process]">
+            <svg viewBox="0 0 44 28"><rect x="2" y="2" width="40" height="24" rx="2" fill="var(--node-fill)" stroke="var(--node-border)" stroke-width="2"/></svg>
+            <span>Process</span>
+          </div>
+          <div class="shape-item" data-shape="rounded" title="Rounded Rectangle (Item / State)">
+            <svg viewBox="0 0 44 28"><rect x="2" y="2" width="40" height="24" rx="8" fill="var(--node-fill)" stroke="var(--node-border)" stroke-width="2"/></svg>
+            <span>Rounded</span>
+          </div>
+          <div class="shape-item" data-shape="stadium" title="Stadium / Pill ([Start / End])">
+            <svg viewBox="0 0 44 28"><rect x="2" y="2" width="40" height="24" rx="12" fill="var(--node-fill)" stroke="var(--node-border)" stroke-width="2"/></svg>
+            <span>Stadium</span>
+          </div>
+          <div class="shape-item" data-shape="subroutine" title="Subroutine [[Predefined Process]]">
+            <svg viewBox="0 0 44 28">
+              <rect x="2" y="2" width="40" height="24" rx="2" fill="var(--node-fill)" stroke="var(--node-border)" stroke-width="2"/>
+              <line x1="8" y1="2" x2="8" y2="26" stroke="var(--node-border)" stroke-width="1.8"/>
+              <line x1="36" y1="2" x2="36" y2="26" stroke="var(--node-border)" stroke-width="1.8"/>
+            </svg>
+            <span>Subroutine</span>
+          </div>
+          <div class="shape-item" data-shape="cylinder" title="Cylinder [(Database / Storage)]">
+            <svg viewBox="0 0 44 28">
+              <path d="M 4,7 L 4,21 A 18,5 0 0,0 40,21 L 40,7 A 18,5 0 0,0 4,7 Z" fill="var(--node-fill)" stroke="var(--node-border)" stroke-width="2"/>
+              <ellipse cx="22" cy="7" rx="18" ry="5" fill="var(--node-fill)" stroke="var(--node-border)" stroke-width="2"/>
+            </svg>
+            <span>Database</span>
+          </div>
+          <div class="shape-item" data-shape="circle" title="Circle ((Node / Junction))">
+            <svg viewBox="0 0 44 28"><ellipse cx="22" cy="14" rx="18" ry="12" fill="var(--node-fill)" stroke="var(--node-border)" stroke-width="2"/></svg>
+            <span>Circle</span>
+          </div>
+          <div class="shape-item" data-shape="double_circle" title="Double Circle (((Event / End State)))">
+            <svg viewBox="0 0 44 28">
+              <ellipse cx="22" cy="14" rx="18" ry="12" fill="var(--node-fill)" stroke="var(--node-border)" stroke-width="2"/>
+              <ellipse cx="22" cy="14" rx="13" ry="8" fill="none" stroke="var(--node-border)" stroke-width="1.5"/>
+            </svg>
+            <span>Dbl Circle</span>
+          </div>
+          <div class="shape-item" data-shape="asymmetric" title="Asymmetric &gt;Flag / Banner]">
+            <svg viewBox="0 0 44 28"><polygon points="2,2 42,2 42,26 2,26 10,14" fill="var(--node-fill)" stroke="var(--node-border)" stroke-width="2"/></svg>
+            <span>Banner</span>
+          </div>
+          <div class="shape-item" data-shape="diamond" title="Diamond / Decision {Condition}">
+            <svg viewBox="0 0 44 28"><polygon points="22,2 42,14 22,26 2,14" fill="var(--node-fill)" stroke="var(--node-border)" stroke-width="2"/></svg>
+            <span>Decision</span>
+          </div>
+          <div class="shape-item" data-shape="hexagon" title="Hexagon {{Preparation / Loop}}">
+            <svg viewBox="0 0 44 28"><polygon points="8,2 36,2 42,14 36,26 8,26 2,14" fill="var(--node-fill)" stroke="var(--node-border)" stroke-width="2"/></svg>
+            <span>Hexagon</span>
+          </div>
+          <div class="shape-item" data-shape="parallelogram" title="Parallelogram [/Input - Output/]">
+            <svg viewBox="0 0 44 28"><polygon points="8,2 42,2 36,26 2,26" fill="var(--node-fill)" stroke="var(--node-border)" stroke-width="2"/></svg>
+            <span>In / Out</span>
+          </div>
+          <div class="shape-item" data-shape="parallelogram_alt" title="Parallelogram Alt [\Alt In - Out\]">
+            <svg viewBox="0 0 44 28"><polygon points="2,2 36,2 42,26 8,26" fill="var(--node-fill)" stroke="var(--node-border)" stroke-width="2"/></svg>
+            <span>Alt In-Out</span>
+          </div>
+          <div class="shape-item" data-shape="trapezoid" title="Trapezoid [/Manual Operation\]">
+            <svg viewBox="0 0 44 28"><polygon points="8,2 36,2 42,26 2,26" fill="var(--node-fill)" stroke="var(--node-border)" stroke-width="2"/></svg>
+            <span>Trapezoid</span>
+          </div>
+          <div class="shape-item" data-shape="trapezoid_alt" title="Trapezoid Alt [\Manual Task/]">
+            <svg viewBox="0 0 44 28"><polygon points="2,2 42,2 36,26 8,26" fill="var(--node-fill)" stroke="var(--node-border)" stroke-width="2"/></svg>
+            <span>Inv Trapezoid</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 3: Connection Rules -->
+      <div id="tab-rules" class="tab-content" style="padding:12px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+          <h4 style="margin-bottom:0; font-size:11px; text-transform:uppercase; color:var(--text-muted);">Rules Engine</h4>
+          <button class="tb-btn" id="btn-add-rule-quick" style="padding:2px 6px; font-size:10px;">+ Add</button>
+        </div>
+        <div id="rules-quick-list" class="rules-list"></div>
+      </div>
+    </div>
+
+    <!-- Left Splitter -->
+    <div class="splitter" id="left-splitter"></div>
+
+    <!-- Center Canvas -->
+    <div id="canvas-panel">
+      <!-- Search Overlay -->
+      <div id="search-box">
+        <input type="text" id="search-input" placeholder="Search nodes & links..." autocomplete="off">
+        <span id="search-results-count">0/0</span>
+        <button class="float-btn" id="btn-search-prev" style="width:20px;height:20px;">▲</button>
+        <button class="float-btn" id="btn-search-next" style="width:20px;height:20px;">▼</button>
+        <button class="float-btn" id="btn-search-close" style="width:20px;height:20px;">✕</button>
+      </div>
+
+      <!-- Floating View Controls -->
+      <div id="floating-controls">
+        <button class="float-btn" id="btn-zoom-in" title="Zoom In (+)">+</button>
+        <button class="float-btn" id="btn-zoom-out" title="Zoom Out (-)">−</button>
+        <button class="float-btn" id="btn-zoom-fit" title="Fit Screen (Ctrl+0)">⊡</button>
+        <button class="float-btn" id="btn-zoom-reset" title="Actual Size (100%)">1:1</button>
+      </div>
+
+      <!-- Main SVG Canvas -->
+      <svg id="canvas-svg">
+        <defs>
+          <!-- Grid Pattern -->
+          <pattern id="canvas-grid" width="20" height="20" patternUnits="userSpaceOnUse">
+            <circle cx="2" cy="2" r="1.2" fill="var(--grid-dot)" />
+          </pattern>
+
+          <!-- Standard Arrow (-->) -->
+          <marker id="marker-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+            <path d="M 0 1.5 L 10 5 L 0 8.5 z" fill="var(--link-color)" />
+          </marker>
+          <marker id="marker-arrow-selected" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+            <path d="M 0 1.5 L 10 5 L 0 8.5 z" fill="var(--selection-color)" />
+          </marker>
+
+          <!-- Thick Arrow (==>) 50% Reduced Size -->
+          <marker id="marker-thick" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="3.5" markerHeight="3.5" orient="auto">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--link-color)" />
+          </marker>
+          <marker id="marker-thick-selected" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="3.5" markerHeight="3.5" orient="auto">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--selection-color)" />
+          </marker>
+
+          <!-- Start Arrow (<-->) -->
+          <marker id="marker-start-arrow" viewBox="0 0 10 10" refX="1" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+            <path d="M 10 1.5 L 0 5 L 10 8.5 z" fill="var(--link-color)" />
+          </marker>
+          <marker id="marker-start-arrow-selected" viewBox="0 0 10 10" refX="1" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+            <path d="M 10 1.5 L 0 5 L 10 8.5 z" fill="var(--selection-color)" />
+          </marker>
+
+          <!-- Start Thick Arrow (<==>) 50% Reduced Size -->
+          <marker id="marker-start-thick" viewBox="0 0 10 10" refX="2" refY="5" markerWidth="3.5" markerHeight="3.5" orient="auto">
+            <path d="M 10 0 L 0 5 L 10 10 z" fill="var(--link-color)" />
+          </marker>
+          <marker id="marker-start-thick-selected" viewBox="0 0 10 10" refX="2" refY="5" markerWidth="3.5" markerHeight="3.5" orient="auto">
+            <path d="M 10 0 L 0 5 L 10 10 z" fill="var(--selection-color)" />
+          </marker>
+        </defs>
+
+        <!-- Background grid -->
+        <rect id="canvas-grid-bg" width="100%" height="100%" fill="url(#canvas-grid)" />
+
+        <!-- Transformable Root Group -->
+        <g id="canvas-viewport">
+          <g id="edges-layer"></g>
+          <g id="temp-layer"></g>
+          <g id="nodes-layer"></g>
+          <rect id="marquee-rect" class="marquee-box" style="display:none;" />
+        </g>
+      </svg>
+
+      <!-- Minimap Overlay -->
+      <div id="minimap-container">
+        <svg id="minimap-svg">
+          <g id="minimap-content"></g>
+          <rect id="minimap-viewport" x="0" y="0" width="0" height="0" />
+        </svg>
+      </div>
+
+      <!-- Horizontal (H) and Vertical (V) Scrollbars -->
+      <div id="canvas-h-scrollbar" class="canvas-scrollbar horizontal" title="Scroll horizontally">
+        <div id="canvas-h-thumb" class="scrollbar-thumb"></div>
+      </div>
+      <div id="canvas-v-scrollbar" class="canvas-scrollbar vertical" title="Scroll vertically">
+        <div id="canvas-v-thumb" class="scrollbar-thumb"></div>
+      </div>
+    </div>
+
+    <!-- Right Splitter -->
+    <div class="splitter" id="right-splitter"></div>
+
+    <!-- Right Mermaid Code Editor -->
+    <div id="right-panel" class="panel">
+      <div class="panel-header">
+        <span>Mermaid Code</span>
+        <div style="display:flex; gap:4px; align-items:center;">
+          <button class="tb-btn" id="btn-sync-code" style="padding:2px 6px; font-size:10px;" title="Apply changes to visual canvas">Apply</button>
+          <button class="tb-btn" id="btn-close-code" style="padding:2px 6px; font-size:10px;" title="Hide Code Panel">✕</button>
+        </div>
+      </div>
+      <div id="editor-container">
+        <div id="editor-wrapper">
+          <pre id="code-highlight"><code></code></pre>
+          <textarea id="code-editor" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off"></textarea>
+        </div>
+        <div id="editor-status-bar">
+          <span id="editor-error">Valid Mermaid</span>
+          <span id="editor-type-label">Flowchart TD</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Status Bar -->
+  <div id="status-bar">
+    <div class="status-item"><span id="sb-type">Type: Flowchart</span></div>
+    <div class="status-item"><span id="sb-nodes">Nodes: 0</span></div>
+    <div class="status-item"><span id="sb-edges">Links: 0</span></div>
+    <div class="status-item"><span id="sb-zoom">Zoom: 100%</span></div>
+    <div class="status-item"><span id="sb-pos">X: 0, Y: 0</span></div>
+    <div class="status-item" style="margin-left:auto;"><span id="sb-status">Ready (Offline)</span></div>
+  </div>
+
+  <!-- Node Modal -->
+  <div class="modal-overlay" id="node-modal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <span id="node-modal-title">Edit Node</span>
+        <button class="float-btn" id="node-modal-close" style="width:24px;height:24px;">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Node ID (Unique, Immutable when editing)</label>
+          <input type="text" id="nm-id" class="form-control" placeholder="e.g. node_1">
+        </div>
+        <div class="form-group">
+          <label>Display Text</label>
+          <input type="text" id="nm-text" class="form-control" placeholder="e.g. Process Order">
+        </div>
+        <div class="form-group">
+          <label>Shape</label>
+          <select id="nm-shape" class="form-control">
+            <option value="rectangle">Rectangle [Process]</option>
+            <option value="rounded">Rounded Rectangle (State / Item)</option>
+            <option value="stadium">Stadium / Pill ([Start / End])</option>
+            <option value="subroutine">Subroutine [[Subprocess]]</option>
+            <option value="cylinder">Cylinder [(Database / Storage)]</option>
+            <option value="circle">Circle ((Point / Node))</option>
+            <option value="double_circle">Double Circle (((Event / End State)))</option>
+            <option value="asymmetric">Asymmetric &gt;Flag / Banner]</option>
+            <option value="diamond">Diamond / Decision {Condition}</option>
+            <option value="hexagon">Hexagon {{Preparation / Loop}}</option>
+            <option value="parallelogram">Parallelogram [/Input - Output/]</option>
+            <option value="parallelogram_alt">Parallelogram Alt [\Alt In - Out\]</option>
+            <option value="trapezoid">Trapezoid [/Manual Operation\]</option>
+            <option value="trapezoid_alt">Trapezoid Alt [\Manual Task/]</option>
+          </select>
+        </div>
+        <div class="color-row">
+          <div class="form-group">
+            <label>Fill Color</label>
+            <div class="color-input-wrapper">
+              <input type="color" id="nm-fill" value="#E3F2FD">
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Border Color</label>
+            <div class="color-input-wrapper">
+              <input type="color" id="nm-border" value="#90CAF9">
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Font Color</label>
+            <div class="color-input-wrapper">
+              <input type="color" id="nm-font" value="#0D47A1">
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="node-modal-cancel">Cancel</button>
+        <button class="btn btn-primary" id="node-modal-save">Save Node</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Connection Wizard Modal -->
+  <div class="modal-overlay" id="link-modal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <span id="link-modal-title">Connection Wizard</span>
+        <button class="float-btn" id="link-modal-close" style="width:24px;height:24px;">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Source Node</label>
+            <select id="lm-source" class="form-control"></select>
+          </div>
+          <div class="form-group">
+            <label>Target Node</label>
+            <select id="lm-target" class="form-control"></select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Edge Label (Optional)</label>
+          <input type="text" id="lm-label" class="form-control" placeholder="e.g. Yes / No / Action">
+        </div>
+        <div class="form-group">
+          <label>Arrow Type</label>
+          <select id="lm-type" class="form-control">
+            <option value="-->">Solid Arrow (--&gt;)</option>
+            <option value="--->">Long / Solid (---&gt;)</option>
+            <option value="==>">Thick Arrow (==&gt;)</option>
+            <option value="-.->">Dotted Arrow (-.-&gt;)</option>
+            <option value="<-->">Bidirectional (&lt;--&gt;)</option>
+            <option value="<==>">Bidirectional Thick (&lt;==&gt;)</option>
+          </select>
+        </div>
+        <div id="lm-rule-status" style="font-size:11px; padding:6px; border-radius:4px; display:none;"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="link-modal-cancel">Cancel</button>
+        <button class="btn btn-primary" id="link-modal-create">Create Connection</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Rules Management Modal -->
+  <div class="modal-overlay" id="rules-modal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <span>Connection Rules Engine</span>
+        <button class="float-btn" id="rules-modal-close" style="width:24px;height:24px;">✕</button>
+      </div>
+      <div class="modal-body">
+        <p style="color:var(--text-muted); font-size:11px;">Configure allowed or blocked connection patterns between nodes (e.g. Client-&gt;API).</p>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Rule Type</label>
+            <select id="rm-type" class="form-control">
+              <option value="allowed">Allowed Rule</option>
+              <option value="blocked">Blocked Rule</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Pattern (Source->Target)</label>
+            <input type="text" id="rm-pattern" class="form-control" placeholder="e.g. A->B or *->DB">
+          </div>
+        </div>
+        <button class="btn btn-secondary" id="rm-add-btn" style="align-self:flex-start;">Add Rule</button>
+        <div class="form-group" style="margin-top:8px;">
+          <label>Active Rules</label>
+          <div id="rules-full-list" class="rules-list" style="max-height:180px;"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" id="rules-modal-done">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Templates Chooser Modal (All 15 Mermaid Diagram Types) -->
+  <div class="modal-overlay" id="templates-modal">
+    <div class="modal-card" style="width:640px; max-width:94vw;">
+      <div class="modal-header">
+        <span>Mermaid Diagram Types & Verified Templates</span>
+        <button class="float-btn" id="templates-modal-close" style="width:24px;height:24px;">✕</button>
+      </div>
+      <div class="modal-body" style="max-height:68vh; overflow-y:auto;">
+        <p style="color:var(--text-muted); font-size:11px;">Select any official Mermaid diagram type to load its clean starter template.</p>
+        <div style="display:grid; grid-template-columns: repeat(2, 1fr); gap:10px;" id="templates-grid">
+          <!-- Dynamically populated from DIAGRAM_TEMPLATES -->
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="templates-modal-cancel">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Export Options Modal -->
+  <div class="modal-overlay" id="export-modal">
+    <div class="modal-card" style="width:420px; max-width:92vw;">
+      <div class="modal-header">
+        <span>Export Diagram Options</span>
+        <button class="float-btn" id="export-modal-close" style="width:24px;height:24px;">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label style="font-weight:600;">Custom File Name</label>
+          <input type="text" id="export-filename" class="form-control" value="diagram" placeholder="e.g. my-system-architecture">
+          <span style="font-size:10px; color:var(--text-muted); margin-top:3px; display:block;">File extension (.png, .svg, .json, .mmd) is appended automatically.</span>
+        </div>
+
+        <div class="form-row" style="margin-top:10px;">
+          <div class="form-group">
+            <label>Background</label>
+            <select id="export-bg-option" class="form-control">
+              <option value="theme">⚪ Theme Default</option>
+              <option value="transparent" selected>🏁 Transparent</option>
+              <option value="white">⬜ Pure White</option>
+              <option value="dark">⬛ Dark Background</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Resolution Scale</label>
+            <select id="export-scale-option" class="form-control">
+              <option value="1">1x (Standard)</option>
+              <option value="2" selected>2x (Retina 2x)</option>
+              <option value="3">3x (Ultra HD)</option>
+              <option value="4">4x (Max Sharpness)</option>
+            </select>
+          </div>
+        </div>
+
+        <label style="font-size:11px; text-transform:uppercase; color:var(--text-muted); margin-top:12px; display:block; font-weight:600;">Download Formats</label>
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-top:6px;">
+          <button class="btn btn-primary" id="btn-do-export-png" style="display:flex; justify-content:center; align-items:center; gap:6px;">
+            <svg viewBox="0 0 24 24" style="width:15px;height:15px;fill:currentColor;"><path d="M19 12v7H5v-7H3v7c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-7h-2zm-6 .67l2.59-2.58L17 11.5l-5 5-5-5 1.41-1.41L11 12.67V3h2z"/></svg>
+            <span>Download PNG</span>
+          </button>
+          <button class="btn btn-secondary" id="btn-do-export-svg" style="display:flex; justify-content:center; align-items:center; gap:6px;">
+            <svg viewBox="0 0 24 24" style="width:15px;height:15px;fill:currentColor;"><path d="M19 12v7H5v-7H3v7c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-7h-2zm-6 .67l2.59-2.58L17 11.5l-5 5-5-5 1.41-1.41L11 12.67V3h2z"/></svg>
+            <span>Download SVG</span>
+          </button>
+        </div>
+
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-top:8px;">
+          <button class="btn btn-secondary" id="btn-do-export-json" title="Save full project to JSON file">Save Project (.json)</button>
+          <button class="btn btn-secondary" id="btn-do-export-mmd" title="Export raw Mermaid code file">Mermaid Code (.mmd)</button>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="export-modal-cancel">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Delete Confirm Modal -->
+  <div class="modal-overlay" id="confirm-modal">
+    <div class="modal-card" style="width:340px;">
+      <div class="modal-header">
+        <span id="confirm-title">Confirm Action</span>
+      </div>
+      <div class="modal-body">
+        <p id="confirm-message">Are you sure you want to delete this item?</p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="confirm-no">No</button>
+        <button class="btn btn-danger" id="confirm-yes">Yes</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast">Message</div>
+  <input type="file" id="file-input" accept=".json,.graph.json,.mmd">
+
+  <!-- Core Application Script -->
+                    , 'm');
+                    return curCode.replace(reg, `  ${r.src} ${vals.type} ${r.tgt}${vals.label ? ' : ' + vals.label : ''}`);
+                  });
+                }
+              });
+            }
+          });
 
           edgesLayer.appendChild(lineG);
         });
@@ -4798,9 +6622,9 @@ class MultiDiagramVisualizer {
         });
 
         const stateList = Array.from(stateSet);
-        if (stateList.length === 0) stateList.push('Idle', 'Processing', 'Succeeded', 'Failed', 'Retrying');
+        if (stateList.length === 0) stateList.push('Idle', 'Processing', 'Succeeded', 'Failed', 'Retrying', 'DeadLetter');
 
-        // Layout states across clean 2D grid
+        // Layout states across clean 2-tier pipeline
         const positions = {
           '[*]': { x: 50, y: 100 },
           'Idle': { x: 170, y: 100 },
@@ -4819,8 +6643,30 @@ class MultiDiagramVisualizer {
         startCircle.setAttribute('fill', primaryText);
         nodesLayer.appendChild(startCircle);
 
+        // Draw end state bullseyes ◉
+        const drawEndState = (cx, cy) => {
+          const outC = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+          outC.setAttribute('cx', `${cx}`);
+          outC.setAttribute('cy', `${cy}`);
+          outC.setAttribute('r', '14');
+          outC.setAttribute('fill', 'none');
+          outC.setAttribute('stroke', primaryText);
+          outC.setAttribute('stroke-width', '2');
+          nodesLayer.appendChild(outC);
+
+          const inC = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+          inC.setAttribute('cx', `${cx}`);
+          inC.setAttribute('cy', `${cy}`);
+          inC.setAttribute('r', '8');
+          inC.setAttribute('fill', primaryText);
+          nodesLayer.appendChild(inC);
+        };
+
+        drawEndState(690, 100);
+        drawEndState(780, 220);
+
         stateList.forEach((sName, idx) => {
-          const pos = positions[sName] || { x: 160 + (idx % 3) * 180, y: 100 + Math.floor(idx / 3) * 110 };
+          const pos = positions[sName] || { x: 170 + (idx % 3) * 180, y: 100 + Math.floor(idx / 3) * 120 };
           const x = pos.x;
           const y = pos.y;
           const w = 120;
@@ -4861,7 +6707,7 @@ class MultiDiagramVisualizer {
             e.stopPropagation();
             if (typeof AppController !== 'undefined' && AppController.instance) {
               AppController.instance.selectVisualObject({
-                type: 'State Node',
+                type: 'State Capsule',
                 title: sName,
                 fields: [
                   { key: 'name', label: 'State Name', type: 'text', value: sName },
@@ -4887,12 +6733,13 @@ class MultiDiagramVisualizer {
 
         // Draw State Transitions
         transitions.forEach(tr => {
-          const p1 = positions[tr.from] || { x: 100, y: 100 };
-          const p2 = positions[tr.to] || (tr.to === '[*]' ? { x: 740, y: p1.y } : { x: 300, y: 200 });
+          let p1 = positions[tr.from] || { x: 100, y: 100 };
+          let p2 = positions[tr.to] || (tr.to === '[*]' ? (tr.from === 'DeadLetter' ? { x: 780, y: 220 } : { x: 690, y: 100 }) : { x: 300, y: 200 });
 
           const trKey = `${tr.from}->${tr.to}`;
           const trColor = MultiDiagramVisualizer.getColor(trKey, linkColor);
           const trFont = MultiDiagramVisualizer.getColor(trKey + ':font', textColor);
+          const isSelTr = (`${tr.from} → ${tr.to}` === selTitle);
 
           const lineG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
           lineG.style.cursor = 'pointer';
@@ -4902,25 +6749,31 @@ class MultiDiagramVisualizer {
           const midY = (p1.y + p2.y) / 2;
 
           if (p1.y === p2.y) {
-            path.setAttribute('d', `M ${p1.x + 60} ${p1.y} L ${p2.x - (tr.to === '[*]' ? 14 : 60)} ${p2.y}`);
+            path.setAttribute('d', `M ${p1.x + (tr.from === '[*]' ? 14 : 60)} ${p1.y} L ${p2.x - (tr.to === '[*]' ? 14 : 60)} ${p2.y}`);
+          } else if (tr.from === 'Processing' && tr.to === 'Failed') {
+            path.setAttribute('d', `M ${p1.x} ${p1.y + 21} L ${p2.x} ${p2.y - 21}`);
+          } else if (tr.from === 'Retrying' && tr.to === 'Processing') {
+            path.setAttribute('d', `M ${p1.x - 20} ${p1.y - 21} C ${p1.x - 40} ${midY}, ${p2.x + 40} ${midY}, ${p2.x + 20} ${p2.y + 21}`);
           } else {
             path.setAttribute('d', `M ${p1.x} ${p1.y + 21} C ${p1.x} ${midY}, ${p2.x} ${midY}, ${p2.x} ${p2.y - 21}`);
           }
+
           path.setAttribute('fill', 'none');
-          path.setAttribute('stroke', trColor);
-          path.setAttribute('stroke-width', '1.8');
+          path.setAttribute('stroke', isSelTr ? 'var(--selection-color)' : trColor);
+          path.setAttribute('stroke-width', isSelTr ? '3' : '2');
+          if (isSelTr) path.style.filter = selGlow;
           lineG.appendChild(path);
 
           if (tr.label) {
             const lblBg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-            const lblW = tr.label.length * 6.5 + 16;
+            const lblW = tr.label.length * 6.8 + 18;
             lblBg.setAttribute('x', `${midX - lblW / 2}`);
-            lblBg.setAttribute('y', `${midY - 9}`);
+            lblBg.setAttribute('y', `${midY - 10}`);
             lblBg.setAttribute('width', `${lblW}`);
-            lblBg.setAttribute('height', '18');
+            lblBg.setAttribute('height', '20');
             lblBg.setAttribute('rx', '4');
             lblBg.setAttribute('fill', cardBg);
-            lblBg.setAttribute('stroke', cardBorder);
+            lblBg.setAttribute('stroke', isSelTr ? 'var(--selection-color)' : cardBorder);
             lblBg.setAttribute('stroke-width', '1');
             lineG.appendChild(lblBg);
 
@@ -4931,10 +6784,12 @@ class MultiDiagramVisualizer {
             lblTxt.setAttribute('dominant-baseline', 'central');
             lblTxt.setAttribute('fill', trFont);
             lblTxt.setAttribute('font-size', '10px');
+            lblTxt.setAttribute('font-weight', '500');
             lblTxt.textContent = tr.label;
             lineG.appendChild(lblTxt);
           }
 
+          lineG.addEventListener('mousedown', (e) => e.stopPropagation());
           lineG.addEventListener('click', (e) => {
             e.stopPropagation();
             if (typeof AppController !== 'undefined' && AppController.instance) {
@@ -6778,7 +8633,16 @@ class MultiDiagramVisualizer {
 
           const relMatch = line.match(/^([A-Za-z0-9_]+)\s*(\|\|--o\{|\|\|--\|\{|\}\|--\|\{|\}\|--o\{|--)\s*([A-Za-z0-9_]+)(?:\s*:\s*(.+))?/);
           if (relMatch) {
-            relationships.push({ src: relMatch[1], card: relMatch[2], tgt: relMatch[3], label: relMatch[4] || '' });
+            const src = relMatch[1];
+            const tgt = relMatch[3];
+            [src, tgt].forEach(name => {
+              if (!entityMap.has(name)) {
+                const ent = { name, fields: [] };
+                entities.push(ent);
+                entityMap.set(name, ent);
+              }
+            });
+            relationships.push({ src, card: relMatch[2], tgt, label: relMatch[4] || '' });
             return;
           }
 
@@ -6789,20 +8653,28 @@ class MultiDiagramVisualizer {
 
         if (entities.length === 0) {
           entities.push({ name: 'CUSTOMER', fields: ['int id PK', 'string name', 'string email'] });
-          entities.push({ name: 'ORDER', fields: ['int id PK', 'int customer_id FK', 'date order_date'] });
+          entities.push({ name: 'ORDER', fields: ['int id PK', 'int customer_id FK', 'date order_date', 'decimal total_amount'] });
+          entities.push({ name: 'ORDER_ITEM', fields: ['int id PK', 'int order_id FK', 'int product_id FK', 'int quantity'] });
           entities.push({ name: 'PRODUCT', fields: ['int id PK', 'string name', 'decimal price'] });
+          relationships.push({ src: 'CUSTOMER', card: '||--o{', tgt: 'ORDER', label: 'places' });
+          relationships.push({ src: 'ORDER', card: '||--|{', tgt: 'ORDER_ITEM', label: 'contains' });
+          relationships.push({ src: 'PRODUCT', card: '||--o{', tgt: 'ORDER_ITEM', label: 'included_in' });
         }
 
-        const colW = 200;
+        const colW = 210;
         entities.forEach((ent, idx) => {
           const col = idx % 2;
           const row = Math.floor(idx / 2);
-          const x = 70 + col * 300;
-          const y = 60 + row * 180;
-          const h = 40 + ent.fields.length * 20 + 16;
+          const x = 70 + col * 320;
+          const y = 60 + row * 190;
+          const h = 42 + Math.max(2, ent.fields.length) * 20 + 16;
 
           ent.x = x + colW / 2;
           ent.y = y + h / 2;
+          ent.leftX = x;
+          ent.rightX = x + colW;
+          ent.topY = y;
+          ent.bottomY = y + h;
 
           const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
           g.style.cursor = 'pointer';
@@ -6825,7 +8697,7 @@ class MultiDiagramVisualizer {
 
           const eName = document.createElementNS('http://www.w3.org/2000/svg', 'text');
           eName.setAttribute('x', `${x + colW / 2}`);
-          eName.setAttribute('y', `${y + 20}`);
+          eName.setAttribute('y', `${y + 22}`);
           eName.setAttribute('text-anchor', 'middle');
           eName.setAttribute('fill', eFont);
           eName.setAttribute('font-size', '13px');
@@ -6835,9 +8707,9 @@ class MultiDiagramVisualizer {
 
           const divLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
           divLine.setAttribute('x1', `${x}`);
-          divLine.setAttribute('y1', `${y + 32}`);
+          divLine.setAttribute('y1', `${y + 34}`);
           divLine.setAttribute('x2', `${x + colW}`);
-          divLine.setAttribute('y2', `${y + 32}`);
+          divLine.setAttribute('y2', `${y + 34}`);
           divLine.setAttribute('stroke', primaryBorder);
           divLine.setAttribute('stroke-width', '1');
           g.appendChild(divLine);
@@ -6845,7 +8717,7 @@ class MultiDiagramVisualizer {
           ent.fields.forEach((f, fIdx) => {
             const fTxt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
             fTxt.setAttribute('x', `${x + 12}`);
-            fTxt.setAttribute('y', `${y + 50 + fIdx * 20}`);
+            fTxt.setAttribute('y', `${y + 52 + fIdx * 20}`);
             fTxt.setAttribute('fill', eFont);
             fTxt.setAttribute('font-size', '11px');
             fTxt.textContent = f;
@@ -6885,7 +8757,7 @@ class MultiDiagramVisualizer {
           nodesLayer.appendChild(g);
         });
 
-        // Draw Relationships
+        // Draw Relationships with Full Click Configuration
         relationships.forEach(r => {
           const s = entityMap.get(r.src);
           const t = entityMap.get(r.tgt);
@@ -6893,15 +8765,1869 @@ class MultiDiagramVisualizer {
 
           const relKey = `${r.src}->${r.tgt}`;
           const relColor = MultiDiagramVisualizer.getColor(relKey, linkColor);
+          const relFont = MultiDiagramVisualizer.getColor(relKey + ':font', textColor);
+          const isSelERRel = (`${r.src} → ${r.tgt}` === selTitle);
+
+          const lineG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+          lineG.style.cursor = 'pointer';
 
           const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
           line.setAttribute('x1', `${s.x}`);
           line.setAttribute('y1', `${s.y}`);
           line.setAttribute('x2', `${t.x}`);
           line.setAttribute('y2', `${t.y}`);
-          line.setAttribute('stroke', relColor);
-          line.setAttribute('stroke-width', '1.8');
-          edgesLayer.appendChild(line);
+          line.setAttribute('stroke', isSelERRel ? 'var(--selection-color)' : relColor);
+          line.setAttribute('stroke-width', isSelERRel ? '3' : '2');
+          if (isSelERRel) line.style.filter = selGlow;
+          lineG.appendChild(line);
+
+          if (r.label) {
+            const midX = (s.x + t.x) / 2;
+            const midY = (s.y + t.y) / 2;
+            const badgeW = r.label.length * 6.5 + 18;
+            const badgeBg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+            badgeBg.setAttribute('x', `${midX - badgeW / 2}`);
+            badgeBg.setAttribute('y', `${midY - 9}`);
+            badgeBg.setAttribute('width', `${badgeW}`);
+            badgeBg.setAttribute('height', '18');
+            badgeBg.setAttribute('rx', '4');
+            badgeBg.setAttribute('fill', cardBg);
+            badgeBg.setAttribute('stroke', cardBorder);
+            badgeBg.setAttribute('stroke-width', '1');
+            lineG.appendChild(badgeBg);
+
+            const badgeTxt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            badgeTxt.setAttribute('x', `${midX}`);
+            badgeTxt.setAttribute('y', `${midY}`);
+            badgeTxt.setAttribute('text-anchor', 'middle');
+            badgeTxt.setAttribute('dominant-baseline', 'central');
+            badgeTxt.setAttribute('fill', relFont);
+            badgeTxt.setAttribute('font-size', '10px');
+            badgeTxt.textContent = r.label;
+            lineG.appendChild(badgeTxt);
+          }
+
+          lineG.addEventListener('mousedown', (e) => e.stopPropagation());
+          lineG.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (typeof AppController !== 'undefined' && AppController.instance) {
+              AppController.instance.selectVisualObject({
+                type: 'ER Relationship',
+                title: `${r.src} → ${r.tgt}`,
+                fields: [
+                  { key: 'card', label: 'Cardinality Symbol', type: 'select', value: r.card || '||--o{', options: [
+                    { value: '||--o{', label: 'One to Many (||--o{)' },
+                    { value: '||--|{', label: 'One to Mandatory Many (||--|{)' },
+                    { value: '}|--|{', label: 'Many to Many (}|--|{)' },
+                    { value: '}|--o{', label: 'Many to Optional Many (}|--o{)' },
+                    { value: '--', label: 'Direct Link (--)' }
+                  ]},
+                  { key: 'label', label: 'Relationship Label', type: 'text', value: r.label || '' },
+                  { key: 'color', label: 'Line Color', type: 'color', value: relColor },
+                  { key: 'font', label: 'Label Font Color', type: 'color', value: relFont }
+                ],
+                onSave: (vals) => {
+                  MultiDiagramVisualizer.setColor(relKey, vals.color);
+                  MultiDiagramVisualizer.setColor(relKey + ':font', vals.font);
+                  MultiDiagramVisualizer.syncColorToCode(relKey, vals.color);
+                  MultiDiagramVisualizer.syncColorToCode(relKey + ':font', vals.font);
+                  MultiDiagramVisualizer.updateCodeLine((curCode) => {
+                    const esc1 = r.src.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\</body>');
+                    const esc2 = r.tgt.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\</body>');
+                    const reg = new RegExp(`^\\s*${esc1}\\s*(?:\\|\\|--o\\{|\\|\\|--\\|\\{|\\}\\|--\\|\\{|\\}\\|--o\\{|--)\\s*${esc2}(?:\\s*:.*)?<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mermaid Visual Editor & Offline Viewer</title>
+  <style>
+:root {
+      --bg-color: #FFFFFF;
+      --canvas-bg: #FAFAFA;
+      --text-color: #212121;
+      --text-muted: #757575;
+      --node-fill: #E3F2FD;
+      --node-border: #90CAF9;
+      --node-text: #0D47A1;
+      --selection-color: #2196F3;
+      --selection-box: rgba(33, 150, 243, 0.15);
+      --link-color: #616161;
+      --link-selected: #1976D2;
+      --toolbar-bg: #F5F5F7;
+      --panel-bg: #FFFFFF;
+      --border-color: #E0E0E0;
+      --hover-color: #ECEFF1;
+      --grid-dot: #D6D6D6;
+      --modal-bg: #FFFFFF;
+      --modal-overlay: rgba(0, 0, 0, 0.4);
+      --btn-primary: #1976D2;
+      --btn-primary-hover: #1565C0;
+      --btn-danger: #D32F2F;
+      --btn-secondary: #E0E0E0;
+      --shadow: 0 4px 12px rgba(0,0,0,0.08);
+      --shadow-sm: 0 2px 4px rgba(0,0,0,0.05);
+      --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      --code-font: "JetBrains Mono", "Fira Code", Menlo, Monaco, Consolas, monospace;
+    }
+
+    [data-theme="dark"] {
+      --bg-color: #1E1E1E;
+      --canvas-bg: #252526;
+      --text-color: #D4D4D4;
+      --text-muted: #8E8E8E;
+      --node-fill: #2D4A66;
+      --node-border: #4FC3F7;
+      --node-text: #E1F5FE;
+      --selection-color: #4FC3F7;
+      --selection-box: rgba(79, 195, 247, 0.2);
+      --link-color: #BBBBBB;
+      --link-selected: #4FC3F7;
+      --toolbar-bg: #2D2D2D;
+      --panel-bg: #1E1E1E;
+      --border-color: #383838;
+      --hover-color: #383838;
+      --grid-dot: #404040;
+      --modal-bg: #252526;
+      --modal-overlay: rgba(0, 0, 0, 0.65);
+      --btn-primary: #0288D1;
+      --btn-primary-hover: #039BE5;
+      --btn-danger: #F44336;
+      --btn-secondary: #3E3E42;
+      --shadow: 0 4px 14px rgba(0,0,0,0.4);
+      --shadow-sm: 0 2px 6px rgba(0,0,0,0.3);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+
+    body {
+      font-family: var(--font-family);
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* Toolbar */
+    #toolbar {
+      height: 48px;
+      background: var(--toolbar-bg);
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      padding: 0 12px;
+      gap: 4px;
+      z-index: 20;
+    }
+
+    .toolbar-group {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding-right: 6px;
+      margin-right: 6px;
+      border-right: 1px solid var(--border-color);
+    }
+
+    .toolbar-group:last-child {
+      border-right: none;
+      margin-left: auto;
+      padding-right: 0;
+      margin-right: 0;
+    }
+
+    .app-title {
+      font-weight: 700;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-right: 12px;
+      color: var(--text-color);
+    }
+    .app-title svg {
+      width: 20px;
+      height: 20px;
+      fill: var(--btn-primary);
+    }
+
+    .tb-select {
+      background: var(--bg-color);
+      border: 1px solid var(--border-color);
+      color: var(--text-color);
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-family: inherit;
+      outline: none;
+      cursor: pointer;
+      font-weight: 500;
+      transition: border-color 0.15s;
+    }
+    .tb-select:hover, .tb-select:focus {
+      border-color: var(--selection-color);
+    }
+
+    button.tb-btn {
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--text-color);
+      padding: 5px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      transition: background 0.15s, border-color 0.15s;
+    }
+
+    button.tb-btn:hover {
+      background: var(--hover-color);
+      border-color: var(--border-color);
+    }
+
+    button.tb-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    button.tb-btn svg {
+      width: 15px;
+      height: 15px;
+      fill: currentColor;
+    }
+
+    /* Main Container */
+    #main-container {
+      flex: 1;
+      display: flex;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Panels */
+    .panel {
+      background: var(--panel-bg);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .panel-header {
+      height: 36px;
+      padding: 0 12px;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      background: var(--toolbar-bg);
+    }
+
+    /* Left Sidebar: Node Properties & Tools */
+    #left-panel {
+      width: 270px;
+      min-width: 200px;
+      max-width: 450px;
+      border-right: 1px solid var(--border-color);
+    }
+
+    /* Left Tabs */
+    .left-tabs {
+      display: flex;
+      background: var(--toolbar-bg);
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .left-tab {
+      flex: 1;
+      padding: 8px 4px;
+      font-size: 11px;
+      font-weight: 600;
+      text-align: center;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      color: var(--text-muted);
+      transition: all 0.15s;
+    }
+
+    .left-tab:hover {
+      color: var(--text-color);
+      background: var(--hover-color);
+    }
+
+    .left-tab.active {
+      color: var(--btn-primary);
+      border-bottom-color: var(--btn-primary);
+      background: var(--panel-bg);
+    }
+
+    .tab-content {
+      flex: 1;
+      overflow-y: auto;
+      display: none;
+      flex-direction: column;
+    }
+
+    .tab-content.active {
+      display: flex;
+    }
+
+    .sidebar-section {
+      padding: 12px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .sidebar-section h4 {
+      font-size: 11px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+    }
+
+    /* Properties Editor Form */
+    .prop-group {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      margin-bottom: 10px;
+    }
+
+    .prop-group label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+
+    .prop-input {
+      padding: 5px 8px;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      background: var(--bg-color);
+      color: var(--text-color);
+      font-size: 12px;
+      font-family: inherit;
+      outline: none;
+      width: 100%;
+    }
+
+    .prop-input:focus {
+      border-color: var(--selection-color);
+    }
+
+    .prop-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .color-swatches {
+      display: flex;
+      gap: 5px;
+      flex-wrap: wrap;
+      margin-top: 4px;
+    }
+
+    .color-swatch {
+      width: 18px;
+      height: 18px;
+      border-radius: 3px;
+      cursor: pointer;
+      border: 1px solid var(--border-color);
+      transition: transform 0.1s;
+    }
+
+    .color-swatch:hover {
+      transform: scale(1.2);
+    }
+
+    .prop-action-btn {
+      padding: 6px;
+      border: 1px solid var(--border-color);
+      background: var(--bg-color);
+      color: var(--text-color);
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      transition: all 0.15s;
+    }
+    .prop-action-btn:hover {
+      background: var(--hover-color);
+      border-color: var(--selection-color);
+    }
+    .prop-action-btn.primary {
+      background: var(--btn-primary);
+      color: #FFFFFF;
+      border-color: var(--btn-primary);
+    }
+    .prop-action-btn.primary:hover {
+      opacity: 0.9;
+    }
+    .prop-action-btn.danger {
+      color: var(--btn-danger);
+      border-color: var(--btn-danger);
+    }
+    .prop-action-btn.danger:hover {
+      background: rgba(244, 67, 54, 0.1);
+    }
+
+    .shape-palette {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+    }
+
+    .shape-item {
+      padding: 8px 6px;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      background: var(--canvas-bg);
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      transition: all 0.15s;
+    }
+
+    .shape-item:hover {
+      border-color: var(--selection-color);
+      background: var(--hover-color);
+      transform: translateY(-1px);
+    }
+
+    .shape-item svg {
+      width: 44px;
+      height: 28px;
+    }
+
+    /* Template Cards in Modal */
+    .template-card {
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 10px;
+      background: var(--bg-color);
+      cursor: pointer;
+      transition: all 0.15s;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .template-card:hover {
+      border-color: var(--btn-primary);
+      background: var(--hover-color);
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .template-badge {
+      display: inline-block;
+      align-self: flex-start;
+      font-size: 10px;
+      font-family: var(--code-font);
+      background: var(--hover-color);
+      color: var(--btn-primary);
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-weight: 600;
+    }
+
+    .template-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-color);
+    }
+
+    .template-desc {
+      font-size: 11px;
+      color: var(--text-muted);
+      line-height: 1.3;
+    }
+
+    /* Rules Engine List */
+    .rules-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      font-size: 11px;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+
+    .rule-chip {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 4px 8px;
+      border-radius: 4px;
+      background: var(--canvas-bg);
+      border: 1px solid var(--border-color);
+    }
+
+    .rule-chip.allowed { border-left: 3px solid #4CAF50; }
+    .rule-chip.blocked { border-left: 3px solid #F44336; }
+
+    .rule-del-btn {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-weight: bold;
+    }
+    .rule-del-btn:hover { color: var(--btn-danger); }
+
+    /* Canvas Center */
+    #canvas-panel {
+      flex: 1;
+      position: relative;
+      background: var(--canvas-bg);
+      overflow: hidden;
+      cursor: default;
+    }
+
+    #canvas-svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+      cursor: grab;
+    }
+
+    #canvas-svg.panning, #canvas-svg.panning * {
+      cursor: grabbing !important;
+    }
+
+    /* Canvas Scrollbars */
+    .canvas-scrollbar {
+      position: absolute;
+      background: rgba(0, 0, 0, 0.05);
+      z-index: 18;
+      transition: background 0.15s, opacity 0.15s;
+      border-radius: 4px;
+      user-select: none;
+    }
+    [data-theme="dark"] .canvas-scrollbar {
+      background: rgba(255, 255, 255, 0.06);
+    }
+    .canvas-scrollbar:hover {
+      background: rgba(0, 0, 0, 0.1);
+    }
+    [data-theme="dark"] .canvas-scrollbar:hover {
+      background: rgba(255, 255, 255, 0.12);
+    }
+    .canvas-scrollbar.horizontal {
+      left: 0;
+      bottom: 0;
+      right: 12px;
+      height: 10px;
+    }
+    .canvas-scrollbar.vertical {
+      top: 0;
+      right: 0;
+      bottom: 12px;
+      width: 10px;
+    }
+    .scrollbar-thumb {
+      position: absolute;
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 5px;
+      cursor: grab;
+      transition: background 0.15s;
+    }
+    [data-theme="dark"] .scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.3);
+    }
+    .scrollbar-thumb:hover, .scrollbar-thumb.dragging {
+      background: var(--selection-color);
+      cursor: grabbing;
+    }
+
+    /* Right Panel: Mermaid Code Editor */
+    #right-panel {
+      width: 340px;
+      min-width: 220px;
+      max-width: 600px;
+      border-left: 1px solid var(--border-color);
+      transition: width 0.15s ease;
+    }
+    #right-panel.collapsed {
+      display: none !important;
+    }
+    #right-splitter.collapsed {
+      display: none !important;
+    }
+
+    #editor-container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      background: var(--panel-bg);
+    }
+
+    #editor-wrapper {
+      position: relative;
+      flex: 1;
+      overflow: auto;
+      font-family: var(--code-font);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    #code-editor, #code-highlight {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      padding: 12px;
+      margin: 0;
+      border: none;
+      outline: none;
+      white-space: pre;
+      overflow: auto;
+      tab-size: 2;
+      font-family: inherit;
+      font-size: inherit;
+      line-height: inherit;
+      box-sizing: border-box;
+      user-select: text;
+    }
+
+    #code-editor {
+      background: transparent;
+      color: transparent;
+      caret-color: var(--text-color);
+      z-index: 2;
+      resize: none;
+      spellcheck: false;
+    }
+
+    #code-highlight {
+      background: var(--panel-bg);
+      color: var(--text-color);
+      z-index: 1;
+      pointer-events: none;
+    }
+
+    /* Mermaid Syntax Highlighting */
+    .hl-keyword { color: #D73A49; font-weight: bold; }
+    [data-theme="dark"] .hl-keyword { color: #FF7B72; font-weight: bold; }
+    .hl-dir { color: #005CC5; font-weight: bold; }
+    [data-theme="dark"] .hl-dir { color: #79C0FF; font-weight: bold; }
+    .hl-nodeid { color: #6F42C1; font-weight: 600; }
+    [data-theme="dark"] .hl-nodeid { color: #D2A8FF; font-weight: 600; }
+    .hl-shape { color: #22863A; }
+    [data-theme="dark"] .hl-shape { color: #7EE787; }
+    .hl-arrow { color: #E36209; font-weight: bold; }
+    [data-theme="dark"] .hl-arrow { color: #FFA657; font-weight: bold; }
+    .hl-label { color: #032F62; }
+    [data-theme="dark"] .hl-label { color: #A5D6FF; }
+    .hl-comment { color: #6A737D; font-style: italic; }
+    [data-theme="dark"] .hl-comment { color: #8B949E; font-style: italic; }
+    .hl-style { color: #B31D28; }
+    [data-theme="dark"] .hl-style { color: #FF7B72; }
+
+    #editor-status-bar {
+      padding: 6px 12px;
+      font-size: 11px;
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--toolbar-bg);
+    }
+
+    #editor-error {
+      color: var(--btn-danger);
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 200px;
+    }
+
+    /* Splitters */
+    .splitter {
+      width: 5px;
+      background: var(--border-color);
+      cursor: col-resize;
+      z-index: 10;
+      transition: background 0.2s;
+    }
+    .splitter:hover, .splitter.active {
+      background: var(--selection-color);
+    }
+
+    /* Floating View Controls */
+    #floating-controls {
+      position: absolute;
+      top: 14px;
+      right: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      background: var(--panel-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 4px;
+      box-shadow: var(--shadow);
+      z-index: 15;
+    }
+
+    .float-btn {
+      width: 30px;
+      height: 30px;
+      border: none;
+      background: transparent;
+      color: var(--text-color);
+      border-radius: 4px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: bold;
+    }
+
+    .float-btn:hover {
+      background: var(--hover-color);
+    }
+
+    /* Minimap */
+    #minimap-container {
+      position: absolute;
+      bottom: 14px;
+      right: 14px;
+      width: 180px;
+      height: 120px;
+      background: var(--panel-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      z-index: 15;
+    }
+
+    #minimap-svg {
+      width: 100%;
+      height: 100%;
+    }
+
+    #minimap-viewport {
+      fill: var(--selection-box);
+      stroke: var(--selection-color);
+      stroke-width: 1.5;
+      cursor: grab;
+    }
+
+    /* Status Bar */
+    #status-bar {
+      height: 26px;
+      background: var(--toolbar-bg);
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      padding: 0 12px;
+      font-size: 11px;
+      color: var(--text-muted);
+      gap: 16px;
+      z-index: 20;
+    }
+
+    .status-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    /* Modals & Dialogs */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: var(--modal-overlay);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+
+    .modal-overlay.open {
+      display: flex;
+    }
+
+    .modal-card {
+      background: var(--modal-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      width: 420px;
+      max-width: 90vw;
+      box-shadow: var(--shadow);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      animation: modalPop 0.15s ease-out;
+    }
+
+    @keyframes modalPop {
+      from { transform: scale(0.95); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+
+    .modal-header {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border-color);
+      font-size: 14px;
+      font-weight: 600;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .modal-body {
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      font-size: 12px;
+    }
+
+    .modal-footer {
+      padding: 12px 16px;
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      background: var(--toolbar-bg);
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .form-group label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+
+    .form-control {
+      padding: 7px 10px;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      background: var(--bg-color);
+      color: var(--text-color);
+      font-size: 12px;
+      font-family: inherit;
+      outline: none;
+    }
+
+    .form-control:focus {
+      border-color: var(--selection-color);
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .color-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+
+    .color-input-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      border: 1px solid var(--border-color);
+      padding: 3px 6px;
+      border-radius: 4px;
+    }
+
+    .color-input-wrapper input[type="color"] {
+      border: none;
+      width: 22px;
+      height: 22px;
+      border-radius: 3px;
+      cursor: pointer;
+      background: none;
+    }
+
+    .btn {
+      padding: 6px 12px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: all 0.15s;
+    }
+
+    .btn-primary {
+      background: var(--btn-primary);
+      color: #FFF;
+    }
+    .btn-primary:hover {
+      background: var(--btn-primary-hover);
+    }
+
+    .btn-secondary {
+      background: var(--btn-secondary);
+      color: var(--text-color);
+      border-color: var(--border-color);
+    }
+    .btn-secondary:hover {
+      background: var(--hover-color);
+    }
+
+    .btn-danger {
+      background: var(--btn-danger);
+      color: #FFF;
+    }
+
+    /* Search Box */
+    #search-box {
+      position: absolute;
+      top: 14px;
+      left: 14px;
+      background: var(--modal-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      box-shadow: var(--shadow);
+      padding: 6px 10px;
+      display: none;
+      align-items: center;
+      gap: 8px;
+      z-index: 100;
+    }
+
+    #search-box.open {
+      display: flex;
+    }
+
+    #search-input {
+      border: none;
+      background: transparent;
+      color: var(--text-color);
+      outline: none;
+      font-size: 12px;
+      width: 160px;
+    }
+
+    #search-results-count {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    /* Canvas Elements */
+    .canvas-node {
+      cursor: move;
+      transition: filter 0.15s;
+    }
+
+    .canvas-node:hover .node-shape {
+      filter: drop-shadow(0 2px 5px rgba(0,0,0,0.15));
+    }
+
+    .canvas-node.selected .node-shape {
+      stroke: var(--selection-color) !important;
+      stroke-width: 2.5px !important;
+    }
+
+    .node-port {
+      fill: var(--bg-color);
+      stroke: var(--selection-color);
+      stroke-width: 1.5;
+      cursor: crosshair;
+      opacity: 0;
+      transition: opacity 0.12s, fill 0.12s;
+    }
+
+    .canvas-node:hover .node-port, .canvas-node.selected .node-port, #canvas-panel.connecting .node-port {
+      opacity: 0.95;
+    }
+
+    .node-port:hover, #canvas-panel.connecting .node-port:hover {
+      opacity: 1;
+      fill: var(--selection-color);
+      stroke-width: 2.2;
+    }
+
+    .canvas-edge {
+      cursor: pointer;
+    }
+
+    .canvas-edge-path {
+      fill: none;
+      stroke: var(--link-color);
+      stroke-width: 2;
+      transition: stroke 0.15s, stroke-width 0.15s;
+    }
+
+    .canvas-edge:hover .canvas-edge-path {
+      stroke: var(--link-selected);
+      stroke-width: 2.5;
+    }
+
+    .canvas-edge.selected .canvas-edge-path {
+      stroke: var(--selection-color);
+      stroke-width: 3;
+    }
+
+    .edge-label-bg {
+      fill: var(--bg-color);
+      stroke: var(--border-color);
+      stroke-width: 1;
+      rx: 4;
+    }
+
+    .edge-label-text {
+      font-size: 11px;
+      fill: var(--text-color);
+      text-anchor: middle;
+      dominant-baseline: central;
+      pointer-events: none;
+    }
+
+    .canvas-edge.selected .edge-label-bg {
+      stroke: var(--selection-color);
+    }
+
+    .marquee-box {
+      fill: var(--selection-box);
+      stroke: var(--selection-color);
+      stroke-width: 1;
+      stroke-dasharray: 4 2;
+      pointer-events: none;
+    }
+
+    .connecting-line {
+      stroke: var(--selection-color);
+      stroke-width: 2;
+      stroke-dasharray: 5 4;
+      pointer-events: none;
+    }
+
+    /* Toast */
+    #toast {
+      position: fixed;
+      bottom: 40px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: #323232;
+      color: #FFF;
+      padding: 8px 18px;
+      border-radius: 20px;
+      font-size: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+      z-index: 2000;
+      opacity: 0;
+      transition: transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.25s;
+      pointer-events: none;
+    }
+    #toast.show {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
+    #toast.error {
+      background: #D32F2F;
+    }
+    #toast.success {
+      background: #388E3C;
+    }
+
+    #file-input {
+      display: none;
+    }
+</style>
+</head>
+<body>
+  <!-- Toolbar -->
+  <div id="toolbar">
+    <div class="app-title">
+      <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+      <span>Mermaid Editor</span>
+    </div>
+
+    <!-- Diagram Type Selector Dropdown -->
+    <div class="toolbar-group">
+      <label style="font-size:11px; font-weight:600; color:var(--text-muted); margin-right:2px;">Type:</label>
+      <select id="diagram-type-select" class="tb-select" title="Active Diagram Type (Switch to load template)">
+        <option value="flowchart_td">Flowchart TD</option>
+        <option value="flowchart_lr">Flowchart LR</option>
+        <option value="sequence">Sequence Diagram</option>
+        <option value="classDiagram">Class Diagram</option>
+        <option value="stateDiagram">State Diagram</option>
+        <option value="erDiagram">ER Diagram</option>
+        <option value="gantt">Gantt Chart</option>
+        <option value="pie">Pie Chart</option>
+        <option value="gitGraph">Git Graph</option>
+        <option value="journey">User Journey</option>
+        <option value="mindmap">Mindmap</option>
+        <option value="timeline">Timeline</option>
+        <option value="quadrant">Quadrant Chart</option>
+        <option value="c4context">C4 Architecture</option>
+        <option value="sankey">Sankey</option>
+      </select>
+      <button class="tb-btn" id="btn-templates" title="Browse & Load Diagram Starter Templates">
+        <svg viewBox="0 0 24 24"><path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H8V4h12v12z"/></svg>
+        <span>Templates</span>
+      </button>
+    </div>
+
+    <div class="toolbar-group">
+      <button class="tb-btn" id="btn-new" title="New Project (Ctrl+N)">
+        <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+        <span>New</span>
+      </button>
+      <button class="tb-btn" id="btn-open" title="Open Project (Ctrl+O)">
+        <svg viewBox="0 0 24 24"><path d="M20 6h-8l-2-2H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm0 12H4V8h16v10z"/></svg>
+        <span>Open</span>
+      </button>
+      <button class="tb-btn" id="btn-export-dialog" title="Export / Save Diagram (PNG, SVG, JSON, MMD) (Ctrl+S)">
+        <svg viewBox="0 0 24 24"><path d="M19 12v7H5v-7H3v7c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-7h-2zm-6 .67l2.59-2.58L17 11.5l-5 5-5-5 1.41-1.41L11 12.67V3h2z"/></svg>
+        <span>Export</span>
+      </button>
+    </div>
+
+    <div class="toolbar-group">
+      <button class="tb-btn" id="btn-undo" title="Undo (Ctrl+Z)">
+        <svg viewBox="0 0 24 24"><path d="M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z"/></svg>
+      </button>
+      <button class="tb-btn" id="btn-redo" title="Redo (Ctrl+Y / Ctrl+Shift+Z)">
+        <svg viewBox="0 0 24 24"><path d="M18.4 10.6C16.55 8.99 14.15 8 11.5 8c-4.65 0-8.58 3.03-9.96 7.22L3.9 16c1.05-3.19 4.05-5.5 7.6-5.5 1.95 0 3.73.72 5.12 1.88L13 16h9V7l-3.6 3.6z"/></svg>
+      </button>
+    </div>
+
+    <div class="toolbar-group">
+      <button class="tb-btn" id="btn-add-node" title="Add Node">
+        <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+        <span>Node</span>
+      </button>
+      <button class="tb-btn" id="btn-add-link" title="Connection Wizard">
+        <svg viewBox="0 0 24 24"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/></svg>
+        <span>Link</span>
+      </button>
+      <button class="tb-btn" id="btn-autolayout-td" title="Auto Layout Top-Down (Ctrl+Z to Undo)">
+        <span>Layout TD</span>
+      </button>
+      <button class="tb-btn" id="btn-autolayout-lr" title="Auto Layout Left-Right (Ctrl+Z to Undo)">
+        <span>Layout LR</span>
+      </button>
+    </div>
+
+    <div class="toolbar-group">
+      <button class="tb-btn" id="btn-rules" title="Connection Rules">
+        <span>Rules</span>
+      </button>
+      <button class="tb-btn active" id="btn-toggle-code" title="Toggle Mermaid Code Panel (Show/Hide)">
+        <svg viewBox="0 0 24 24"><path d="M9.4 16.6L4.8 12l4.6-4.6L8 6l-6 6 6 6 1.4-1.4zm5.2 0l4.6-4.6-4.6-4.6L16 6l6 6-6 6-1.4-1.4z"/></svg>
+        <span>Code</span>
+      </button>
+      <button class="tb-btn" id="btn-search-toggle" title="Search (Ctrl+F)">
+        <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+      </button>
+      <button class="tb-btn" id="btn-theme" title="Toggle Light/Dark Theme">
+        <svg id="theme-icon" viewBox="0 0 24 24"><path d="M20 8.69V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12 20 8.69zM12 18c-3.31 0-6-2.69-6-6s2.69-6 6-6 6 2.69 6 6-2.69 6-6 6z"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Main Workspace -->
+  <div id="main-container">
+    <!-- Left Sidebar: Palette / Rules / Inspector -->
+    <div id="left-panel" class="panel">
+      <!-- Tabs (Shapes, Rules, Inspector) -->
+      <div class="left-tabs">
+        <div class="left-tab" data-tab="shapes">Shapes</div>
+        <div class="left-tab" data-tab="rules">Rules</div>
+        <div class="left-tab active" data-tab="properties">Inspector</div>
+      </div>
+
+      <!-- Tab 1: Live Properties Editor -->
+      <div id="tab-properties" class="tab-content active" style="padding:12px;">
+        <div id="prop-empty" style="color:var(--text-muted); font-size:12px; text-align:center; padding:20px 0;">
+          Select a node or link to edit properties, or configure diagram below.
+        </div>
+
+        <!-- Node Properties Form -->
+        <div id="node-props-form" style="display:none;">
+          <h4 style="font-size:11px; text-transform:uppercase; color:var(--text-muted); margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;">
+            <span>Node Properties</span>
+            <span id="prop-node-id-badge" style="background:var(--hover-color); padding:2px 6px; border-radius:3px; font-weight:bold; color:var(--btn-primary);"></span>
+          </h4>
+
+          <div class="prop-group">
+            <label>Display Text</label>
+            <input type="text" id="prop-node-text" class="prop-input" placeholder="Node Label">
+          </div>
+
+          <div class="prop-group">
+            <label>Shape</label>
+            <select id="prop-node-shape" class="prop-input">
+              <option value="rectangle">Rectangle [Process]</option>
+              <option value="rounded">Rounded Rectangle (State / Item)</option>
+              <option value="stadium">Stadium / Pill ([Start / End])</option>
+              <option value="subroutine">Subroutine [[Subprocess]]</option>
+              <option value="cylinder">Cylinder [(Database / Storage)]</option>
+              <option value="circle">Circle ((Point / Node))</option>
+              <option value="double_circle">Double Circle (((Event / End State)))</option>
+              <option value="asymmetric">Asymmetric &gt;Flag / Banner]</option>
+              <option value="diamond">Diamond / Decision {Condition}</option>
+              <option value="hexagon">Hexagon {{Preparation / Loop}}</option>
+              <option value="parallelogram">Parallelogram [/Input - Output/]</option>
+              <option value="parallelogram_alt">Parallelogram Alt [\Alt In - Out\]</option>
+              <option value="trapezoid">Trapezoid [/Manual Operation\]</option>
+              <option value="trapezoid_alt">Trapezoid Alt [\Manual Task/]</option>
+            </select>
+          </div>
+
+          <div class="prop-row">
+            <div class="prop-group" style="margin-bottom:0;">
+              <label>Width</label>
+              <input type="number" id="prop-node-w" class="prop-input" min="60" max="400" step="10">
+            </div>
+            <div class="prop-group" style="margin-bottom:0;">
+              <label>Height</label>
+              <input type="number" id="prop-node-h" class="prop-input" min="30" max="250" step="5">
+            </div>
+          </div>
+
+          <div class="prop-row">
+            <div class="prop-group" style="margin-bottom:0;">
+              <label>Pos X</label>
+              <input type="number" id="prop-node-x" class="prop-input" step="10">
+            </div>
+            <div class="prop-group" style="margin-bottom:0;">
+              <label>Pos Y</label>
+              <input type="number" id="prop-node-y" class="prop-input" step="10">
+            </div>
+          </div>
+
+          <div class="prop-group">
+            <label>Fill Color</label>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <input type="color" id="prop-node-fill" style="width:32px; height:26px; border:none; border-radius:3px; cursor:pointer;">
+              <span id="prop-node-fill-val" style="font-size:11px; font-family:var(--code-font);">#E3F2FD</span>
+            </div>
+            <div class="color-swatches" id="fill-swatches">
+              <div class="color-swatch" style="background:#E3F2FD;" data-fill="#E3F2FD" data-border="#90CAF9" data-font="#0D47A1" title="Light Blue"></div>
+              <div class="color-swatch" style="background:#E8F5E9;" data-fill="#E8F5E9" data-border="#A5D6A7" data-font="#1B5E20" title="Green"></div>
+              <div class="color-swatch" style="background:#FFF3E0;" data-fill="#FFF3E0" data-border="#FFE082" data-font="#E65100" title="Orange"></div>
+              <div class="color-swatch" style="background:#F3E5F5;" data-fill="#F3E5F5" data-border="#CE93D8" data-font="#4A148C" title="Purple"></div>
+              <div class="color-swatch" style="background:#FFEBEE;" data-fill="#FFEBEE" data-border="#EF9A9A" data-font="#B71C1C" title="Red"></div>
+              <div class="color-swatch" style="background:#ECEFF1;" data-fill="#ECEFF1" data-border="#B0BEC5" data-font="#263238" title="Gray"></div>
+              <div class="color-swatch" style="background:#2D4A66;" data-fill="#2D4A66" data-border="#4FC3F7" data-font="#E1F5FE" title="Dark Blue"></div>
+            </div>
+          </div>
+
+          <div class="prop-row">
+            <div class="prop-group" style="margin-bottom:0;">
+              <label>Border Color</label>
+              <input type="color" id="prop-node-border" style="width:100%; height:26px; border:none; border-radius:3px; cursor:pointer;">
+            </div>
+            <div class="prop-group" style="margin-bottom:0;">
+              <label>Font Color</label>
+              <input type="color" id="prop-node-font" style="width:100%; height:26px; border:none; border-radius:3px; cursor:pointer;">
+            </div>
+          </div>
+
+          <div style="display:flex; gap:8px; margin-top:14px;">
+            <button class="prop-action-btn primary" id="btn-node-prop-save" style="flex:1;">Save / Apply</button>
+            <button class="prop-action-btn" id="btn-node-prop-reset" style="flex:1;">Reset</button>
+            <button class="prop-action-btn danger" id="btn-node-prop-deselect" style="padding:6px 10px;" title="Deselect node">✕</button>
+          </div>
+
+          <div style="display:flex; flex-direction:column; gap:6px; margin-top:10px;">
+            <button class="prop-action-btn" id="btn-prop-duplicate">⎘ Duplicate Node</button>
+            <button class="prop-action-btn" id="btn-prop-connect">↗ Add Connection</button>
+            <button class="prop-action-btn" id="btn-prop-delete" style="color:var(--btn-danger);">✕ Delete Node</button>
+          </div>
+        </div>
+
+        <!-- Edge Properties Form -->
+        <div id="edge-props-form" style="display:none;">
+          <h4 style="font-size:11px; text-transform:uppercase; color:var(--text-muted); margin-bottom:12px;">Link Properties</h4>
+          <div class="prop-group">
+            <label>Edge Label</label>
+            <input type="text" id="prop-edge-label" class="prop-input" placeholder="e.g. Yes / Action">
+          </div>
+          <div class="prop-group">
+            <label>Arrow Type</label>
+            <select id="prop-edge-type" class="prop-input">
+              <option value="-->">Solid Arrow (--&gt;)</option>
+              <option value="--->">Long / Solid (---&gt;)</option>
+              <option value="==>">Thick Arrow (==&gt;)</option>
+              <option value="-.->">Dotted Arrow (-.-&gt;)</option>
+              <option value="<-->">Bidirectional (&lt;--&gt;)</option>
+              <option value="<==>">Bidirectional Thick (&lt;==&gt;)</option>
+            </select>
+          </div>
+
+          <div class="prop-group">
+            <label>Link Color</label>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <input type="color" id="prop-edge-color" style="width:32px; height:26px; border:none; border-radius:3px; cursor:pointer;">
+              <span id="prop-edge-color-val" style="font-size:11px; font-family:var(--code-font);">#616161</span>
+            </div>
+            <div class="color-swatches" id="edge-color-swatches" style="margin-top:6px;">
+              <div class="color-swatch" style="background:#616161;" data-color="#616161" title="Gray"></div>
+              <div class="color-swatch" style="background:#2196F3;" data-color="#2196F3" title="Blue"></div>
+              <div class="color-swatch" style="background:#4CAF50;" data-color="#4CAF50" title="Green"></div>
+              <div class="color-swatch" style="background:#FF9800;" data-color="#FF9800" title="Orange"></div>
+              <div class="color-swatch" style="background:#F44336;" data-color="#F44336" title="Red"></div>
+              <div class="color-swatch" style="background:#9C27B0;" data-color="#9C27B0" title="Purple"></div>
+              <div class="color-swatch" style="background:#00BCD4;" data-color="#00BCD4" title="Cyan"></div>
+            </div>
+          </div>
+
+          <div class="prop-group">
+            <label>Line Thickness</label>
+            <select id="prop-edge-width" class="prop-input">
+              <option value="1.5">Thin (1.5px)</option>
+              <option value="2">Medium (2px - Default)</option>
+              <option value="3">Thick (3px)</option>
+              <option value="4">Heavy (4px)</option>
+            </select>
+          </div>
+
+          <div class="prop-group">
+            <label>Label Font Color</label>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <input type="color" id="prop-edge-text-color" style="width:32px; height:26px; border:none; border-radius:3px; cursor:pointer;" value="#212121">
+              <span id="prop-edge-text-color-val" style="font-size:11px; font-family:var(--code-font);">#212121</span>
+            </div>
+            <div class="color-swatches" id="edge-text-color-swatches" style="margin-top:6px;">
+              <div class="color-swatch" style="background:#212121;" data-color="#212121" title="Dark"></div>
+              <div class="color-swatch" style="background:#FFFFFF;" data-color="#FFFFFF" title="White"></div>
+              <div class="color-swatch" style="background:#2196F3;" data-color="#2196F3" title="Blue"></div>
+              <div class="color-swatch" style="background:#4CAF50;" data-color="#4CAF50" title="Green"></div>
+              <div class="color-swatch" style="background:#FF9800;" data-color="#FF9800" title="Orange"></div>
+              <div class="color-swatch" style="background:#F44336;" data-color="#F44336" title="Red"></div>
+              <div class="color-swatch" style="background:#9C27B0;" data-color="#9C27B0" title="Purple"></div>
+            </div>
+          </div>
+
+          <div style="display:flex; gap:8px; margin-top:14px;">
+            <button class="prop-action-btn primary" id="btn-edge-prop-save" style="flex:1;">Save / Apply</button>
+            <button class="prop-action-btn" id="btn-edge-prop-reset" style="flex:1;">Reset</button>
+            <button class="prop-action-btn danger" id="btn-edge-prop-deselect" style="padding:6px 10px;" title="Deselect link">✕</button>
+          </div>
+
+          <button class="prop-action-btn" id="btn-prop-edge-delete" style="color:var(--btn-danger); margin-top:10px;">✕ Delete Link</button>
+        </div>
+
+        <!-- Canvas Properties Fallback -->
+        <div id="canvas-props-form" style="margin-top:10px; border-top:1px solid var(--border-color); padding-top:12px;">
+          <h4 style="font-size:11px; text-transform:uppercase; color:var(--text-muted); margin-bottom:10px;">Canvas Settings</h4>
+          <div class="prop-group">
+            <label style="display:flex; align-items:center; gap:6px; cursor:pointer;">
+              <input type="checkbox" id="prop-grid-snap" checked>
+              <span>Snap to 20px Grid</span>
+            </label>
+          </div>
+          <div class="prop-group">
+            <label>Layout Direction</label>
+            <div style="display:flex; gap:6px;">
+              <button class="prop-action-btn" id="btn-canvas-layout-td" style="flex:1;">Top-Down</button>
+              <button class="prop-action-btn" id="btn-canvas-layout-lr" style="flex:1;">Left-Right</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Dynamic Visual Diagram Object Properties Form -->
+        <div id="visual-props-form" style="display:none;">
+          <h4 style="font-size:11px; text-transform:uppercase; color:var(--text-muted); margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;">
+            <span id="visual-prop-title">Object Properties</span>
+            <span id="visual-prop-type-badge" style="background:var(--hover-color); padding:2px 6px; border-radius:3px; font-weight:bold; color:var(--btn-primary);"></span>
+          </h4>
+          <div id="visual-prop-fields"></div>
+        </div>
+      </div>
+
+      <!-- Tab 2: Shape Palette -->
+      <div id="tab-shapes" class="tab-content" style="padding:12px;">
+        <h4 style="font-size:11px; text-transform:uppercase; color:var(--text-muted); margin-bottom:10px;">General Flowchart Shapes</h4>
+        <div class="shape-palette">
+          <div class="shape-item" data-shape="rectangle" title="Rectangle [Process]">
+            <svg viewBox="0 0 44 28"><rect x="2" y="2" width="40" height="24" rx="2" fill="var(--node-fill)" stroke="var(--node-border)" stroke-width="2"/></svg>
+            <span>Process</span>
+          </div>
+          <div class="shape-item" data-shape="rounded" title="Rounded Rectangle (Item / State)">
+            <svg viewBox="0 0 44 28"><rect x="2" y="2" width="40" height="24" rx="8" fill="var(--node-fill)" stroke="var(--node-border)" stroke-width="2"/></svg>
+            <span>Rounded</span>
+          </div>
+          <div class="shape-item" data-shape="stadium" title="Stadium / Pill ([Start / End])">
+            <svg viewBox="0 0 44 28"><rect x="2" y="2" width="40" height="24" rx="12" fill="var(--node-fill)" stroke="var(--node-border)" stroke-width="2"/></svg>
+            <span>Stadium</span>
+          </div>
+          <div class="shape-item" data-shape="subroutine" title="Subroutine [[Predefined Process]]">
+            <svg viewBox="0 0 44 28">
+              <rect x="2" y="2" width="40" height="24" rx="2" fill="var(--node-fill)" stroke="var(--node-border)" stroke-width="2"/>
+              <line x1="8" y1="2" x2="8" y2="26" stroke="var(--node-border)" stroke-width="1.8"/>
+              <line x1="36" y1="2" x2="36" y2="26" stroke="var(--node-border)" stroke-width="1.8"/>
+            </svg>
+            <span>Subroutine</span>
+          </div>
+          <div class="shape-item" data-shape="cylinder" title="Cylinder [(Database / Storage)]">
+            <svg viewBox="0 0 44 28">
+              <path d="M 4,7 L 4,21 A 18,5 0 0,0 40,21 L 40,7 A 18,5 0 0,0 4,7 Z" fill="var(--node-fill)" stroke="var(--node-border)" stroke-width="2"/>
+              <ellipse cx="22" cy="7" rx="18" ry="5" fill="var(--node-fill)" stroke="var(--node-border)" stroke-width="2"/>
+            </svg>
+            <span>Database</span>
+          </div>
+          <div class="shape-item" data-shape="circle" title="Circle ((Node / Junction))">
+            <svg viewBox="0 0 44 28"><ellipse cx="22" cy="14" rx="18" ry="12" fill="var(--node-fill)" stroke="var(--node-border)" stroke-width="2"/></svg>
+            <span>Circle</span>
+          </div>
+          <div class="shape-item" data-shape="double_circle" title="Double Circle (((Event / End State)))">
+            <svg viewBox="0 0 44 28">
+              <ellipse cx="22" cy="14" rx="18" ry="12" fill="var(--node-fill)" stroke="var(--node-border)" stroke-width="2"/>
+              <ellipse cx="22" cy="14" rx="13" ry="8" fill="none" stroke="var(--node-border)" stroke-width="1.5"/>
+            </svg>
+            <span>Dbl Circle</span>
+          </div>
+          <div class="shape-item" data-shape="asymmetric" title="Asymmetric &gt;Flag / Banner]">
+            <svg viewBox="0 0 44 28"><polygon points="2,2 42,2 42,26 2,26 10,14" fill="var(--node-fill)" stroke="var(--node-border)" stroke-width="2"/></svg>
+            <span>Banner</span>
+          </div>
+          <div class="shape-item" data-shape="diamond" title="Diamond / Decision {Condition}">
+            <svg viewBox="0 0 44 28"><polygon points="22,2 42,14 22,26 2,14" fill="var(--node-fill)" stroke="var(--node-border)" stroke-width="2"/></svg>
+            <span>Decision</span>
+          </div>
+          <div class="shape-item" data-shape="hexagon" title="Hexagon {{Preparation / Loop}}">
+            <svg viewBox="0 0 44 28"><polygon points="8,2 36,2 42,14 36,26 8,26 2,14" fill="var(--node-fill)" stroke="var(--node-border)" stroke-width="2"/></svg>
+            <span>Hexagon</span>
+          </div>
+          <div class="shape-item" data-shape="parallelogram" title="Parallelogram [/Input - Output/]">
+            <svg viewBox="0 0 44 28"><polygon points="8,2 42,2 36,26 2,26" fill="var(--node-fill)" stroke="var(--node-border)" stroke-width="2"/></svg>
+            <span>In / Out</span>
+          </div>
+          <div class="shape-item" data-shape="parallelogram_alt" title="Parallelogram Alt [\Alt In - Out\]">
+            <svg viewBox="0 0 44 28"><polygon points="2,2 36,2 42,26 8,26" fill="var(--node-fill)" stroke="var(--node-border)" stroke-width="2"/></svg>
+            <span>Alt In-Out</span>
+          </div>
+          <div class="shape-item" data-shape="trapezoid" title="Trapezoid [/Manual Operation\]">
+            <svg viewBox="0 0 44 28"><polygon points="8,2 36,2 42,26 2,26" fill="var(--node-fill)" stroke="var(--node-border)" stroke-width="2"/></svg>
+            <span>Trapezoid</span>
+          </div>
+          <div class="shape-item" data-shape="trapezoid_alt" title="Trapezoid Alt [\Manual Task/]">
+            <svg viewBox="0 0 44 28"><polygon points="2,2 42,2 36,26 8,26" fill="var(--node-fill)" stroke="var(--node-border)" stroke-width="2"/></svg>
+            <span>Inv Trapezoid</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 3: Connection Rules -->
+      <div id="tab-rules" class="tab-content" style="padding:12px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+          <h4 style="margin-bottom:0; font-size:11px; text-transform:uppercase; color:var(--text-muted);">Rules Engine</h4>
+          <button class="tb-btn" id="btn-add-rule-quick" style="padding:2px 6px; font-size:10px;">+ Add</button>
+        </div>
+        <div id="rules-quick-list" class="rules-list"></div>
+      </div>
+    </div>
+
+    <!-- Left Splitter -->
+    <div class="splitter" id="left-splitter"></div>
+
+    <!-- Center Canvas -->
+    <div id="canvas-panel">
+      <!-- Search Overlay -->
+      <div id="search-box">
+        <input type="text" id="search-input" placeholder="Search nodes & links..." autocomplete="off">
+        <span id="search-results-count">0/0</span>
+        <button class="float-btn" id="btn-search-prev" style="width:20px;height:20px;">▲</button>
+        <button class="float-btn" id="btn-search-next" style="width:20px;height:20px;">▼</button>
+        <button class="float-btn" id="btn-search-close" style="width:20px;height:20px;">✕</button>
+      </div>
+
+      <!-- Floating View Controls -->
+      <div id="floating-controls">
+        <button class="float-btn" id="btn-zoom-in" title="Zoom In (+)">+</button>
+        <button class="float-btn" id="btn-zoom-out" title="Zoom Out (-)">−</button>
+        <button class="float-btn" id="btn-zoom-fit" title="Fit Screen (Ctrl+0)">⊡</button>
+        <button class="float-btn" id="btn-zoom-reset" title="Actual Size (100%)">1:1</button>
+      </div>
+
+      <!-- Main SVG Canvas -->
+      <svg id="canvas-svg">
+        <defs>
+          <!-- Grid Pattern -->
+          <pattern id="canvas-grid" width="20" height="20" patternUnits="userSpaceOnUse">
+            <circle cx="2" cy="2" r="1.2" fill="var(--grid-dot)" />
+          </pattern>
+
+          <!-- Standard Arrow (-->) -->
+          <marker id="marker-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+            <path d="M 0 1.5 L 10 5 L 0 8.5 z" fill="var(--link-color)" />
+          </marker>
+          <marker id="marker-arrow-selected" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+            <path d="M 0 1.5 L 10 5 L 0 8.5 z" fill="var(--selection-color)" />
+          </marker>
+
+          <!-- Thick Arrow (==>) 50% Reduced Size -->
+          <marker id="marker-thick" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="3.5" markerHeight="3.5" orient="auto">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--link-color)" />
+          </marker>
+          <marker id="marker-thick-selected" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="3.5" markerHeight="3.5" orient="auto">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--selection-color)" />
+          </marker>
+
+          <!-- Start Arrow (<-->) -->
+          <marker id="marker-start-arrow" viewBox="0 0 10 10" refX="1" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+            <path d="M 10 1.5 L 0 5 L 10 8.5 z" fill="var(--link-color)" />
+          </marker>
+          <marker id="marker-start-arrow-selected" viewBox="0 0 10 10" refX="1" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+            <path d="M 10 1.5 L 0 5 L 10 8.5 z" fill="var(--selection-color)" />
+          </marker>
+
+          <!-- Start Thick Arrow (<==>) 50% Reduced Size -->
+          <marker id="marker-start-thick" viewBox="0 0 10 10" refX="2" refY="5" markerWidth="3.5" markerHeight="3.5" orient="auto">
+            <path d="M 10 0 L 0 5 L 10 10 z" fill="var(--link-color)" />
+          </marker>
+          <marker id="marker-start-thick-selected" viewBox="0 0 10 10" refX="2" refY="5" markerWidth="3.5" markerHeight="3.5" orient="auto">
+            <path d="M 10 0 L 0 5 L 10 10 z" fill="var(--selection-color)" />
+          </marker>
+        </defs>
+
+        <!-- Background grid -->
+        <rect id="canvas-grid-bg" width="100%" height="100%" fill="url(#canvas-grid)" />
+
+        <!-- Transformable Root Group -->
+        <g id="canvas-viewport">
+          <g id="edges-layer"></g>
+          <g id="temp-layer"></g>
+          <g id="nodes-layer"></g>
+          <rect id="marquee-rect" class="marquee-box" style="display:none;" />
+        </g>
+      </svg>
+
+      <!-- Minimap Overlay -->
+      <div id="minimap-container">
+        <svg id="minimap-svg">
+          <g id="minimap-content"></g>
+          <rect id="minimap-viewport" x="0" y="0" width="0" height="0" />
+        </svg>
+      </div>
+
+      <!-- Horizontal (H) and Vertical (V) Scrollbars -->
+      <div id="canvas-h-scrollbar" class="canvas-scrollbar horizontal" title="Scroll horizontally">
+        <div id="canvas-h-thumb" class="scrollbar-thumb"></div>
+      </div>
+      <div id="canvas-v-scrollbar" class="canvas-scrollbar vertical" title="Scroll vertically">
+        <div id="canvas-v-thumb" class="scrollbar-thumb"></div>
+      </div>
+    </div>
+
+    <!-- Right Splitter -->
+    <div class="splitter" id="right-splitter"></div>
+
+    <!-- Right Mermaid Code Editor -->
+    <div id="right-panel" class="panel">
+      <div class="panel-header">
+        <span>Mermaid Code</span>
+        <div style="display:flex; gap:4px; align-items:center;">
+          <button class="tb-btn" id="btn-sync-code" style="padding:2px 6px; font-size:10px;" title="Apply changes to visual canvas">Apply</button>
+          <button class="tb-btn" id="btn-close-code" style="padding:2px 6px; font-size:10px;" title="Hide Code Panel">✕</button>
+        </div>
+      </div>
+      <div id="editor-container">
+        <div id="editor-wrapper">
+          <pre id="code-highlight"><code></code></pre>
+          <textarea id="code-editor" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off"></textarea>
+        </div>
+        <div id="editor-status-bar">
+          <span id="editor-error">Valid Mermaid</span>
+          <span id="editor-type-label">Flowchart TD</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Status Bar -->
+  <div id="status-bar">
+    <div class="status-item"><span id="sb-type">Type: Flowchart</span></div>
+    <div class="status-item"><span id="sb-nodes">Nodes: 0</span></div>
+    <div class="status-item"><span id="sb-edges">Links: 0</span></div>
+    <div class="status-item"><span id="sb-zoom">Zoom: 100%</span></div>
+    <div class="status-item"><span id="sb-pos">X: 0, Y: 0</span></div>
+    <div class="status-item" style="margin-left:auto;"><span id="sb-status">Ready (Offline)</span></div>
+  </div>
+
+  <!-- Node Modal -->
+  <div class="modal-overlay" id="node-modal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <span id="node-modal-title">Edit Node</span>
+        <button class="float-btn" id="node-modal-close" style="width:24px;height:24px;">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Node ID (Unique, Immutable when editing)</label>
+          <input type="text" id="nm-id" class="form-control" placeholder="e.g. node_1">
+        </div>
+        <div class="form-group">
+          <label>Display Text</label>
+          <input type="text" id="nm-text" class="form-control" placeholder="e.g. Process Order">
+        </div>
+        <div class="form-group">
+          <label>Shape</label>
+          <select id="nm-shape" class="form-control">
+            <option value="rectangle">Rectangle [Process]</option>
+            <option value="rounded">Rounded Rectangle (State / Item)</option>
+            <option value="stadium">Stadium / Pill ([Start / End])</option>
+            <option value="subroutine">Subroutine [[Subprocess]]</option>
+            <option value="cylinder">Cylinder [(Database / Storage)]</option>
+            <option value="circle">Circle ((Point / Node))</option>
+            <option value="double_circle">Double Circle (((Event / End State)))</option>
+            <option value="asymmetric">Asymmetric &gt;Flag / Banner]</option>
+            <option value="diamond">Diamond / Decision {Condition}</option>
+            <option value="hexagon">Hexagon {{Preparation / Loop}}</option>
+            <option value="parallelogram">Parallelogram [/Input - Output/]</option>
+            <option value="parallelogram_alt">Parallelogram Alt [\Alt In - Out\]</option>
+            <option value="trapezoid">Trapezoid [/Manual Operation\]</option>
+            <option value="trapezoid_alt">Trapezoid Alt [\Manual Task/]</option>
+          </select>
+        </div>
+        <div class="color-row">
+          <div class="form-group">
+            <label>Fill Color</label>
+            <div class="color-input-wrapper">
+              <input type="color" id="nm-fill" value="#E3F2FD">
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Border Color</label>
+            <div class="color-input-wrapper">
+              <input type="color" id="nm-border" value="#90CAF9">
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Font Color</label>
+            <div class="color-input-wrapper">
+              <input type="color" id="nm-font" value="#0D47A1">
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="node-modal-cancel">Cancel</button>
+        <button class="btn btn-primary" id="node-modal-save">Save Node</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Connection Wizard Modal -->
+  <div class="modal-overlay" id="link-modal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <span id="link-modal-title">Connection Wizard</span>
+        <button class="float-btn" id="link-modal-close" style="width:24px;height:24px;">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Source Node</label>
+            <select id="lm-source" class="form-control"></select>
+          </div>
+          <div class="form-group">
+            <label>Target Node</label>
+            <select id="lm-target" class="form-control"></select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Edge Label (Optional)</label>
+          <input type="text" id="lm-label" class="form-control" placeholder="e.g. Yes / No / Action">
+        </div>
+        <div class="form-group">
+          <label>Arrow Type</label>
+          <select id="lm-type" class="form-control">
+            <option value="-->">Solid Arrow (--&gt;)</option>
+            <option value="--->">Long / Solid (---&gt;)</option>
+            <option value="==>">Thick Arrow (==&gt;)</option>
+            <option value="-.->">Dotted Arrow (-.-&gt;)</option>
+            <option value="<-->">Bidirectional (&lt;--&gt;)</option>
+            <option value="<==>">Bidirectional Thick (&lt;==&gt;)</option>
+          </select>
+        </div>
+        <div id="lm-rule-status" style="font-size:11px; padding:6px; border-radius:4px; display:none;"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="link-modal-cancel">Cancel</button>
+        <button class="btn btn-primary" id="link-modal-create">Create Connection</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Rules Management Modal -->
+  <div class="modal-overlay" id="rules-modal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <span>Connection Rules Engine</span>
+        <button class="float-btn" id="rules-modal-close" style="width:24px;height:24px;">✕</button>
+      </div>
+      <div class="modal-body">
+        <p style="color:var(--text-muted); font-size:11px;">Configure allowed or blocked connection patterns between nodes (e.g. Client-&gt;API).</p>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Rule Type</label>
+            <select id="rm-type" class="form-control">
+              <option value="allowed">Allowed Rule</option>
+              <option value="blocked">Blocked Rule</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Pattern (Source->Target)</label>
+            <input type="text" id="rm-pattern" class="form-control" placeholder="e.g. A->B or *->DB">
+          </div>
+        </div>
+        <button class="btn btn-secondary" id="rm-add-btn" style="align-self:flex-start;">Add Rule</button>
+        <div class="form-group" style="margin-top:8px;">
+          <label>Active Rules</label>
+          <div id="rules-full-list" class="rules-list" style="max-height:180px;"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" id="rules-modal-done">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Templates Chooser Modal (All 15 Mermaid Diagram Types) -->
+  <div class="modal-overlay" id="templates-modal">
+    <div class="modal-card" style="width:640px; max-width:94vw;">
+      <div class="modal-header">
+        <span>Mermaid Diagram Types & Verified Templates</span>
+        <button class="float-btn" id="templates-modal-close" style="width:24px;height:24px;">✕</button>
+      </div>
+      <div class="modal-body" style="max-height:68vh; overflow-y:auto;">
+        <p style="color:var(--text-muted); font-size:11px;">Select any official Mermaid diagram type to load its clean starter template.</p>
+        <div style="display:grid; grid-template-columns: repeat(2, 1fr); gap:10px;" id="templates-grid">
+          <!-- Dynamically populated from DIAGRAM_TEMPLATES -->
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="templates-modal-cancel">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Export Options Modal -->
+  <div class="modal-overlay" id="export-modal">
+    <div class="modal-card" style="width:420px; max-width:92vw;">
+      <div class="modal-header">
+        <span>Export Diagram Options</span>
+        <button class="float-btn" id="export-modal-close" style="width:24px;height:24px;">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label style="font-weight:600;">Custom File Name</label>
+          <input type="text" id="export-filename" class="form-control" value="diagram" placeholder="e.g. my-system-architecture">
+          <span style="font-size:10px; color:var(--text-muted); margin-top:3px; display:block;">File extension (.png, .svg, .json, .mmd) is appended automatically.</span>
+        </div>
+
+        <div class="form-row" style="margin-top:10px;">
+          <div class="form-group">
+            <label>Background</label>
+            <select id="export-bg-option" class="form-control">
+              <option value="theme">⚪ Theme Default</option>
+              <option value="transparent" selected>🏁 Transparent</option>
+              <option value="white">⬜ Pure White</option>
+              <option value="dark">⬛ Dark Background</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Resolution Scale</label>
+            <select id="export-scale-option" class="form-control">
+              <option value="1">1x (Standard)</option>
+              <option value="2" selected>2x (Retina 2x)</option>
+              <option value="3">3x (Ultra HD)</option>
+              <option value="4">4x (Max Sharpness)</option>
+            </select>
+          </div>
+        </div>
+
+        <label style="font-size:11px; text-transform:uppercase; color:var(--text-muted); margin-top:12px; display:block; font-weight:600;">Download Formats</label>
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-top:6px;">
+          <button class="btn btn-primary" id="btn-do-export-png" style="display:flex; justify-content:center; align-items:center; gap:6px;">
+            <svg viewBox="0 0 24 24" style="width:15px;height:15px;fill:currentColor;"><path d="M19 12v7H5v-7H3v7c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-7h-2zm-6 .67l2.59-2.58L17 11.5l-5 5-5-5 1.41-1.41L11 12.67V3h2z"/></svg>
+            <span>Download PNG</span>
+          </button>
+          <button class="btn btn-secondary" id="btn-do-export-svg" style="display:flex; justify-content:center; align-items:center; gap:6px;">
+            <svg viewBox="0 0 24 24" style="width:15px;height:15px;fill:currentColor;"><path d="M19 12v7H5v-7H3v7c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-7h-2zm-6 .67l2.59-2.58L17 11.5l-5 5-5-5 1.41-1.41L11 12.67V3h2z"/></svg>
+            <span>Download SVG</span>
+          </button>
+        </div>
+
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-top:8px;">
+          <button class="btn btn-secondary" id="btn-do-export-json" title="Save full project to JSON file">Save Project (.json)</button>
+          <button class="btn btn-secondary" id="btn-do-export-mmd" title="Export raw Mermaid code file">Mermaid Code (.mmd)</button>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="export-modal-cancel">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Delete Confirm Modal -->
+  <div class="modal-overlay" id="confirm-modal">
+    <div class="modal-card" style="width:340px;">
+      <div class="modal-header">
+        <span id="confirm-title">Confirm Action</span>
+      </div>
+      <div class="modal-body">
+        <p id="confirm-message">Are you sure you want to delete this item?</p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="confirm-no">No</button>
+        <button class="btn btn-danger" id="confirm-yes">Yes</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast">Message</div>
+  <input type="file" id="file-input" accept=".json,.graph.json,.mmd">
+
+  <!-- Core Application Script -->
+                    , 'm');
+                    return curCode.replace(reg, `  ${r.src} ${vals.card} ${r.tgt}${vals.label ? ' : ' + vals.label : ''}`);
+                  });
+                }
+              });
+            }
+          });
+
+          edgesLayer.appendChild(lineG);
         });
         break;
       }
@@ -6940,7 +10666,6 @@ class MultiDiagramVisualizer {
           rels.push({ src: 'banking_system', tgt: 'mainframe', label: 'Queries balance', tech: 'REST/JSON' });
         }
 
-        // Layout: 2 rows (Person on left, System in center, External Systems stacked on right)
         const posMap = {
           'customer': { x: 70, y: 130 },
           'banking_system': { x: 320, y: 130 },
@@ -7042,7 +10767,7 @@ class MultiDiagramVisualizer {
           nodesLayer.appendChild(g);
         });
 
-        // Draw C4 Relationships with HTTPS / SMTP Badges
+        // Draw C4 Relationships with HTTPS / SMTP Badges & Click Selection
         rels.forEach(r => {
           const s = elementMap.get(r.src);
           const t = elementMap.get(r.tgt);
@@ -7051,6 +10776,7 @@ class MultiDiagramVisualizer {
           const relKey = `${r.src}->${r.tgt}`;
           const relColor = MultiDiagramVisualizer.getColor(relKey, linkColor);
           const relFont = MultiDiagramVisualizer.getColor(relKey + ':font', textColor);
+          const isSelC4Rel = (`${r.src} → ${r.tgt}` === selTitle || r.label === selTitle);
 
           const x1 = s.rightX;
           const y1 = s.y;
@@ -7064,15 +10790,16 @@ class MultiDiagramVisualizer {
           const midX = (x1 + x2) / 2;
           path.setAttribute('d', `M ${x1} ${y1} C ${midX} ${y1}, ${midX} ${y2}, ${x2} ${y2}`);
           path.setAttribute('fill', 'none');
-          path.setAttribute('stroke', relColor);
-          path.setAttribute('stroke-width', '2');
+          path.setAttribute('stroke', isSelC4Rel ? 'var(--selection-color)' : relColor);
+          path.setAttribute('stroke-width', isSelC4Rel ? '3' : '2');
           path.setAttribute('stroke-dasharray', '5,4');
+          if (isSelC4Rel) path.style.filter = selGlow;
           lineG.appendChild(path);
 
           // Arrowhead
           const tri = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
           tri.setAttribute('points', `${x2 - 8},${y2 - 5} ${x2},${y2} ${x2 - 8},${y2 + 5}`);
-          tri.setAttribute('fill', relColor);
+          tri.setAttribute('fill', isSelC4Rel ? 'var(--selection-color)' : relColor);
           lineG.appendChild(tri);
 
           // Tech Badge
@@ -7085,7 +10812,7 @@ class MultiDiagramVisualizer {
           badgeBg.setAttribute('height', '20');
           badgeBg.setAttribute('rx', '4');
           badgeBg.setAttribute('fill', cardBg);
-          badgeBg.setAttribute('stroke', cardBorder);
+          badgeBg.setAttribute('stroke', isSelC4Rel ? 'var(--selection-color)' : cardBorder);
           badgeBg.setAttribute('stroke-width', '1');
           lineG.appendChild(badgeBg);
 
@@ -7099,6 +10826,35 @@ class MultiDiagramVisualizer {
           badgeTxt.setAttribute('font-weight', '500');
           badgeTxt.textContent = badgeTextStr;
           lineG.appendChild(badgeTxt);
+
+          lineG.addEventListener('mousedown', (e) => e.stopPropagation());
+          lineG.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (typeof AppController !== 'undefined' && AppController.instance) {
+              AppController.instance.selectVisualObject({
+                type: 'C4 Relationship',
+                title: `${r.src} → ${r.tgt}`,
+                fields: [
+                  { key: 'label', label: 'Relationship Label', type: 'text', value: r.label },
+                  { key: 'tech', label: 'Technology / Protocol', type: 'text', value: r.tech },
+                  { key: 'color', label: 'Line / Arrow Color', type: 'color', value: relColor },
+                  { key: 'font', label: 'Badge Font Color', type: 'color', value: relFont }
+                ],
+                onSave: (vals) => {
+                  MultiDiagramVisualizer.setColor(relKey, vals.color);
+                  MultiDiagramVisualizer.setColor(relKey + ':font', vals.font);
+                  MultiDiagramVisualizer.syncColorToCode(relKey, vals.color);
+                  MultiDiagramVisualizer.syncColorToCode(relKey + ':font', vals.font);
+                  MultiDiagramVisualizer.updateCodeLine((curCode) => {
+                    const esc1 = r.src.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\</body>');
+                    const esc2 = r.tgt.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\</body>');
+                    const reg = new RegExp(`Rel\\s*\\(\\s*${esc1}\\s*,\\s*${esc2}\\s*,\\s*"[^"]*"(?:\\s*,\\s*"[^"]*")?\\)`, 'i');
+                    return curCode.replace(reg, `Rel(${r.src}, ${r.tgt}, "${vals.label}", "${vals.tech}")`);
+                  });
+                }
+              });
+            }
+          });
 
           edgesLayer.appendChild(lineG);
         });
@@ -7562,7 +11318,7 @@ class MultiDiagramVisualizer {
         const branches = new Map();
         branches.set('main', { name: 'main', color: '#2196F3', y: 100 });
         let activeBranch = 'main';
-        const actions = []; // { type: 'commit'|'merge', id, tag, branch, srcBranch }
+        const actions = [];
 
         const branchColors = ['#2196F3', '#4CAF50', '#FF9800', '#9C27B0', '#00BCD4'];
         let branchCount = 1;
@@ -7628,7 +11384,7 @@ class MultiDiagramVisualizer {
           actions.push({ type: 'commit', id: 'Core Foundation', branch: 'main', color: '#2196F3', fontColor: textColor });
         }
 
-        // Draw Branch Tracks
+        // Draw Branch Tracks with Full Click Configuration
         branches.forEach(b => {
           const track = document.createElementNS('http://www.w3.org/2000/svg', 'line');
           track.setAttribute('x1', '60');
@@ -7647,7 +11403,32 @@ class MultiDiagramVisualizer {
           bLabel.setAttribute('fill', b.color);
           bLabel.setAttribute('font-size', '11px');
           bLabel.setAttribute('font-weight', 'bold');
+          bLabel.style.cursor = 'pointer';
           bLabel.textContent = b.name;
+
+          bLabel.addEventListener('mousedown', (e) => e.stopPropagation());
+          bLabel.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (typeof AppController !== 'undefined' && AppController.instance) {
+              AppController.instance.selectVisualObject({
+                type: 'Git Branch',
+                title: b.name,
+                fields: [
+                  { key: 'name', label: 'Branch Name', type: 'text', value: b.name },
+                  { key: 'color', label: 'Branch Track Color', type: 'color', value: b.color }
+                ],
+                onSave: (vals) => {
+                  MultiDiagramVisualizer.setColor(vals.name, vals.color);
+                  MultiDiagramVisualizer.syncColorToCode(vals.name, vals.color);
+                  MultiDiagramVisualizer.updateCodeLine((curCode) => {
+                    const esc = b.name.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\</body>');
+                    return curCode.replace(new RegExp(`\\b${esc}\\b`, 'g'), vals.name);
+                  });
+                }
+              });
+            }
+          });
+
           nodesLayer.appendChild(bLabel);
         });
 
@@ -7659,7 +11440,6 @@ class MultiDiagramVisualizer {
           const bInfo = branches.get(act.branch) || { y: 100, color: '#2196F3' };
           const y = bInfo.y;
 
-          // Draw fork or merge connector lines
           if (act.type === 'merge' && act.srcBranch) {
             const srcBInfo = branches.get(act.srcBranch);
             if (srcBInfo) {
@@ -10488,6 +14268,7 @@ class MultiDiagramVisualizer {
           const tInfo = rightYMap.get(f.tgt) || midYMap.get(f.tgt) || { x: 620, y: 100, color: '#4CAF50' };
           const flowKey = `${f.src}->${f.tgt}`;
           const flowColor = MultiDiagramVisualizer.getColor(flowKey, sInfo.color);
+          const isSelFlow = (`${f.src} → ${f.tgt}` === selTitle);
 
           const x1 = sInfo.x + 130;
           const y1 = sInfo.y + 22;
@@ -10497,9 +14278,10 @@ class MultiDiagramVisualizer {
           const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
           path.setAttribute('d', `M ${x1} ${y1} C ${(x1 + x2) / 2} ${y1}, ${(x1 + x2) / 2} ${y2}, ${x2} ${y2}`);
           path.setAttribute('fill', 'none');
-          path.setAttribute('stroke', flowColor);
+          path.setAttribute('stroke', isSelFlow ? 'var(--selection-color)' : flowColor);
           path.setAttribute('stroke-width', `${Math.max(4, Math.min(26, f.val / 250))}`);
-          path.setAttribute('opacity', '0.45');
+          path.setAttribute('opacity', isSelFlow ? '1' : '0.45');
+          if (isSelFlow) path.style.filter = selGlow;
           path.style.cursor = 'pointer';
 
           path.addEventListener('mousedown', (e) => e.stopPropagation());
@@ -11483,7 +15265,30 @@ class MermaidParser {
             e.stopPropagation();
             this.selectedNodeIds.clear();
             this.selectedEdgeId = edge.id;
-            this.renderAll();
+            this.selectVisualObject({
+              type: 'Flowchart Link',
+              title: `${edge.source} → ${edge.target}`,
+              fields: [
+                { key: 'label', label: 'Link Label (Optional)', type: 'text', value: edge.label || '' },
+                { key: 'type', label: 'Link Type', type: 'select', value: edge.type || '-->', options: [
+                  { value: '-->', label: 'Arrow (-->)' },
+                  { value: '---', label: 'Open Line (---)' },
+                  { value: '==>', label: 'Thick Arrow (==>)' },
+                  { value: '-.->', label: 'Dotted Arrow (-.->)' }
+                ]},
+                { key: 'color', label: 'Line / Arrow Color', type: 'color', value: edge.color || (this.themeMgr.isDarkTheme() ? '#BBBBBB' : '#616161') },
+                { key: 'font', label: 'Label Font Color', type: 'color', value: edge.textColor || (this.themeMgr.isDarkTheme() ? '#D4D4D4' : '#212121') }
+              ],
+              onSave: (vals) => {
+                edge.label = vals.label || undefined;
+                edge.type = vals.type;
+                edge.color = vals.color;
+                edge.textColor = vals.font;
+                this.updateCodeFromGraph();
+                this.renderAll();
+                Utils.showToast(`Updated link ${edge.source} → ${edge.target}`, 'success');
+              }
+            });
           });
 
           g.addEventListener('dblclick', (e) => {
@@ -11643,10 +15448,83 @@ class MermaidParser {
         const visualForm = document.getElementById('visual-props-form');
         const visualFields = document.getElementById('visual-prop-fields');
 
+        // 1. Auto-wrap single selected node for Flowchart diagrams
+        if (this.selectedNodeIds.size === 1 && !this.selectedVisualObject) {
+          const nodeId = Array.from(this.selectedNodeIds)[0];
+          const node = this.graph.getNode(nodeId);
+          if (node) {
+            this.selectedVisualObject = {
+              type: 'Flowchart Node',
+              title: node.text || node.id,
+              fields: [
+                { key: 'text', label: 'Node Label / Text', type: 'text', value: node.text || node.id },
+                { key: 'shape', label: 'Node Shape', type: 'select', value: node.shape || 'rectangle', options: [
+                  { value: 'rectangle', label: 'Rectangle [text]' },
+                  { value: 'rounded', label: 'Rounded (text)' },
+                  { value: 'stadium', label: 'Stadium ([text])' },
+                  { value: 'subroutine', label: 'Subroutine [[text]]' },
+                  { value: 'cylinder', label: 'Cylinder [(text)]' },
+                  { value: 'circle', label: 'Circle ((text))' },
+                  { value: 'double_circle', label: 'Double Circle (((text)))' },
+                  { value: 'diamond', label: 'Diamond {text}' },
+                  { value: 'hexagon', label: 'Hexagon {{text}}' },
+                  { value: 'asymmetric', label: 'Asymmetric >text]' },
+                  { value: 'parallelogram', label: 'Parallelogram [/text/]' },
+                  { value: 'trapezoid', label: 'Trapezoid [/text\]' }
+                ]},
+                { key: 'fill', label: 'Node Fill Color', type: 'color', value: node.fillColor || (this.themeMgr.isDarkTheme() ? '#2D4A66' : '#E3F2FD') },
+                { key: 'font', label: 'Font / Text Color', type: 'color', value: node.fontColor || (this.themeMgr.isDarkTheme() ? '#E1F5FE' : '#0D47A1') },
+                { key: 'border', label: 'Border / Stroke Color', type: 'color', value: node.borderColor || (this.themeMgr.isDarkTheme() ? '#4FC3F7' : '#90CAF9') }
+              ],
+              onSave: (vals) => {
+                node.text = vals.text;
+                node.shape = vals.shape;
+                node.fillColor = vals.fill;
+                node.fontColor = vals.font;
+                node.borderColor = vals.border;
+                this.updateCodeFromGraph();
+                this.renderAll();
+                Utils.showToast(`Updated node "${vals.text}"`, 'success');
+              }
+            };
+          }
+        }
+
+        // 2. Auto-wrap single selected edge for Flowchart diagrams
+        if (this.selectedEdgeId && !this.selectedVisualObject) {
+          const edge = this.graph.getEdge(this.selectedEdgeId);
+          if (edge) {
+            this.selectedVisualObject = {
+              type: 'Flowchart Link',
+              title: `${edge.source} → ${edge.target}`,
+              fields: [
+                { key: 'label', label: 'Link Label (Optional)', type: 'text', value: edge.label || '' },
+                { key: 'type', label: 'Link Type', type: 'select', value: edge.type || '-->', options: [
+                  { value: '-->', label: 'Arrow (-->)' },
+                  { value: '---', label: 'Open Line (---)' },
+                  { value: '==>', label: 'Thick Arrow (==>)' },
+                  { value: '-.->', label: 'Dotted Arrow (-.->)' }
+                ]},
+                { key: 'color', label: 'Line / Arrow Color', type: 'color', value: edge.color || (this.themeMgr.isDarkTheme() ? '#BBBBBB' : '#616161') },
+                { key: 'font', label: 'Label Font Color', type: 'color', value: edge.textColor || (this.themeMgr.isDarkTheme() ? '#D4D4D4' : '#212121') }
+              ],
+              onSave: (vals) => {
+                edge.label = vals.label || undefined;
+                edge.type = vals.type;
+                edge.color = vals.color;
+                edge.textColor = vals.font;
+                this.updateCodeFromGraph();
+                this.renderAll();
+                Utils.showToast(`Updated link ${edge.source} → ${edge.target}`, 'success');
+              }
+            };
+          }
+        }
+
         if (this.selectedVisualObject) {
           propEmpty.style.display = 'none';
-          nodeForm.style.display = 'none';
-          edgeForm.style.display = 'none';
+          if (nodeForm) nodeForm.style.display = 'none';
+          if (edgeForm) edgeForm.style.display = 'none';
           if (visualForm) {
             visualForm.style.display = 'block';
             document.getElementById('visual-prop-title').textContent = this.selectedVisualObject.title || 'Object Properties';
@@ -11674,100 +15552,104 @@ class MermaidParser {
                   sel.className = 'prop-input';
                   (f.options || []).forEach(opt => {
                     const optEl = document.createElement('option');
-                    optEl.value = opt.value !== undefined ? opt.value : opt;
-                    optEl.textContent = opt.label || opt;
-                    if (String(optEl.value) === String(f.value)) optEl.selected = true;
+                    optEl.value = opt.value;
+                    optEl.textContent = opt.label;
+                    if (String(opt.value) === String(f.value)) optEl.selected = true;
                     sel.appendChild(optEl);
                   });
-                  sel.addEventListener('change', () => {
-                    draftValues[f.key] = sel.value;
+                  sel.addEventListener('change', (e) => {
+                    draftValues[f.key] = e.target.value;
                   });
                   inputElements[f.key] = sel;
                   grp.appendChild(sel);
+                } else if (f.type === 'textarea') {
+                  const ta = document.createElement('textarea');
+                  ta.className = 'prop-input';
+                  ta.rows = f.rows || 3;
+                  ta.value = f.value || '';
+                  ta.style.resize = 'vertical';
+                  ta.style.fontFamily = 'monospace';
+                  ta.style.fontSize = '12px';
+                  ta.addEventListener('input', (e) => {
+                    draftValues[f.key] = e.target.value;
+                  });
+                  inputElements[f.key] = ta;
+                  grp.appendChild(ta);
                 } else if (f.type === 'color') {
                   const colorWrap = document.createElement('div');
                   colorWrap.style.display = 'flex';
                   colorWrap.style.alignItems = 'center';
                   colorWrap.style.gap = '8px';
+                  colorWrap.style.marginBottom = '6px';
 
-                  const inp = document.createElement('input');
-                  inp.type = 'color';
-                  inp.style.width = '32px';
-                  inp.style.height = '26px';
-                  inp.style.border = 'none';
-                  inp.style.borderRadius = '3px';
-                  inp.style.cursor = 'pointer';
-                  inp.value = f.value || '#2196F3';
+                  const colInp = document.createElement('input');
+                  colInp.type = 'color';
+                  colInp.className = 'prop-color-input';
+                  colInp.value = f.value && f.value.startsWith('#') ? f.value.substring(0, 7) : '#2196F3';
 
-                  const hexLabel = document.createElement('span');
-                  hexLabel.style.fontSize = '11px';
-                  hexLabel.style.fontFamily = 'var(--code-font)';
-                  hexLabel.textContent = inp.value;
+                  const hexTxt = document.createElement('span');
+                  hexTxt.style.fontSize = '12px';
+                  hexTxt.style.fontFamily = 'monospace';
+                  hexTxt.style.color = 'var(--text-muted)';
+                  hexTxt.textContent = colInp.value.toUpperCase();
 
-                  inp.addEventListener('input', () => {
-                    draftValues[f.key] = inp.value;
-                    hexLabel.textContent = inp.value;
+                  colInp.addEventListener('input', (e) => {
+                    draftValues[f.key] = e.target.value;
+                    hexTxt.textContent = e.target.value.toUpperCase();
                   });
 
-                  colorWrap.appendChild(inp);
-                  colorWrap.appendChild(hexLabel);
+                  colorWrap.appendChild(colInp);
+                  colorWrap.appendChild(hexTxt);
                   grp.appendChild(colorWrap);
 
-                  const swatchesRow = document.createElement('div');
-                  swatchesRow.className = 'color-swatches';
-                  swatchesRow.style.marginTop = '6px';
-                  const swatchList = ['#2196F3', '#4CAF50', '#FF9800', '#F44336', '#9C27B0', '#00BCD4', '#607D8B', '#E91E63', '#3F51B5', '#009688'];
-                  swatchList.forEach(c => {
+                  // 10-palette swatch row
+                  const swatchRow = document.createElement('div');
+                  swatchRow.style.display = 'flex';
+                  swatchRow.style.gap = '5px';
+                  swatchRow.style.flexWrap = 'wrap';
+
+                  const palette = ['#2196F3', '#4CAF50', '#FF9800', '#F44336', '#9C27B0', '#00BCD4', '#009688', '#673AB7', '#212121', '#FFFFFF'];
+                  palette.forEach(c => {
                     const sw = document.createElement('div');
-                    sw.className = 'color-swatch';
-                    sw.style.background = c;
+                    sw.style.width = '18px';
+                    sw.style.height = '18px';
+                    sw.style.borderRadius = '3px';
+                    sw.style.backgroundColor = c;
+                    sw.style.cursor = 'pointer';
+                    sw.style.border = '1px solid rgba(128,128,128,0.4)';
                     sw.title = c;
                     sw.addEventListener('click', () => {
-                      inp.value = c;
-                      hexLabel.textContent = c;
+                      colInp.value = c;
+                      hexTxt.textContent = c.toUpperCase();
                       draftValues[f.key] = c;
                     });
-                    swatchesRow.appendChild(sw);
+                    swatchRow.appendChild(sw);
                   });
-                  grp.appendChild(swatchesRow);
-
-                  inputElements[f.key] = {
-                    set value(v) { inp.value = v; hexLabel.textContent = v; },
-                    get value() { return inp.value; }
-                  };
-                } else if (f.type === 'textarea') {
-                  const txt = document.createElement('textarea');
+                  grp.appendChild(swatchRow);
+                  inputElements[f.key] = colInp;
+                } else if (f.type === 'number') {
+                  const numInp = document.createElement('input');
+                  numInp.type = 'number';
+                  numInp.className = 'prop-input';
+                  if (f.min !== undefined) numInp.min = f.min;
+                  if (f.max !== undefined) numInp.max = f.max;
+                  if (f.step !== undefined) numInp.step = f.step;
+                  numInp.value = f.value;
+                  numInp.addEventListener('input', (e) => {
+                    draftValues[f.key] = parseFloat(e.target.value) || 0;
+                  });
+                  inputElements[f.key] = numInp;
+                  grp.appendChild(numInp);
+                } else {
+                  const txt = document.createElement('input');
+                  txt.type = 'text';
                   txt.className = 'prop-input';
-                  txt.rows = f.rows || 3;
                   txt.value = f.value || '';
-                  txt.addEventListener('input', () => {
-                    draftValues[f.key] = txt.value;
+                  txt.addEventListener('input', (e) => {
+                    draftValues[f.key] = e.target.value;
                   });
                   inputElements[f.key] = txt;
                   grp.appendChild(txt);
-                } else if (f.type === 'number') {
-                  const inp = document.createElement('input');
-                  inp.type = 'number';
-                  inp.className = 'prop-input';
-                  inp.value = f.value;
-                  if (f.min !== undefined) inp.min = f.min;
-                  if (f.max !== undefined) inp.max = f.max;
-                  if (f.step !== undefined) inp.step = f.step;
-                  inp.addEventListener('input', () => {
-                    draftValues[f.key] = parseFloat(inp.value) || 0;
-                  });
-                  inputElements[f.key] = inp;
-                  grp.appendChild(inp);
-                } else {
-                  const inp = document.createElement('input');
-                  inp.type = 'text';
-                  inp.className = 'prop-input';
-                  inp.value = f.value || '';
-                  inp.addEventListener('input', () => {
-                    draftValues[f.key] = inp.value;
-                  });
-                  inputElements[f.key] = inp;
-                  grp.appendChild(inp);
                 }
 
                 visualFields.appendChild(grp);
@@ -11818,6 +15700,8 @@ class MermaidParser {
               btnDeselect.textContent = '✕';
               btnDeselect.title = 'Deselect object';
               btnDeselect.addEventListener('click', () => {
+                this.selectedNodeIds.clear();
+                this.selectedEdgeId = null;
                 this.selectedVisualObject = null;
                 this.renderAll();
                 this.updatePropertiesPanel();
@@ -11833,76 +15717,9 @@ class MermaidParser {
         }
 
         if (visualForm) visualForm.style.display = 'none';
-
-        if (this.selectedNodeIds.size === 1) {
-          const nodeId = Array.from(this.selectedNodeIds)[0];
-          const node = this.graph.getNode(nodeId);
-          if (node) {
-            propEmpty.style.display = 'none';
-            edgeForm.style.display = 'none';
-            nodeForm.style.display = 'block';
-
-            this.nodeInitialValues = {
-              text: node.text || node.id,
-              shape: node.shape || 'rectangle',
-              width: String(node.width || 140),
-              height: String(node.height || 50),
-              x: String(node.x),
-              y: String(node.y),
-              fillColor: node.fillColor || '#E3F2FD',
-              borderColor: node.borderColor || '#90CAF9',
-              fontColor: node.fontColor || '#0D47A1'
-            };
-
-            document.getElementById('prop-node-id-badge').textContent = node.id;
-            document.getElementById('prop-node-text').value = this.nodeInitialValues.text;
-            document.getElementById('prop-node-shape').value = this.nodeInitialValues.shape;
-            document.getElementById('prop-node-w').value = this.nodeInitialValues.width;
-            document.getElementById('prop-node-h').value = this.nodeInitialValues.height;
-            document.getElementById('prop-node-x').value = this.nodeInitialValues.x;
-            document.getElementById('prop-node-y').value = this.nodeInitialValues.y;
-            document.getElementById('prop-node-fill').value = this.nodeInitialValues.fillColor;
-            document.getElementById('prop-node-fill-val').textContent = this.nodeInitialValues.fillColor;
-            document.getElementById('prop-node-border').value = this.nodeInitialValues.borderColor;
-            document.getElementById('prop-node-font').value = this.nodeInitialValues.fontColor;
-            return;
-          }
-        }
-
-        if (this.selectedEdgeId) {
-          const edge = this.graph.getEdge(this.selectedEdgeId);
-          if (edge) {
-            propEmpty.style.display = 'none';
-            nodeForm.style.display = 'none';
-            edgeForm.style.display = 'block';
-
-            this.edgeInitialValues = {
-              label: edge.label || '',
-              type: edge.type || '-->',
-              color: edge.color || (this.themeMgr.currentTheme === 'dark' ? '#BBBBBB' : '#616161'),
-              strokeWidth: String(edge.strokeWidth || 2),
-              textColor: edge.textColor || (this.themeMgr.currentTheme === 'dark' ? '#D4D4D4' : '#212121')
-            };
-
-            document.getElementById('prop-edge-label').value = this.edgeInitialValues.label;
-            document.getElementById('prop-edge-type').value = this.edgeInitialValues.type;
-            const edgeColorInp = document.getElementById('prop-edge-color');
-            if (edgeColorInp) edgeColorInp.value = this.edgeInitialValues.color;
-            const edgeColorVal = document.getElementById('prop-edge-color-val');
-            if (edgeColorVal) edgeColorVal.textContent = this.edgeInitialValues.color;
-            const edgeWidthSel = document.getElementById('prop-edge-width');
-            if (edgeWidthSel) edgeWidthSel.value = this.edgeInitialValues.strokeWidth;
-            const edgeTxtColInp = document.getElementById('prop-edge-text-color');
-            if (edgeTxtColInp) edgeTxtColInp.value = this.edgeInitialValues.textColor;
-            const edgeTxtColVal = document.getElementById('prop-edge-text-color-val');
-            if (edgeTxtColVal) edgeTxtColVal.textContent = this.edgeInitialValues.textColor;
-            return;
-          }
-        }
-
         propEmpty.style.display = 'block';
-        nodeForm.style.display = 'none';
-        edgeForm.style.display = 'none';
+        if (nodeForm) nodeForm.style.display = 'none';
+        if (edgeForm) edgeForm.style.display = 'none';
       }
 
       setupPropertiesListeners() {

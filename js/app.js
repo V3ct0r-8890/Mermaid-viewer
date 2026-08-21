@@ -469,7 +469,30 @@
             e.stopPropagation();
             this.selectedNodeIds.clear();
             this.selectedEdgeId = edge.id;
-            this.renderAll();
+            this.selectVisualObject({
+              type: 'Flowchart Link',
+              title: `${edge.source} → ${edge.target}`,
+              fields: [
+                { key: 'label', label: 'Link Label (Optional)', type: 'text', value: edge.label || '' },
+                { key: 'type', label: 'Link Type', type: 'select', value: edge.type || '-->', options: [
+                  { value: '-->', label: 'Arrow (-->)' },
+                  { value: '---', label: 'Open Line (---)' },
+                  { value: '==>', label: 'Thick Arrow (==>)' },
+                  { value: '-.->', label: 'Dotted Arrow (-.->)' }
+                ]},
+                { key: 'color', label: 'Line / Arrow Color', type: 'color', value: edge.color || (this.themeMgr.isDarkTheme() ? '#BBBBBB' : '#616161') },
+                { key: 'font', label: 'Label Font Color', type: 'color', value: edge.textColor || (this.themeMgr.isDarkTheme() ? '#D4D4D4' : '#212121') }
+              ],
+              onSave: (vals) => {
+                edge.label = vals.label || undefined;
+                edge.type = vals.type;
+                edge.color = vals.color;
+                edge.textColor = vals.font;
+                this.updateCodeFromGraph();
+                this.renderAll();
+                Utils.showToast(`Updated link ${edge.source} → ${edge.target}`, 'success');
+              }
+            });
           });
 
           g.addEventListener('dblclick', (e) => {
@@ -629,10 +652,83 @@
         const visualForm = document.getElementById('visual-props-form');
         const visualFields = document.getElementById('visual-prop-fields');
 
+        // 1. Auto-wrap single selected node for Flowchart diagrams
+        if (this.selectedNodeIds.size === 1 && !this.selectedVisualObject) {
+          const nodeId = Array.from(this.selectedNodeIds)[0];
+          const node = this.graph.getNode(nodeId);
+          if (node) {
+            this.selectedVisualObject = {
+              type: 'Flowchart Node',
+              title: node.text || node.id,
+              fields: [
+                { key: 'text', label: 'Node Label / Text', type: 'text', value: node.text || node.id },
+                { key: 'shape', label: 'Node Shape', type: 'select', value: node.shape || 'rectangle', options: [
+                  { value: 'rectangle', label: 'Rectangle [text]' },
+                  { value: 'rounded', label: 'Rounded (text)' },
+                  { value: 'stadium', label: 'Stadium ([text])' },
+                  { value: 'subroutine', label: 'Subroutine [[text]]' },
+                  { value: 'cylinder', label: 'Cylinder [(text)]' },
+                  { value: 'circle', label: 'Circle ((text))' },
+                  { value: 'double_circle', label: 'Double Circle (((text)))' },
+                  { value: 'diamond', label: 'Diamond {text}' },
+                  { value: 'hexagon', label: 'Hexagon {{text}}' },
+                  { value: 'asymmetric', label: 'Asymmetric >text]' },
+                  { value: 'parallelogram', label: 'Parallelogram [/text/]' },
+                  { value: 'trapezoid', label: 'Trapezoid [/text\]' }
+                ]},
+                { key: 'fill', label: 'Node Fill Color', type: 'color', value: node.fillColor || (this.themeMgr.isDarkTheme() ? '#2D4A66' : '#E3F2FD') },
+                { key: 'font', label: 'Font / Text Color', type: 'color', value: node.fontColor || (this.themeMgr.isDarkTheme() ? '#E1F5FE' : '#0D47A1') },
+                { key: 'border', label: 'Border / Stroke Color', type: 'color', value: node.borderColor || (this.themeMgr.isDarkTheme() ? '#4FC3F7' : '#90CAF9') }
+              ],
+              onSave: (vals) => {
+                node.text = vals.text;
+                node.shape = vals.shape;
+                node.fillColor = vals.fill;
+                node.fontColor = vals.font;
+                node.borderColor = vals.border;
+                this.updateCodeFromGraph();
+                this.renderAll();
+                Utils.showToast(`Updated node "${vals.text}"`, 'success');
+              }
+            };
+          }
+        }
+
+        // 2. Auto-wrap single selected edge for Flowchart diagrams
+        if (this.selectedEdgeId && !this.selectedVisualObject) {
+          const edge = this.graph.getEdge(this.selectedEdgeId);
+          if (edge) {
+            this.selectedVisualObject = {
+              type: 'Flowchart Link',
+              title: `${edge.source} → ${edge.target}`,
+              fields: [
+                { key: 'label', label: 'Link Label (Optional)', type: 'text', value: edge.label || '' },
+                { key: 'type', label: 'Link Type', type: 'select', value: edge.type || '-->', options: [
+                  { value: '-->', label: 'Arrow (-->)' },
+                  { value: '---', label: 'Open Line (---)' },
+                  { value: '==>', label: 'Thick Arrow (==>)' },
+                  { value: '-.->', label: 'Dotted Arrow (-.->)' }
+                ]},
+                { key: 'color', label: 'Line / Arrow Color', type: 'color', value: edge.color || (this.themeMgr.isDarkTheme() ? '#BBBBBB' : '#616161') },
+                { key: 'font', label: 'Label Font Color', type: 'color', value: edge.textColor || (this.themeMgr.isDarkTheme() ? '#D4D4D4' : '#212121') }
+              ],
+              onSave: (vals) => {
+                edge.label = vals.label || undefined;
+                edge.type = vals.type;
+                edge.color = vals.color;
+                edge.textColor = vals.font;
+                this.updateCodeFromGraph();
+                this.renderAll();
+                Utils.showToast(`Updated link ${edge.source} → ${edge.target}`, 'success');
+              }
+            };
+          }
+        }
+
         if (this.selectedVisualObject) {
           propEmpty.style.display = 'none';
-          nodeForm.style.display = 'none';
-          edgeForm.style.display = 'none';
+          if (nodeForm) nodeForm.style.display = 'none';
+          if (edgeForm) edgeForm.style.display = 'none';
           if (visualForm) {
             visualForm.style.display = 'block';
             document.getElementById('visual-prop-title').textContent = this.selectedVisualObject.title || 'Object Properties';
@@ -660,100 +756,104 @@
                   sel.className = 'prop-input';
                   (f.options || []).forEach(opt => {
                     const optEl = document.createElement('option');
-                    optEl.value = opt.value !== undefined ? opt.value : opt;
-                    optEl.textContent = opt.label || opt;
-                    if (String(optEl.value) === String(f.value)) optEl.selected = true;
+                    optEl.value = opt.value;
+                    optEl.textContent = opt.label;
+                    if (String(opt.value) === String(f.value)) optEl.selected = true;
                     sel.appendChild(optEl);
                   });
-                  sel.addEventListener('change', () => {
-                    draftValues[f.key] = sel.value;
+                  sel.addEventListener('change', (e) => {
+                    draftValues[f.key] = e.target.value;
                   });
                   inputElements[f.key] = sel;
                   grp.appendChild(sel);
+                } else if (f.type === 'textarea') {
+                  const ta = document.createElement('textarea');
+                  ta.className = 'prop-input';
+                  ta.rows = f.rows || 3;
+                  ta.value = f.value || '';
+                  ta.style.resize = 'vertical';
+                  ta.style.fontFamily = 'monospace';
+                  ta.style.fontSize = '12px';
+                  ta.addEventListener('input', (e) => {
+                    draftValues[f.key] = e.target.value;
+                  });
+                  inputElements[f.key] = ta;
+                  grp.appendChild(ta);
                 } else if (f.type === 'color') {
                   const colorWrap = document.createElement('div');
                   colorWrap.style.display = 'flex';
                   colorWrap.style.alignItems = 'center';
                   colorWrap.style.gap = '8px';
+                  colorWrap.style.marginBottom = '6px';
 
-                  const inp = document.createElement('input');
-                  inp.type = 'color';
-                  inp.style.width = '32px';
-                  inp.style.height = '26px';
-                  inp.style.border = 'none';
-                  inp.style.borderRadius = '3px';
-                  inp.style.cursor = 'pointer';
-                  inp.value = f.value || '#2196F3';
+                  const colInp = document.createElement('input');
+                  colInp.type = 'color';
+                  colInp.className = 'prop-color-input';
+                  colInp.value = f.value && f.value.startsWith('#') ? f.value.substring(0, 7) : '#2196F3';
 
-                  const hexLabel = document.createElement('span');
-                  hexLabel.style.fontSize = '11px';
-                  hexLabel.style.fontFamily = 'var(--code-font)';
-                  hexLabel.textContent = inp.value;
+                  const hexTxt = document.createElement('span');
+                  hexTxt.style.fontSize = '12px';
+                  hexTxt.style.fontFamily = 'monospace';
+                  hexTxt.style.color = 'var(--text-muted)';
+                  hexTxt.textContent = colInp.value.toUpperCase();
 
-                  inp.addEventListener('input', () => {
-                    draftValues[f.key] = inp.value;
-                    hexLabel.textContent = inp.value;
+                  colInp.addEventListener('input', (e) => {
+                    draftValues[f.key] = e.target.value;
+                    hexTxt.textContent = e.target.value.toUpperCase();
                   });
 
-                  colorWrap.appendChild(inp);
-                  colorWrap.appendChild(hexLabel);
+                  colorWrap.appendChild(colInp);
+                  colorWrap.appendChild(hexTxt);
                   grp.appendChild(colorWrap);
 
-                  const swatchesRow = document.createElement('div');
-                  swatchesRow.className = 'color-swatches';
-                  swatchesRow.style.marginTop = '6px';
-                  const swatchList = ['#2196F3', '#4CAF50', '#FF9800', '#F44336', '#9C27B0', '#00BCD4', '#607D8B', '#E91E63', '#3F51B5', '#009688'];
-                  swatchList.forEach(c => {
+                  // 10-palette swatch row
+                  const swatchRow = document.createElement('div');
+                  swatchRow.style.display = 'flex';
+                  swatchRow.style.gap = '5px';
+                  swatchRow.style.flexWrap = 'wrap';
+
+                  const palette = ['#2196F3', '#4CAF50', '#FF9800', '#F44336', '#9C27B0', '#00BCD4', '#009688', '#673AB7', '#212121', '#FFFFFF'];
+                  palette.forEach(c => {
                     const sw = document.createElement('div');
-                    sw.className = 'color-swatch';
-                    sw.style.background = c;
+                    sw.style.width = '18px';
+                    sw.style.height = '18px';
+                    sw.style.borderRadius = '3px';
+                    sw.style.backgroundColor = c;
+                    sw.style.cursor = 'pointer';
+                    sw.style.border = '1px solid rgba(128,128,128,0.4)';
                     sw.title = c;
                     sw.addEventListener('click', () => {
-                      inp.value = c;
-                      hexLabel.textContent = c;
+                      colInp.value = c;
+                      hexTxt.textContent = c.toUpperCase();
                       draftValues[f.key] = c;
                     });
-                    swatchesRow.appendChild(sw);
+                    swatchRow.appendChild(sw);
                   });
-                  grp.appendChild(swatchesRow);
-
-                  inputElements[f.key] = {
-                    set value(v) { inp.value = v; hexLabel.textContent = v; },
-                    get value() { return inp.value; }
-                  };
-                } else if (f.type === 'textarea') {
-                  const txt = document.createElement('textarea');
+                  grp.appendChild(swatchRow);
+                  inputElements[f.key] = colInp;
+                } else if (f.type === 'number') {
+                  const numInp = document.createElement('input');
+                  numInp.type = 'number';
+                  numInp.className = 'prop-input';
+                  if (f.min !== undefined) numInp.min = f.min;
+                  if (f.max !== undefined) numInp.max = f.max;
+                  if (f.step !== undefined) numInp.step = f.step;
+                  numInp.value = f.value;
+                  numInp.addEventListener('input', (e) => {
+                    draftValues[f.key] = parseFloat(e.target.value) || 0;
+                  });
+                  inputElements[f.key] = numInp;
+                  grp.appendChild(numInp);
+                } else {
+                  const txt = document.createElement('input');
+                  txt.type = 'text';
                   txt.className = 'prop-input';
-                  txt.rows = f.rows || 3;
                   txt.value = f.value || '';
-                  txt.addEventListener('input', () => {
-                    draftValues[f.key] = txt.value;
+                  txt.addEventListener('input', (e) => {
+                    draftValues[f.key] = e.target.value;
                   });
                   inputElements[f.key] = txt;
                   grp.appendChild(txt);
-                } else if (f.type === 'number') {
-                  const inp = document.createElement('input');
-                  inp.type = 'number';
-                  inp.className = 'prop-input';
-                  inp.value = f.value;
-                  if (f.min !== undefined) inp.min = f.min;
-                  if (f.max !== undefined) inp.max = f.max;
-                  if (f.step !== undefined) inp.step = f.step;
-                  inp.addEventListener('input', () => {
-                    draftValues[f.key] = parseFloat(inp.value) || 0;
-                  });
-                  inputElements[f.key] = inp;
-                  grp.appendChild(inp);
-                } else {
-                  const inp = document.createElement('input');
-                  inp.type = 'text';
-                  inp.className = 'prop-input';
-                  inp.value = f.value || '';
-                  inp.addEventListener('input', () => {
-                    draftValues[f.key] = inp.value;
-                  });
-                  inputElements[f.key] = inp;
-                  grp.appendChild(inp);
                 }
 
                 visualFields.appendChild(grp);
@@ -804,6 +904,8 @@
               btnDeselect.textContent = '✕';
               btnDeselect.title = 'Deselect object';
               btnDeselect.addEventListener('click', () => {
+                this.selectedNodeIds.clear();
+                this.selectedEdgeId = null;
                 this.selectedVisualObject = null;
                 this.renderAll();
                 this.updatePropertiesPanel();
@@ -819,76 +921,9 @@
         }
 
         if (visualForm) visualForm.style.display = 'none';
-
-        if (this.selectedNodeIds.size === 1) {
-          const nodeId = Array.from(this.selectedNodeIds)[0];
-          const node = this.graph.getNode(nodeId);
-          if (node) {
-            propEmpty.style.display = 'none';
-            edgeForm.style.display = 'none';
-            nodeForm.style.display = 'block';
-
-            this.nodeInitialValues = {
-              text: node.text || node.id,
-              shape: node.shape || 'rectangle',
-              width: String(node.width || 140),
-              height: String(node.height || 50),
-              x: String(node.x),
-              y: String(node.y),
-              fillColor: node.fillColor || '#E3F2FD',
-              borderColor: node.borderColor || '#90CAF9',
-              fontColor: node.fontColor || '#0D47A1'
-            };
-
-            document.getElementById('prop-node-id-badge').textContent = node.id;
-            document.getElementById('prop-node-text').value = this.nodeInitialValues.text;
-            document.getElementById('prop-node-shape').value = this.nodeInitialValues.shape;
-            document.getElementById('prop-node-w').value = this.nodeInitialValues.width;
-            document.getElementById('prop-node-h').value = this.nodeInitialValues.height;
-            document.getElementById('prop-node-x').value = this.nodeInitialValues.x;
-            document.getElementById('prop-node-y').value = this.nodeInitialValues.y;
-            document.getElementById('prop-node-fill').value = this.nodeInitialValues.fillColor;
-            document.getElementById('prop-node-fill-val').textContent = this.nodeInitialValues.fillColor;
-            document.getElementById('prop-node-border').value = this.nodeInitialValues.borderColor;
-            document.getElementById('prop-node-font').value = this.nodeInitialValues.fontColor;
-            return;
-          }
-        }
-
-        if (this.selectedEdgeId) {
-          const edge = this.graph.getEdge(this.selectedEdgeId);
-          if (edge) {
-            propEmpty.style.display = 'none';
-            nodeForm.style.display = 'none';
-            edgeForm.style.display = 'block';
-
-            this.edgeInitialValues = {
-              label: edge.label || '',
-              type: edge.type || '-->',
-              color: edge.color || (this.themeMgr.currentTheme === 'dark' ? '#BBBBBB' : '#616161'),
-              strokeWidth: String(edge.strokeWidth || 2),
-              textColor: edge.textColor || (this.themeMgr.currentTheme === 'dark' ? '#D4D4D4' : '#212121')
-            };
-
-            document.getElementById('prop-edge-label').value = this.edgeInitialValues.label;
-            document.getElementById('prop-edge-type').value = this.edgeInitialValues.type;
-            const edgeColorInp = document.getElementById('prop-edge-color');
-            if (edgeColorInp) edgeColorInp.value = this.edgeInitialValues.color;
-            const edgeColorVal = document.getElementById('prop-edge-color-val');
-            if (edgeColorVal) edgeColorVal.textContent = this.edgeInitialValues.color;
-            const edgeWidthSel = document.getElementById('prop-edge-width');
-            if (edgeWidthSel) edgeWidthSel.value = this.edgeInitialValues.strokeWidth;
-            const edgeTxtColInp = document.getElementById('prop-edge-text-color');
-            if (edgeTxtColInp) edgeTxtColInp.value = this.edgeInitialValues.textColor;
-            const edgeTxtColVal = document.getElementById('prop-edge-text-color-val');
-            if (edgeTxtColVal) edgeTxtColVal.textContent = this.edgeInitialValues.textColor;
-            return;
-          }
-        }
-
         propEmpty.style.display = 'block';
-        nodeForm.style.display = 'none';
-        edgeForm.style.display = 'none';
+        if (nodeForm) nodeForm.style.display = 'none';
+        if (edgeForm) edgeForm.style.display = 'none';
       }
 
       setupPropertiesListeners() {
