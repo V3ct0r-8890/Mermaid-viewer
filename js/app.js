@@ -1924,33 +1924,71 @@
       }
 
       zoomToFit() {
-        if (this.graph.nodes.length === 0) {
-          this.zoom = 1;
-          this.panX = 0;
-          this.panY = 0;
-          this.renderAll();
+        const rect = this.svg.getBoundingClientRect();
+        if (!rect.width || !rect.height) {
+          setTimeout(() => this.zoomToFit(), 50);
           return;
         }
 
         let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-        this.graph.nodes.forEach(n => {
-          minX = Math.min(minX, n.x);
-          minY = Math.min(minY, n.y);
-          maxX = Math.max(maxX, n.x + (n.width || 140));
-          maxY = Math.max(maxY, n.y + (n.height || 50));
-        });
 
-        const rect = this.svg.getBoundingClientRect();
-        const pad = 60;
+        // 1. Check rendered SVG elements in nodesLayer and edgesLayer
+        try {
+          if (this.nodesLayer && typeof this.nodesLayer.getBBox === 'function') {
+            const nBox = this.nodesLayer.getBBox();
+            if (nBox && nBox.width > 20 && nBox.height > 20) {
+              minX = Math.min(minX, nBox.x);
+              minY = Math.min(minY, nBox.y);
+              maxX = Math.max(maxX, nBox.x + nBox.width);
+              maxY = Math.max(maxY, nBox.y + nBox.height);
+            }
+          }
+          if (this.edgesLayer && typeof this.edgesLayer.getBBox === 'function') {
+            const eBox = this.edgesLayer.getBBox();
+            if (eBox && eBox.width > 20 && eBox.height > 20) {
+              minX = Math.min(minX, eBox.x);
+              minY = Math.min(minY, eBox.y);
+              maxX = Math.max(maxX, eBox.x + eBox.width);
+              maxY = Math.max(maxY, eBox.y + eBox.height);
+            }
+          }
+        } catch (err) {}
+
+        // 2. Fallback to graph node coordinates
+        if (minX === Infinity && this.graph.nodes.length > 0) {
+          this.graph.nodes.forEach(n => {
+            if (n.id === 'visual_chart_bounds' && n.width && n.height) {
+              minX = Math.min(minX, n.x || 30);
+              minY = Math.min(minY, n.y || 30);
+              maxX = Math.max(maxX, (n.x || 30) + n.width);
+              maxY = Math.max(maxY, (n.y || 30) + n.height);
+            } else if (n.id !== 'visual_chart_bounds') {
+              minX = Math.min(minX, n.x);
+              minY = Math.min(minY, n.y);
+              maxX = Math.max(maxX, n.x + (n.width || 140));
+              maxY = Math.max(maxY, n.y + (n.height || 50));
+            }
+          });
+        }
+
+        if (minX === Infinity || maxX === -Infinity || minX >= maxX || minY >= maxY) {
+          this.zoom = 1;
+          this.panX = 0;
+          this.panY = 0;
+          this.updateTransform();
+          return;
+        }
+
+        const pad = 40;
         const graphW = maxX - minX + pad * 2;
         const graphH = maxY - minY + pad * 2;
 
-        const fitZoom = Utils.clamp(Math.min(rect.width / graphW, rect.height / graphH), 0.25, 1.5);
+        const fitZoom = Utils.clamp(Math.min(rect.width / graphW, rect.height / graphH), 0.2, 1.4);
         this.zoom = fitZoom;
         this.panX = (rect.width - (maxX + minX) * fitZoom) / 2;
         this.panY = (rect.height - (maxY + minY) * fitZoom) / 2;
 
-        this.renderAll();
+        this.updateTransform();
       }
 
       getCanvasPoint(e) {

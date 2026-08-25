@@ -157,9 +157,9 @@
           return { graph: newGraph, error: null };
         }
 
-        // 5. Parse C4 Context (Rendered by MultiDiagramVisualizer suite)
-        if (detectedType === 'c4context') {
-          newGraph.addNode({ id: 'visual_chart_bounds', text: '', shape: 'rectangle', x: 40, y: 40, width: 1040, height: 820, fillColor: 'transparent', borderColor: 'transparent', fontColor: 'transparent' });
+        // 6. Parse Treemap (Rendered by MultiDiagramVisualizer suite)
+        if (detectedType === 'treemap') {
+          newGraph.addNode({ id: 'visual_chart_bounds', text: '', shape: 'rectangle', x: 30, y: 30, width: 900, height: 430, fillColor: 'transparent', borderColor: 'transparent', fontColor: 'transparent' });
           return { graph: newGraph, error: null };
         }
 
