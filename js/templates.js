@@ -244,17 +244,31 @@
         id: 'c4context',
         name: 'C4 Context Architecture',
         badge: 'C4Context',
-        desc: 'High-level systems, actors, and enterprise context',
+        desc: 'Enterprise banking platform context, microservices, cloud DBs & external SaaS rails',
         code: `C4Context
-  title System Context for Banking Platform
-  Person(customer, "Customer", "A client of the bank")
-  System(banking_system, "Internet Banking", "Allows customers to view accounts and make payments")
-  System_Ext(mail_system, "E-mail Subsystem", "Sends confirmation emails")
-  System_Ext(core_banking, "Mainframe Core Banking", "Stores account balances and ledgers")
+  title Enterprise Cloud Banking & Payments Architecture Platform
+  Person(customer, "Banking Customer", "Retail client managing accounts, cards & wire transfers")
+  Person(support_agent, "Support Agent", "Bank staff managing KYC verification, disputes & limits")
+  Person_Ext(auditor, "Compliance Auditor", "Regulator inspecting audit trails & SAR reports")
 
-  Rel(customer, banking_system, "Views accounts, makes payments using", "HTTPS")
-  Rel(banking_system, mail_system, "Sends e-mails using", "SMTP")
-  Rel(banking_system, core_banking, "Retrieves balances, posts transactions using", "gRPC")`
+  System(api_gateway, "Cloud API Gateway & Auth", "Kong / Envoy edge proxy handling OAuth2, WAF & rate limits")
+  System(banking_core, "Core Banking Services", "Spring Boot microservices processing accounts, loans & ledgers")
+  SystemDb(primary_db, "Distributed Ledger DB", "Google Cloud Spanner multi-region ACID financial ledger")
+  System(event_bus, "Kafka Event Mesh", "Apache Kafka cluster streaming real-time financial events")
+
+  System_Ext(payment_rail, "Stripe & Visa Rails", "External payment clearing networks (SWIFT, FedNow, ACH)")
+  System_Ext(fraud_ai, "Fraud Scoring AI", "Real-time ML risk scoring & anomaly detection engine")
+  System_Ext(notification_hub, "Multi-Channel Alerts", "Twilio SMS & SendGrid push/email dispatch service")
+
+  Rel(customer, api_gateway, "Accesses mobile banking & portal", "HTTPS / TLS 1.3")
+  Rel(support_agent, api_gateway, "Administers customer accounts & overrides", "HTTPS / SSO")
+  Rel(auditor, banking_core, "Audits immutable financial records", "SFTP / TLS")
+  Rel(api_gateway, banking_core, "Dispatches authorized API calls", "gRPC / mTLS")
+  Rel(banking_core, primary_db, "Executes distributed ACID ledger writes", "SQL / TCP")
+  Rel(banking_core, event_bus, "Emits transaction & account lifecycle events", "Kafka Protocol")
+  Rel(banking_core, payment_rail, "Authorizes interbank clearing & wires", "REST / ISO 8583")
+  Rel(event_bus, fraud_ai, "Streams live transaction telemetry for scoring", "gRPC Stream")
+  Rel(event_bus, notification_hub, "Triggers transactional SMS, push & receipts", "Kafka Consumer")`
       },
       {
         id: 'sankey',

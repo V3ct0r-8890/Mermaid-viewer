@@ -496,7 +496,7 @@ class MultiDiagramVisualizer {
 
             case 'c4context': {
         const rawLines = (code || '').split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('%%'));
-        let title = 'System Architecture Context';
+        let title = 'Enterprise Cloud Banking & Payments Architecture Platform';
         const nodes = new Map();
         const relationships = [];
 
@@ -523,11 +523,11 @@ class MultiDiagramVisualizer {
             }
 
             const isPerson = kind.toLowerCase().startsWith('person');
-            const isExt = kind.toLowerCase().includes('_ext');
+            const isExt = kind.toLowerCase().includes('_ext') || kind.toLowerCase().endsWith('_ext');
             const isDb = kind.toLowerCase().includes('db');
 
-            let defaultFill = isPerson ? '#08427B' : (isExt ? '#686868' : (isDb ? '#1168BD' : '#1168BD'));
-            let defaultBorder = isPerson ? '#052A50' : (isExt ? '#4A4A4A' : '#0B4884');
+            let defaultFill = isPerson ? (kind.includes('_Ext') ? '#08427B' : '#0288D1') : (isExt ? '#546E7A' : (isDb ? '#00838F' : '#1565C0'));
+            let defaultBorder = isPerson ? '#01579B' : (isExt ? '#37474F' : (isDb ? '#006064' : '#0D47A1'));
             let defaultFont = '#FFFFFF';
 
             nodes.set(alias, {
@@ -558,18 +558,13 @@ class MultiDiagramVisualizer {
         });
 
         if (nodes.size === 0) {
-          nodes.set('customer', { alias: 'customer', kind: 'Person', label: 'Customer', desc: 'A client of the bank', isPerson: true, isExt: false, isDb: false, fillColor: '#08427B', fontColor: '#FFFFFF', borderColor: '#052A50' });
-          nodes.set('banking_system', { alias: 'banking_system', kind: 'System', label: 'Internet Banking', desc: 'Allows customers to view accounts and make payments', isPerson: false, isExt: false, isDb: false, fillColor: '#1168BD', fontColor: '#FFFFFF', borderColor: '#0B4884' });
-          nodes.set('mail_system', { alias: 'mail_system', kind: 'System_Ext', label: 'E-mail Subsystem', desc: 'Sends confirmation emails', isPerson: false, isExt: true, isDb: false, fillColor: '#686868', fontColor: '#FFFFFF', borderColor: '#4A4A4A' });
-          nodes.set('core_banking', { alias: 'core_banking', kind: 'System_Ext', label: 'Mainframe Core Banking', desc: 'Stores account balances and ledgers', isPerson: false, isExt: true, isDb: false, fillColor: '#686868', fontColor: '#FFFFFF', borderColor: '#4A4A4A' });
-          relationships.push({ from: 'customer', to: 'banking_system', label: 'Views accounts, makes payments using', tech: 'HTTPS' });
-          relationships.push({ from: 'banking_system', to: 'mail_system', label: 'Sends e-mails using', tech: 'SMTP' });
-          relationships.push({ from: 'banking_system', to: 'core_banking', label: 'Retrieves balances, posts transactions using', tech: 'gRPC' });
+          nodes.set('customer', { alias: 'customer', kind: 'Person', label: 'Banking Customer', desc: 'Retail client managing accounts & cards', isPerson: true, isExt: false, isDb: false, fillColor: '#0288D1', fontColor: '#FFFFFF', borderColor: '#01579B' });
+          nodes.set('banking_core', { alias: 'banking_core', kind: 'System', label: 'Core Banking Services', desc: 'Microservices processing accounts & ledgers', isPerson: false, isExt: false, isDb: false, fillColor: '#1565C0', fontColor: '#FFFFFF', borderColor: '#0D47A1' });
         }
 
         // Title
         const titleEl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-        titleEl.setAttribute('x', '40');
+        titleEl.setAttribute('x', '30');
         titleEl.setAttribute('y', '36');
         titleEl.setAttribute('fill', primaryText);
         titleEl.setAttribute('font-size', '16px');
@@ -577,38 +572,54 @@ class MultiDiagramVisualizer {
         titleEl.textContent = title;
         nodesLayer.appendChild(titleEl);
 
-        // Layout Nodes hierarchically:
-        // Tier 1 (top): Persons
-        // Tier 2 (middle): Internal Systems / Containers
-        // Tier 3 (bottom): External Systems & Databases
-        const persons = [];
-        const internalSystems = [];
-        const externalSystems = [];
+        // Intelligent 4-Tier Enterprise Architecture Layout
+        const tier1_persons = [];
+        const tier2_gateways = [];
+        const tier3_core = [];
+        const tier4_external = [];
 
         nodes.forEach(n => {
-          if (n.isPerson) persons.push(n);
-          else if (n.isExt) externalSystems.push(n);
-          else internalSystems.push(n);
+          const a = n.alias.toLowerCase();
+          const k = n.kind.toLowerCase();
+          if (n.isPerson) {
+            tier1_persons.push(n);
+          } else if (a.includes('gateway') || a.includes('proxy') || a.includes('auth') || a.includes('web') || a.includes('front')) {
+            tier2_gateways.push(n);
+          } else if (n.isExt) {
+            tier4_external.push(n);
+          } else {
+            tier3_core.push(n);
+          }
         });
 
-        const cardW = 210;
-        const cardH = 96;
+        // Fallbacks if groups are empty
+        if (tier2_gateways.length === 0 && tier3_core.length > 3) {
+          tier2_gateways.push(tier3_core.shift());
+        }
 
-        const layoutRow = (items, y) => {
-          const totalRowW = items.length * cardW + (items.length - 1) * 70;
-          const startX = Math.max(50, (760 - totalRowW) / 2);
+        const cardW = 225;
+        const cardH = 96;
+        const startY = 70;
+        const gapY = 75;
+
+        const layoutTier = (items, y) => {
+          if (items.length === 0) return y;
+          const totalTierW = items.length * cardW + (items.length - 1) * 65;
+          const startX = Math.max(40, (900 - totalTierW) / 2);
           items.forEach((item, idx) => {
-            item.x = startX + idx * (cardW + 70);
+            item.x = startX + idx * (cardW + 65);
             item.y = y;
             item.width = cardW;
             item.height = cardH;
           });
+          return y + cardH + gapY;
         };
 
-        layoutRow(persons, 70);
-        layoutRow(internalSystems, persons.length > 0 ? 220 : 120);
-        const bottomY = (persons.length > 0 ? 220 : 120) + (internalSystems.length > 0 ? 150 : 0);
-        layoutRow(externalSystems, bottomY);
+        let nextY = startY;
+        nextY = layoutTier(tier1_persons, nextY);
+        nextY = layoutTier(tier2_gateways, nextY);
+        nextY = layoutTier(tier3_core, nextY);
+        layoutTier(tier4_external, nextY);
 
         // Draw Relationships
         relationships.forEach(rel => {
@@ -759,7 +770,7 @@ class MultiDiagramVisualizer {
           titleTxt.setAttribute('y', `${n.y + 24}`);
           titleTxt.setAttribute('text-anchor', 'middle');
           titleTxt.setAttribute('fill', n.fontColor);
-          titleTxt.setAttribute('font-size', '13px');
+          titleTxt.setAttribute('font-size', '12.5px');
           titleTxt.setAttribute('font-weight', 'bold');
           titleTxt.textContent = `${icon} ${n.label}`;
           cardG.appendChild(titleTxt);
