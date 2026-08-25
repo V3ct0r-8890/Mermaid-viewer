@@ -90,13 +90,23 @@ MultiDiagramVisualizer.register('treemap', function(code, nodesLayer, edgesLayer
     return `${currency}${Number(v).toLocaleString()}`;
   };
 
-  // Group default palettes
-  const defaultGroupColors = [
-    { bg: isDark ? '#3E2723' : '#FFF9C4', border: '#FFF59D', header: isDark ? '#4E342E' : '#E6EE9C', text: isDark ? '#FFE082' : '#212121' }, // Housing
-    { bg: isDark ? '#1B5E20' : '#DCEDC8', border: '#C8E6C9', header: isDark ? '#2E7D32' : '#C8E6C9', text: isDark ? '#C8E6C9' : '#1B5E20' }, // Savings
-    { bg: isDark ? '#4A148C' : '#E1BEE7', border: '#CE93D8', header: isDark ? '#6A1B9A' : '#D1C4E9', text: isDark ? '#E1BEE7' : '#4A148C' }, // Food
-    { bg: isDark ? '#880E4F' : '#F8BBD0', border: '#F48FB1', header: isDark ? '#AD1457' : '#F48FB1', text: isDark ? '#F8BBD0' : '#880E4F' }  // Transport
-  ];
+  // Group default palettes matching reference image
+  const getGroupPalette = (groupName) => {
+    const gn = groupName.toLowerCase();
+    if (gn.includes('hous')) {
+      return { bg: isDark ? '#3E2723' : '#FFF9C4', border: '#FFF59D', header: isDark ? '#4E342E' : '#E6EE9C', text: isDark ? '#FFE082' : '#212121' };
+    }
+    if (gn.includes('sav')) {
+      return { bg: isDark ? '#1B5E20' : '#DCEDC8', border: '#C8E6C9', header: isDark ? '#2E7D32' : '#C8E6C9', text: isDark ? '#C8E6C9' : '#1B5E20' };
+    }
+    if (gn.includes('food') || gn.includes('dine')) {
+      return { bg: isDark ? '#4A148C' : '#E1BEE7', border: '#CE93D8', header: isDark ? '#6A1B9A' : '#D1C4E9', text: isDark ? '#E1BEE7' : '#4A148C' };
+    }
+    if (gn.includes('trans') || gn.includes('car')) {
+      return { bg: isDark ? '#880E4F' : '#F8BBD0', border: '#F48FB1', header: isDark ? '#AD1457' : '#F48FB1', text: isDark ? '#F8BBD0' : '#880E4F' };
+    }
+    return { bg: isDark ? '#263238' : '#CFD8DC', border: '#B0BEC5', header: isDark ? '#37474F' : '#ECEFF1', text: isDark ? '#ECEFF1' : '#263238' };
+  };
 
   // 2. ROOT CONTAINER
   const rootW = 900;
@@ -146,12 +156,7 @@ MultiDiagramVisualizer.register('treemap', function(code, nodesLayer, edgesLayer
 
   nodesLayer.appendChild(rootG);
 
-  // 3. GROUP LAYOUT POSITIONS (Matching exact layout from reference image)
-  // Group 1: Housing (Left column: x: 40, y: 70, w: 410, h: 360)
-  // Group 2: Savings (Top middle: x: 460, y: 70, w: 330, h: 175)
-  // Group 3: Food (Bottom middle: x: 460, y: 255, w: 330, h: 175)
-  // Group 4: Transport (Right column: x: 800, y: 70, w: 120, h: 360)
-
+  // 3. GROUP LAYOUT POSITIONS
   const groupLayouts = [
     { name: 'Housing', x: 40, y: 70, w: 410, h: 360, leafLayout: 'housing' },
     { name: 'Savings', x: 460, y: 70, w: 330, h: 175, leafLayout: 'horizontal' },
@@ -169,7 +174,7 @@ MultiDiagramVisualizer.register('treemap', function(code, nodesLayer, edgesLayer
       leafLayout: 'horizontal'
     };
 
-    const defColor = defaultGroupColors[gIdx % defaultGroupColors.length];
+    const defColor = getGroupPalette(g.name);
     const gFill = MultiDiagramVisualizer.getColor(g.name, defColor.header);
     const gBorder = MultiDiagramVisualizer.getColor(`${g.name}_border`, defColor.border);
     const gFont = MultiDiagramVisualizer.getColor(`${g.name}_font`, isDark ? '#FFFFFF' : '#000000');
@@ -180,7 +185,6 @@ MultiDiagramVisualizer.register('treemap', function(code, nodesLayer, edgesLayer
     groupG.setAttribute('transform', `translate(${layout.x}, ${layout.y})`);
     groupG.style.cursor = 'pointer';
 
-    // Group Background Card
     const gRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
     gRect.setAttribute('width', `${layout.w}`);
     gRect.setAttribute('height', `${layout.h}`);
@@ -191,7 +195,6 @@ MultiDiagramVisualizer.register('treemap', function(code, nodesLayer, edgesLayer
     if (isGSel) gRect.style.filter = selGlow;
     groupG.appendChild(gRect);
 
-    // Group Header: Name & Subtotal
     const gTitleTxt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
     gTitleTxt.setAttribute('x', '10');
     gTitleTxt.setAttribute('y', '18');
@@ -212,7 +215,6 @@ MultiDiagramVisualizer.register('treemap', function(code, nodesLayer, edgesLayer
     gTotalTxt.textContent = formatVal(g.total);
     groupG.appendChild(gTotalTxt);
 
-    // Group Click Inspector
     groupG.addEventListener('click', (e) => {
       e.stopPropagation();
       if (typeof AppController !== 'undefined' && AppController.instance) {
@@ -241,78 +243,83 @@ MultiDiagramVisualizer.register('treemap', function(code, nodesLayer, edgesLayer
     nodesLayer.appendChild(groupG);
 
     // 4. LEAF ITEMS INSIDE GROUP
-    const leaves = g.items;
+    // Sort leaves descending by value
+    const sortedLeaves = [...g.items].sort((a, b) => b.value - a.value);
+
     const bodyX = layout.x + 8;
     const bodyY = layout.y + 26;
     const bodyW = layout.w - 16;
     const bodyH = layout.h - 34;
 
-    leaves.forEach((item, lIdx) => {
-      let lx, ly, lw, lh, fSizeTitle, fSizeVal;
+    sortedLeaves.forEach((item, lIdx) => {
+      let lx, ly, lw, lh, initTitleSize, initValSize;
 
       if (layout.leafLayout === 'housing') {
-        // Rent takes left 75% width, Utilities & Internet take right 25% stacked
-        if (lIdx === 0) { // Rent
+        if (lIdx === 0) {
           lx = bodyX;
           ly = bodyY;
           lw = bodyW * 0.76;
           lh = bodyH;
-          fSizeTitle = 36;
-          fSizeVal = 24;
-        } else if (lIdx === 1) { // Utilities
+          initTitleSize = 36;
+          initValSize = 24;
+        } else if (lIdx === 1) {
           lx = bodyX + bodyW * 0.78;
           ly = bodyY;
           lw = bodyW * 0.22;
           lh = bodyH * 0.68;
-          fSizeTitle = 14;
-          fSizeVal = 12;
-        } else { // Internet
+          initTitleSize = 14;
+          initValSize = 12;
+        } else {
           lx = bodyX + bodyW * 0.78;
           ly = bodyY + bodyH * 0.72;
           lw = bodyW * 0.22;
           lh = bodyH * 0.28;
-          fSizeTitle = 13;
-          fSizeVal = 11;
+          initTitleSize = 13;
+          initValSize = 11;
         }
       } else if (layout.leafLayout === 'vertical') {
-        // Transport: Stacked vertically
-        const topRatio = (leaves[0]?.value || 1) / (g.total || 1);
+        const topRatio = (sortedLeaves[0]?.value || 1) / (g.total || 1);
         if (lIdx === 0) {
           lx = bodyX;
           ly = bodyY;
           lw = bodyW;
-          lh = bodyH * Math.max(0.4, Math.min(0.7, topRatio)) - 4;
-          fSizeTitle = 14;
-          fSizeVal = 12;
+          lh = bodyH * Math.max(0.45, Math.min(0.7, topRatio)) - 4;
+          initTitleSize = 14;
+          initValSize = 12;
         } else {
-          const prevH = bodyH * Math.max(0.4, Math.min(0.7, topRatio));
+          const prevH = bodyH * Math.max(0.45, Math.min(0.7, topRatio));
           lx = bodyX;
           ly = bodyY + prevH;
           lw = bodyW;
           lh = bodyH - prevH;
-          fSizeTitle = 24;
-          fSizeVal = 14;
+          initTitleSize = 24;
+          initValSize = 14;
         }
       } else {
-        // Horizontal proportional split (Savings, Food)
-        const leftRatio = (leaves[0]?.value || 1) / (g.total || 1);
+        const leftRatio = (sortedLeaves[0]?.value || 1) / (g.total || 1);
         if (lIdx === 0) {
           lx = bodyX;
           ly = bodyY;
-          lw = bodyW * Math.max(0.45, Math.min(0.75, leftRatio)) - 4;
+          lw = bodyW * Math.max(0.50, Math.min(0.75, leftRatio)) - 4;
           lh = bodyH;
-          fSizeTitle = lw > 160 ? 26 : 20;
-          fSizeVal = 18;
+          initTitleSize = lw > 160 ? 26 : 20;
+          initValSize = 18;
         } else {
-          const prevW = bodyW * Math.max(0.45, Math.min(0.75, leftRatio));
+          const prevW = bodyW * Math.max(0.50, Math.min(0.75, leftRatio));
           lx = bodyX + prevW;
           ly = bodyY;
           lw = bodyW - prevW;
           lh = bodyH;
-          fSizeTitle = lw > 100 ? 15 : 13;
-          fSizeVal = 12;
+          initTitleSize = 14;
+          initValSize = 12;
         }
       }
+
+      // Auto-fit font sizes cleanly to prevent text collision/overflow
+      const maxCharWidth = item.name.length * 0.58;
+      const autoFitTitle = Math.min(initTitleSize, Math.floor((lw - 14) / Math.max(1, maxCharWidth)));
+      const titleFontSize = Math.max(11, autoFitTitle);
+      const valFontSize = Math.max(10, Math.min(initValSize, titleFontSize * 0.78));
 
       const itemFill = MultiDiagramVisualizer.getColor(item.name, defColor.bg);
       const itemBorder = MultiDiagramVisualizer.getColor(`${item.name}_border`, defColor.border);
@@ -337,23 +344,23 @@ MultiDiagramVisualizer.register('treemap', function(code, nodesLayer, edgesLayer
       // Centered Label & Value
       const titleEl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
       titleEl.setAttribute('x', `${lw / 2}`);
-      titleEl.setAttribute('y', `${lh / 2 - (fSizeVal ? fSizeVal / 2 : 0) + 2}`);
+      titleEl.setAttribute('y', `${lh / 2 - (valFontSize ? valFontSize / 2 : 0) + 2}`);
       titleEl.setAttribute('text-anchor', 'middle');
       titleEl.setAttribute('dominant-baseline', 'central');
       titleEl.setAttribute('fill', itemFont);
-      titleEl.setAttribute('font-size', `${fSizeTitle}px`);
+      titleEl.setAttribute('font-size', `${titleFontSize}px`);
       titleEl.setAttribute('font-weight', '700');
       titleEl.textContent = item.name;
       leafG.appendChild(titleEl);
 
-      if (fSizeVal) {
+      if (valFontSize) {
         const valEl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
         valEl.setAttribute('x', `${lw / 2}`);
-        valEl.setAttribute('y', `${lh / 2 + fSizeTitle / 2 + 4}`);
+        valEl.setAttribute('y', `${lh / 2 + titleFontSize / 2 + 4}`);
         valEl.setAttribute('text-anchor', 'middle');
         valEl.setAttribute('dominant-baseline', 'central');
         valEl.setAttribute('fill', itemFont);
-        valEl.setAttribute('font-size', `${fSizeVal}px`);
+        valEl.setAttribute('font-size', `${valFontSize}px`);
         valEl.setAttribute('font-weight', '500');
         valEl.textContent = formatVal(item.value);
         leafG.appendChild(valEl);
