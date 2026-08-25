@@ -138,15 +138,88 @@
           }
         }
 
-        // 2. Parse State Diagram (Rendered by MultiDiagramVisualizer suite)
+        // 2. Parse State Diagram
         if (detectedType === 'stateDiagram') {
-          newGraph.addNode({ id: 'visual_chart_bounds', text: '', shape: 'rectangle', x: 40, y: 40, width: 880, height: 600, fillColor: 'transparent', borderColor: 'transparent', fontColor: 'transparent' });
+          lines.forEach(l => {
+            const line = l.trim();
+            if (!line || line.startsWith('stateDiagram') || line.startsWith('%%')) return;
+            const match = line.match(/^(\[\*\]|[A-Za-z0-9_]+)\s*-->\s*(\[\*\]|[A-Za-z0-9_]+)(?:\s*:\s*(.+))?$/);
+            if (match) {
+              const src = match[1];
+              const tgt = match[2];
+              const label = match[3] ? match[3].trim() : undefined;
+
+              [src, tgt].forEach(id => {
+                if (!newGraph.getNode(id)) {
+                  newGraph.addNode({
+                    id,
+                    text: id === '[*]' ? '●' : id,
+                    shape: id === '[*]' ? 'circle' : 'rounded',
+                    width: id === '[*]' ? 40 : 140,
+                    height: id === '[*]' ? 40 : 50,
+                    fillColor: id === '[*]' ? '#212121' : '#E3F2FD',
+                    borderColor: id === '[*]' ? '#000000' : '#90CAF9',
+                    fontColor: id === '[*]' ? '#FFFFFF' : '#0D47A1'
+                  });
+                }
+              });
+
+              newGraph.addEdge({
+                id: Utils.uid('edge'),
+                source: src,
+                target: tgt,
+                label,
+                type: '-->'
+              });
+            }
+          });
+          AutoLayoutEngine.layout(newGraph, 'TD');
           return { graph: newGraph, error: null };
         }
 
-        // 3. Parse Class Diagram (Rendered by MultiDiagramVisualizer suite)
+        // 3. Parse Class Diagram
         if (detectedType === 'classDiagram') {
-          newGraph.addNode({ id: 'visual_chart_bounds', text: '', shape: 'rectangle', x: 40, y: 40, width: 880, height: 550, fillColor: 'transparent', borderColor: 'transparent', fontColor: 'transparent' });
+          let curClass = null;
+          lines.forEach(l => {
+            const line = l.trim();
+            if (!line || line.startsWith('classDiagram') || line.startsWith('%%')) return;
+
+            const cMatch = line.match(/^class\s+([A-Za-z0-9_]+)(?:\s*\{)?/);
+            if (cMatch) {
+              curClass = cMatch[1];
+              if (!newGraph.getNode(curClass)) {
+                newGraph.addNode({
+                  id: curClass,
+                  text: curClass,
+                  shape: 'rectangle',
+                  width: 170,
+                  height: 90,
+                  fillColor: '#E3F2FD',
+                  borderColor: '#90CAF9',
+                  fontColor: '#0D47A1'
+                });
+              }
+              return;
+            }
+
+            if (line === '}') {
+              curClass = null;
+              return;
+            }
+
+            const inhMatch = line.match(/^([A-Za-z0-9_]+)\s*<\|--\s*([A-Za-z0-9_]+)/);
+            if (inhMatch) {
+              const baseC = inhMatch[1];
+              const subC = inhMatch[2];
+              [baseC, subC].forEach(id => {
+                if (!newGraph.getNode(id)) {
+                  newGraph.addNode({ id, text: id, shape: 'rectangle', width: 160, height: 70, fillColor: '#E3F2FD', borderColor: '#90CAF9', fontColor: '#0D47A1' });
+                }
+              });
+              newGraph.addEdge({ id: Utils.uid('edge'), source: baseC, target: subC, type: '-->', label: 'Inherits' });
+            }
+          });
+          AutoLayoutEngine.layout(newGraph, 'TD');
           return { graph: newGraph, error: null };
         }
 

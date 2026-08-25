@@ -4888,876 +4888,7 @@ class MultiDiagramVisualizer {
         break;
       }
 
-                  case 'classdiagram': {
-        const rawLines = (code || '').split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('%%'));
-        const classes = new Map();
-        const relationships = [];
-        let curClass = null;
-
-        rawLines.forEach(line => {
-          if (line.toLowerCase().startsWith('classdiagram')) return;
-
-          // Class definition header: class BankAccount { or class BankAccount
-          const classMatch = line.match(/^class\s+([A-Za-z0-9_]+)(?:\s*\{)?/i);
-          if (classMatch) {
-            const cName = classMatch[1].trim();
-            curClass = {
-              name: cName,
-              members: [],
-              fillColor: MultiDiagramVisualizer.getColor(cName, isDark ? '#1E3A5F' : '#E3F2FD'),
-              fontColor: MultiDiagramVisualizer.getColor(`${cName}_font`, primaryText),
-              borderColor: MultiDiagramVisualizer.getColor(`${cName}_border`, primaryBorder)
-            };
-            classes.set(cName, curClass);
-            return;
-          }
-
-          if (curClass) {
-            if (line.includes('}')) {
-              curClass = null;
-              return;
-            }
-            if (line) {
-              curClass.members.push(line);
-            }
-            return;
-          }
-
-          // Shorthand member line: BankAccount : +String owner
-          const shortMemberMatch = line.match(/^([A-Za-z0-9_]+)\s*:\s*(.+)$/);
-          if (shortMemberMatch && !line.includes('<|--') && !line.includes('*--') && !line.includes('o--') && !line.includes('-->') && !line.includes('..|>')) {
-            const cName = shortMemberMatch[1].trim();
-            const memberStr = shortMemberMatch[2].trim();
-            if (!classes.has(cName)) {
-              classes.set(cName, {
-                name: cName,
-                members: [],
-                fillColor: MultiDiagramVisualizer.getColor(cName, isDark ? '#1E3A5F' : '#E3F2FD'),
-                fontColor: MultiDiagramVisualizer.getColor(`${cName}_font`, primaryText),
-                borderColor: MultiDiagramVisualizer.getColor(`${cName}_border`, primaryBorder)
-              });
-            }
-            classes.get(cName).members.push(memberStr);
-            return;
-          }
-
-          // Relationship: BankAccount <|-- SavingsAccount : inherits or ClassA *-- ClassB
-          const relMatch = line.match(/^([A-Za-z0-9_]+)\s*(<\|--|--\|>|\*--|--\*|o--|--o|-->|<--|\.\.\|>|<\|\.\.|\.\.>|<\.\.|--)\s*([A-Za-z0-9_]+)(?:\s*:\s*(.+))?/i);
-          if (relMatch) {
-            const src = relMatch[1].trim();
-            const relType = relMatch[2].trim();
-            const tgt = relMatch[3].trim();
-            const label = relMatch[4] ? relMatch[4].trim().replace(/^["']|["']$/g, '') : '';
-
-            [src, tgt].forEach(cName => {
-              if (!classes.has(cName)) {
-                classes.set(cName, {
-                  name: cName,
-                  members: ['+id: int', '+name: string'],
-                  fillColor: MultiDiagramVisualizer.getColor(cName, isDark ? '#1E3A5F' : '#E3F2FD'),
-                  fontColor: MultiDiagramVisualizer.getColor(`${cName}_font`, primaryText),
-                  borderColor: MultiDiagramVisualizer.getColor(`${cName}_border`, primaryBorder)
-                });
-              }
-            });
-
-            relationships.push({ src, relType, tgt, label });
-          }
-        });
-
-        if (classes.size === 0) {
-          classes.set('BankAccount', {
-            name: 'BankAccount',
-            members: ['+String owner', '+Decimal balance', '+deposit(amount)', '+withdraw(amount)'],
-            fillColor: MultiDiagramVisualizer.getColor('BankAccount', isDark ? '#1E3A5F' : '#E3F2FD'),
-            fontColor: MultiDiagramVisualizer.getColor('BankAccount_font', primaryText),
-            borderColor: MultiDiagramVisualizer.getColor('BankAccount_border', primaryBorder)
-          });
-          classes.set('SavingsAccount', {
-            name: 'SavingsAccount',
-            members: ['+Decimal interestRate', '+addInterest()'],
-            fillColor: MultiDiagramVisualizer.getColor('SavingsAccount', isDark ? '#1E3A5F' : '#E3F2FD'),
-            fontColor: MultiDiagramVisualizer.getColor('SavingsAccount_font', primaryText),
-            borderColor: MultiDiagramVisualizer.getColor('SavingsAccount_border', primaryBorder)
-          });
-          classes.set('CheckingAccount', {
-            name: 'CheckingAccount',
-            members: ['+Decimal overdraftLimit'],
-            fillColor: MultiDiagramVisualizer.getColor('CheckingAccount', isDark ? '#1E3A5F' : '#E3F2FD'),
-            fontColor: MultiDiagramVisualizer.getColor('CheckingAccount_font', primaryText),
-            borderColor: MultiDiagramVisualizer.getColor('CheckingAccount_border', primaryBorder)
-          });
-          relationships.push({ src: 'BankAccount', relType: '<|--', tgt: 'SavingsAccount', label: '' });
-          relationships.push({ src: 'BankAccount', relType: '<|--', tgt: 'CheckingAccount', label: '' });
-        }
-
-        // Layout Classes in a clean hierarchical layout
-        const classArray = Array.from(classes.values());
-        const cardW = 240;
-
-        classArray.forEach((c, idx) => {
-          const mCount = Math.max(1, c.members.length);
-          c.width = cardW;
-          c.height = 38 + mCount * 22 + 14;
-
-          let defX = 60 + (idx % 3) * (cardW + 80);
-          let defY = 70 + Math.floor(idx / 3) * 220;
-
-          if (c.name === 'BankAccount') {
-            defX = 330;
-            defY = 60;
-          } else if (c.name === 'SavingsAccount') {
-            defX = 140;
-            defY = 280;
-          } else if (c.name === 'CheckingAccount') {
-            defX = 520;
-            defY = 280;
-          }
-
-          const savedPos = MultiDiagramVisualizer.getPosition(c.name, defX, defY);
-          c.x = savedPos.x;
-          c.y = savedPos.y;
-        });
-
-        // Draw Relationships
-        relationships.forEach(rel => {
-          const isInheritance = rel.relType === '<|--' || rel.relType === '<|..';
-          const fromNode = isInheritance ? classes.get(rel.tgt) : classes.get(rel.src);
-          const toNode = isInheritance ? classes.get(rel.src) : classes.get(rel.tgt);
-          if (!fromNode || !toNode) return;
-
-          const relKey = `${rel.src}-${rel.relType}-${rel.tgt}:${rel.label}`;
-          const isSelRel = (rel.label === selTitle || `${rel.src} → ${rel.tgt}` === selTitle);
-          const lineColor = MultiDiagramVisualizer.getColor(relKey, MultiDiagramVisualizer.getColor(`${rel.src}-${rel.tgt}`, linkColor));
-          const labelFont = MultiDiagramVisualizer.getColor(`${relKey}_font`, textColor);
-
-          let sx, sy, tx, ty;
-          if (fromNode.y > toNode.y + toNode.height) {
-            sx = fromNode.x + fromNode.width / 2;
-            sy = fromNode.y;
-            tx = toNode.x + toNode.width / 2;
-            ty = toNode.y + toNode.height;
-          } else if (toNode.y > fromNode.y + fromNode.height) {
-            sx = fromNode.x + fromNode.width / 2;
-            sy = fromNode.y + fromNode.height;
-            tx = toNode.x + toNode.width / 2;
-            ty = toNode.y;
-          } else if (fromNode.x < toNode.x) {
-            sx = fromNode.x + fromNode.width;
-            sy = fromNode.y + fromNode.height / 2;
-            tx = toNode.x;
-            ty = toNode.y + toNode.height / 2;
-          } else {
-            sx = fromNode.x;
-            sy = fromNode.y + fromNode.height / 2;
-            tx = toNode.x + toNode.width;
-            ty = toNode.y + toNode.height / 2;
-          }
-
-          const midX = (sx + tx) / 2;
-          const midY = (sy + ty) / 2;
-          
-          // If inheritance triangle, line stops at triangle base (ty + 10)
-          const lineEndY = (isInheritance && ty < sy) ? ty + 10 : ty;
-          const pathD = `M ${sx} ${sy} C ${(sx + tx) / 2} ${sy}, ${(sx + tx) / 2} ${lineEndY}, ${tx} ${lineEndY}`;
-
-          const relG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-          relG.style.cursor = 'pointer';
-
-          // 28px click hitbox
-          const hitPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-          hitPath.setAttribute('d', pathD);
-          hitPath.setAttribute('fill', 'none');
-          hitPath.setAttribute('stroke', '#000000');
-          hitPath.setAttribute('stroke-width', '28');
-          hitPath.setAttribute('opacity', '0.001');
-          hitPath.style.cursor = 'pointer';
-          hitPath.style.pointerEvents = 'stroke';
-          relG.appendChild(hitPath);
-
-          // Visible path
-          const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-          path.setAttribute('d', pathD);
-          path.setAttribute('fill', 'none');
-          path.setAttribute('stroke', isSelRel ? 'var(--selection-color)' : lineColor);
-          path.setAttribute('stroke-width', isSelRel ? '3.5' : '2');
-          if (rel.relType.includes('..')) path.setAttribute('stroke-dasharray', '5,4');
-          if (isSelRel) path.style.filter = selGlow;
-          relG.appendChild(path);
-
-          // Arrowhead / Marker
-          if (rel.relType.includes('<|') || rel.relType.includes('|>')) {
-            // Hollow UML Generalization Triangle
-            const tri = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
-            if (ty < sy) {
-              tri.setAttribute('points', `${tx - 7},${ty + 11} ${tx},${ty} ${tx + 7},${ty + 11}`);
-            } else {
-              tri.setAttribute('points', `${tx - 7},${ty - 11} ${tx},${ty} ${tx + 7},${ty - 11}`);
-            }
-            tri.setAttribute('fill', cardBg);
-            tri.setAttribute('stroke', isSelRel ? 'var(--selection-color)' : lineColor);
-            tri.setAttribute('stroke-width', '2');
-            relG.appendChild(tri);
-          } else {
-            const arrow = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
-            if (ty < sy) {
-              arrow.setAttribute('points', `${tx - 5},${ty + 7} ${tx},${ty} ${tx + 5},${ty + 7}`);
-            } else {
-              arrow.setAttribute('points', `${tx - 5},${ty - 7} ${tx},${ty} ${tx + 5},${ty - 7}`);
-            }
-            arrow.setAttribute('fill', isSelRel ? 'var(--selection-color)' : lineColor);
-            relG.appendChild(arrow);
-          }
-
-          if (rel.label) {
-            const badgeW = rel.label.length * 6.5 + 20;
-            const badgeRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-            badgeRect.setAttribute('x', `${midX - badgeW / 2}`);
-            badgeRect.setAttribute('y', `${midY - 10}`);
-            badgeRect.setAttribute('width', `${badgeW}`);
-            badgeRect.setAttribute('height', '20');
-            badgeRect.setAttribute('rx', '4');
-            badgeRect.setAttribute('fill', cardBg);
-            badgeRect.setAttribute('stroke', isSelRel ? 'var(--selection-color)' : cardBorder);
-            badgeRect.setAttribute('stroke-width', isSelRel ? '2.5' : '1');
-            if (isSelRel) badgeRect.style.filter = selGlow;
-            relG.appendChild(badgeRect);
-
-            const badgeTxt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-            badgeTxt.setAttribute('x', `${midX}`);
-            badgeTxt.setAttribute('y', `${midY + 4}`);
-            badgeTxt.setAttribute('text-anchor', 'middle');
-            badgeTxt.setAttribute('fill', labelFont);
-            badgeTxt.setAttribute('font-size', '10px');
-            badgeTxt.setAttribute('font-weight', '500');
-            badgeTxt.textContent = rel.label;
-            relG.appendChild(badgeTxt);
-          }
-
-          const selectThisClassRel = () => {
-            if (typeof AppController !== 'undefined' && AppController.instance) {
-              AppController.instance.selectVisualObject({
-                type: 'Class Relationship',
-                title: `${rel.src} ${rel.relType} ${rel.tgt}`,
-                fields: [
-                  { key: 'label', label: 'Relationship Label', type: 'text', value: rel.label },
-                  { key: 'relType', label: 'Relationship Type', type: 'select', value: rel.relType, options: [
-                    { value: '<|--', label: 'Inheritance / Generalization (<|--)' },
-                    { value: '..|>', label: 'Interface Realization (..|>)' },
-                    { value: '*--', label: 'Composition (*--)' },
-                    { value: 'o--', label: 'Aggregation (o--)' },
-                    { value: '-->', label: 'Association (-->)' },
-                    { value: '..>', label: 'Dependency (..>)' }
-                  ]},
-                  { key: 'font', label: '1. Label Font Color', type: 'color', value: labelFont },
-                  { key: 'color', label: '2. Line / Arrow Color', type: 'color', value: lineColor }
-                ],
-                onSave: (vals) => {
-                  const newKey = `${rel.src}-${vals.relType}-${rel.tgt}:${vals.label}`;
-                  MultiDiagramVisualizer.setColor(newKey, vals.color);
-                  MultiDiagramVisualizer.setColor(`${newKey}_font`, vals.font);
-                  MultiDiagramVisualizer.syncColorToCode(newKey, vals.color);
-                  MultiDiagramVisualizer.syncColorToCode(`${newKey}_font`, vals.font);
-                  MultiDiagramVisualizer.updateCodeLine((curCode) => {
-                    const lines = curCode.split('\n');
-                    const idx = lines.findIndex(l => !l.trim().startsWith('%%') && new RegExp(`^\\s*${rel.src}\\s*.*?\\s*${rel.tgt}`, 'i').test(l.trim()));
-                    if (idx !== -1) {
-                      const lead = lines[idx].match(/^(\s*)/)[1] || '  ';
-                      const lblStr = vals.label ? ` : ${vals.label}` : '';
-                      lines[idx] = `${lead}${rel.src} ${vals.relType} ${rel.tgt}${lblStr}`;
-                    }
-                    return lines.join('\n');
-                  });
-                }
-              });
-            }
-          };
-
-          [relG, hitPath, path].forEach(el => {
-            el.addEventListener('mousedown', (e) => { e.stopPropagation(); selectThisClassRel(); });
-            el.addEventListener('click', (e) => { e.stopPropagation(); selectThisClassRel(); });
-          });
-
-          edgesLayer.appendChild(relG);
-        });
-
-        // Draw Draggable Class Cards
-        classArray.forEach(c => {
-          const cardG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-          cardG.style.cursor = 'move';
-
-          // Outer Card
-          const card = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-          card.setAttribute('x', `${c.x}`);
-          card.setAttribute('y', `${c.y}`);
-          card.setAttribute('width', `${c.width}`);
-          card.setAttribute('height', `${c.height}`);
-          card.setAttribute('rx', '6');
-          const isSelClass = (c.name === selTitle);
-          card.setAttribute('fill', cardBg);
-          card.setAttribute('stroke', isSelClass ? 'var(--selection-color)' : c.borderColor);
-          card.setAttribute('stroke-width', isSelClass ? '3.5' : '1.8');
-          if (isSelClass) card.style.filter = selGlow;
-          cardG.appendChild(card);
-
-          // Header Bar
-          const headerRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-          headerRect.setAttribute('x', `${c.x}`);
-          headerRect.setAttribute('y', `${c.y}`);
-          headerRect.setAttribute('width', `${c.width}`);
-          headerRect.setAttribute('height', '34');
-          headerRect.setAttribute('rx', '6');
-          headerRect.setAttribute('fill', c.fillColor);
-          cardG.appendChild(headerRect);
-
-          const headerSq = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-          headerSq.setAttribute('x', `${c.x}`);
-          headerSq.setAttribute('y', `${c.y + 20}`);
-          headerSq.setAttribute('width', `${c.width}`);
-          headerSq.setAttribute('height', '14');
-          headerSq.setAttribute('fill', c.fillColor);
-          cardG.appendChild(headerSq);
-
-          const titleTxt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-          titleTxt.setAttribute('x', `${c.x + c.width / 2}`);
-          titleTxt.setAttribute('y', `${c.y + 22}`);
-          titleTxt.setAttribute('text-anchor', 'middle');
-          titleTxt.setAttribute('fill', c.fontColor);
-          titleTxt.setAttribute('font-size', '12.5px');
-          titleTxt.setAttribute('font-weight', 'bold');
-          titleTxt.textContent = `🏛️ ${c.name}`;
-          cardG.appendChild(titleTxt);
-
-          const headerDiv = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-          headerDiv.setAttribute('x1', `${c.x}`);
-          headerDiv.setAttribute('y1', `${c.y + 34}`);
-          headerDiv.setAttribute('x2', `${c.x + c.width}`);
-          headerDiv.setAttribute('y2', `${c.y + 34}`);
-          headerDiv.setAttribute('stroke', c.borderColor);
-          headerDiv.setAttribute('stroke-width', '1.5');
-          cardG.appendChild(headerDiv);
-
-          // Members List
-          let hasMethodSep = false;
-          c.members.forEach((mStr, mIdx) => {
-            const mY = c.y + 42 + mIdx * 22;
-
-            if (mStr.includes('(') && !hasMethodSep && mIdx > 0) {
-              hasMethodSep = true;
-              const mDiv = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-              mDiv.setAttribute('x1', `${c.x + 8}`);
-              mDiv.setAttribute('y1', `${mY - 5}`);
-              mDiv.setAttribute('x2', `${c.x + c.width - 8}`);
-              mDiv.setAttribute('y2', `${mY - 5}`);
-              mDiv.setAttribute('stroke', cardBorder);
-              mDiv.setAttribute('stroke-width', '1');
-              mDiv.setAttribute('stroke-dasharray', '3,2');
-              cardG.appendChild(mDiv);
-            }
-
-            let visSymbol = '+';
-            let cleanMember = mStr;
-            if (/^[+\-#~]/.test(mStr)) {
-              visSymbol = mStr[0];
-              cleanMember = mStr.substring(1).trim();
-            }
-
-            const visColor = visSymbol === '+' ? '#4CAF50' : (visSymbol === '-' ? '#F44336' : '#FF9800');
-
-            const visTxt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-            visTxt.setAttribute('x', `${c.x + 12}`);
-            visTxt.setAttribute('y', `${mY + 10}`);
-            visTxt.setAttribute('fill', visColor);
-            visTxt.setAttribute('font-size', '12px');
-            visTxt.setAttribute('font-weight', 'bold');
-            visTxt.textContent = visSymbol;
-            cardG.appendChild(visTxt);
-
-            const mTxt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-            mTxt.setAttribute('x', `${c.x + 26}`);
-            mTxt.setAttribute('y', `${mY + 10}`);
-            mTxt.setAttribute('fill', textColor);
-            mTxt.setAttribute('font-size', '11px');
-            mTxt.setAttribute('font-family', 'ui-monospace, monospace');
-            mTxt.textContent = cleanMember;
-            cardG.appendChild(mTxt);
-          });
-
-          // Attach Draggable mover
-          MultiDiagramVisualizer.makeDraggable(
-            cardG,
-            c.name,
-            () => ({ x: c.x, y: c.y }),
-            (newX, newY) => {
-              MultiDiagramVisualizer.setPosition(c.name, newX, newY);
-            },
-            () => {
-              if (typeof AppController !== 'undefined' && AppController.instance) {
-                AppController.instance.recordHistory();
-              }
-            }
-          );
-
-          cardG.addEventListener('click', (e) => {
-            e.stopPropagation();
-            if (typeof AppController !== 'undefined' && AppController.instance) {
-              AppController.instance.selectVisualObject({
-                type: 'Class Model',
-                title: c.name,
-                fields: [
-                  { key: 'name', label: 'Class Name', type: 'text', value: c.name },
-                  { key: 'members', label: 'Attributes & Methods (one per line)', type: 'textarea', rows: 6, value: c.members.join('\n') },
-                  { key: 'font', label: '1. Header Font Color', type: 'color', value: c.fontColor },
-                  { key: 'fill', label: '2. Header Fill Color', type: 'color', value: c.fillColor },
-                  { key: 'border', label: '3. Class Border Color', type: 'color', value: c.borderColor }
-                ],
-                onSave: (vals) => {
-                  MultiDiagramVisualizer.setColor(vals.name, vals.fill);
-                  MultiDiagramVisualizer.setColor(`${vals.name}_font`, vals.font);
-                  MultiDiagramVisualizer.setColor(`${vals.name}_border`, vals.border);
-                  MultiDiagramVisualizer.syncColorToCode(vals.name, vals.fill);
-                  MultiDiagramVisualizer.syncColorToCode(`${vals.name}_font`, vals.font);
-                  MultiDiagramVisualizer.syncColorToCode(`${vals.name}_border`, vals.border);
-
-                  if (typeof AppController !== 'undefined' && AppController.instance && AppController.instance.selectedVisualObject) {
-                    AppController.instance.selectedVisualObject.title = vals.name;
-                  }
-
-                  MultiDiagramVisualizer.updateCodeLine((curCode) => {
-                    const lines = curCode.split('\n');
-                    const esc = c.name.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\</body>');
-                    const startIdx = lines.findIndex(l => !l.trim().startsWith('%%') && new RegExp(`^\\s*class\\s+${esc}\\b`, 'i').test(l.trim()));
-                    if (startIdx !== -1) {
-                      let endIdx = startIdx;
-                      while (endIdx < lines.length && !lines[endIdx].includes('}')) {
-                        endIdx++;
-                      }
-                      const lead = lines[startIdx].match(/^(\s*)/)[1] || '  ';
-                      const memberLines = vals.members.split('\n').map(s => s.trim()).filter(Boolean).map(m => `${lead}  ${m}`).join('\n');
-                      const newBlock = `${lead}class ${vals.name} {\n${memberLines}\n${lead}}`;
-                      lines.splice(startIdx, endIdx - startIdx + 1, newBlock);
-                    }
-                    return lines.join('\n');
-                  });
-                }
-              });
-            }
-          });
-
-          nodesLayer.appendChild(cardG);
-        });
-        break;
-      }
-
-      case 'statediagram':
-      case 'statediagram-v2': {
-        const rawLines = (code || '').split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('%%'));
-        const states = new Map();
-        const transitions = [];
-        let endStateCounter = 0;
-
-        rawLines.forEach((line, lineIdx) => {
-          if (line.toLowerCase().startsWith('statediagram')) return;
-
-          const trMatch = line.match(/^(\[\*\]|[A-Za-z0-9_]+)\s*-->\s*(\[\*\]|[A-Za-z0-9_]+)(?:\s*:\s*(.+))?$/i);
-          if (trMatch) {
-            let src = trMatch[1].trim();
-            let tgt = trMatch[2].trim();
-            const label = trMatch[3] ? trMatch[3].trim().replace(/^["']|["']$/g, '') : '';
-
-            // Handle start state [*]
-            if (src === '[*]') {
-              src = '[*]_start';
-              if (!states.has(src)) {
-                states.set(src, {
-                  id: src,
-                  label: 'Start',
-                  isStart: true,
-                  isEnd: false,
-                  fillColor: MultiDiagramVisualizer.getColor(src, '#212121'),
-                  fontColor: MultiDiagramVisualizer.getColor(`${src}_font`, '#FFFFFF'),
-                  borderColor: MultiDiagramVisualizer.getColor(`${src}_border`, '#000000')
-                });
-              }
-            } else if (!states.has(src)) {
-              states.set(src, {
-                id: src,
-                label: src,
-                isStart: false,
-                isEnd: false,
-                fillColor: MultiDiagramVisualizer.getColor(src, isDark ? '#2D4A66' : '#E3F2FD'),
-                fontColor: MultiDiagramVisualizer.getColor(`${src}_font`, primaryText),
-                borderColor: MultiDiagramVisualizer.getColor(`${src}_border`, primaryBorder)
-              });
-            }
-
-            // Handle end state [*] as distinct final state per transition
-            if (tgt === '[*]') {
-              endStateCounter++;
-              tgt = `[*]_end_${src}`;
-              if (!states.has(tgt)) {
-                states.set(tgt, {
-                  id: tgt,
-                  label: 'End',
-                  isStart: false,
-                  isEnd: true,
-                  fillColor: MultiDiagramVisualizer.getColor(tgt, '#212121'),
-                  fontColor: MultiDiagramVisualizer.getColor(`${tgt}_font`, '#FFFFFF'),
-                  borderColor: MultiDiagramVisualizer.getColor(`${tgt}_border`, isDark ? '#FFFFFF' : '#212121')
-                });
-              }
-            } else if (!states.has(tgt)) {
-              states.set(tgt, {
-                id: tgt,
-                label: tgt,
-                isStart: false,
-                isEnd: false,
-                fillColor: MultiDiagramVisualizer.getColor(tgt, isDark ? '#2D4A66' : '#E3F2FD'),
-                fontColor: MultiDiagramVisualizer.getColor(`${tgt}_font`, primaryText),
-                borderColor: MultiDiagramVisualizer.getColor(`${tgt}_border`, primaryBorder)
-              });
-            }
-
-            transitions.push({ src, tgt, origSrc: trMatch[1].trim(), origTgt: trMatch[2].trim(), label });
-          }
-        });
-
-        if (states.size === 0) {
-          states.set('[*]_start', { id: '[*]_start', label: 'Start', isStart: true, isEnd: false, fillColor: '#212121', fontColor: '#FFFFFF', borderColor: '#000000' });
-          states.set('Idle', { id: 'Idle', label: 'Idle', isStart: false, isEnd: false, fillColor: '#E3F2FD', fontColor: primaryText, borderColor: primaryBorder });
-          states.set('Processing', { id: 'Processing', label: 'Processing', isStart: false, isEnd: false, fillColor: '#E3F2FD', fontColor: primaryText, borderColor: primaryBorder });
-          transitions.push({ src: '[*]_start', tgt: 'Idle', origSrc: '[*]', origTgt: 'Idle', label: '' });
-        }
-
-        // Layout States with Distinct Start and End States
-        const stateArray = Array.from(states.values());
-        const defaultStatePositions = {
-          '[*]_start': { x: 50, y: 155 },
-          'Idle': { x: 160, y: 140 },
-          'Processing': { x: 390, y: 140 },
-          'Succeeded': { x: 650, y: 70 },
-          '[*]_end_Succeeded': { x: 860, y: 84 },
-          'Failed': { x: 390, y: 310 },
-          'Retrying': { x: 650, y: 310 },
-          'DeadLetter': { x: 650, y: 440 },
-          '[*]_end_DeadLetter': { x: 860, y: 454 }
-        };
-
-        let customIdx = 0;
-        stateArray.forEach(s => {
-          if (s.isStart || s.isEnd) {
-            s.width = 34;
-            s.height = 34;
-          } else {
-            s.width = 160;
-            s.height = 64;
-          }
-
-          const defPos = defaultStatePositions[s.id] || {
-            x: 80 + (customIdx % 4) * 190,
-            y: 80 + Math.floor(customIdx / 4) * 150
-          };
-          if (!defaultStatePositions[s.id]) customIdx++;
-
-          const savedPos = MultiDiagramVisualizer.getPosition(s.id, defPos.x, defPos.y);
-          s.x = savedPos.x;
-          s.y = savedPos.y;
-        });
-
-        // Draw Transitions
-        transitions.forEach(tr => {
-          const sNode = states.get(tr.src);
-          const tNode = states.get(tr.tgt);
-          if (!sNode || !tNode) return;
-
-          const trKey = `${tr.src}->${tr.tgt}:${tr.label}`;
-          const isSelTr = (tr.label === selTitle || `${tr.origSrc} → ${tr.origTgt}` === selTitle);
-          const lineColor = MultiDiagramVisualizer.getColor(trKey, MultiDiagramVisualizer.getColor(`${tr.src}->${tr.tgt}`, linkColor));
-          const labelFont = MultiDiagramVisualizer.getColor(`${trKey}_font`, textColor);
-
-          let sx, sy, tx, ty;
-          let cx1, cy1, cx2, cy2;
-
-          // Special loop cases:
-          // Retrying -> Processing (backwards upward curve)
-          if (tr.src === 'Retrying' && tr.tgt === 'Processing') {
-            sx = sNode.x + sNode.width / 2;
-            sy = sNode.y;
-            tx = tNode.x + tNode.width;
-            ty = tNode.y + tNode.height / 2;
-            cx1 = sx - 40;
-            cy1 = sy - 60;
-            cx2 = tx + 80;
-            cy2 = ty + 30;
-          } else if (sNode.x + sNode.width < tNode.x) {
-            // Flow to the right
-            sx = sNode.x + sNode.width;
-            sy = sNode.y + sNode.height / 2;
-            tx = tNode.x;
-            ty = tNode.y + tNode.height / 2;
-            cx1 = (sx + tx) / 2;
-            cy1 = sy;
-            cx2 = (sx + tx) / 2;
-            cy2 = ty;
-          } else if (tNode.x + tNode.width < sNode.x) {
-            // Flow to the left
-            sx = sNode.x;
-            sy = sNode.y + sNode.height / 2;
-            tx = tNode.x + tNode.width;
-            ty = tNode.y + tNode.height / 2;
-            cx1 = (sx + tx) / 2;
-            cy1 = sy;
-            cx2 = (sx + tx) / 2;
-            cy2 = ty;
-          } else if (sNode.y < tNode.y) {
-            // Flow downward
-            sx = sNode.x + sNode.width / 2;
-            sy = sNode.y + sNode.height;
-            tx = tNode.x + tNode.width / 2;
-            ty = tNode.y;
-            cx1 = sx;
-            cy1 = (sy + ty) / 2;
-            cx2 = tx;
-            cy2 = (sy + ty) / 2;
-          } else {
-            // Flow upward
-            sx = sNode.x + sNode.width / 2;
-            sy = sNode.y;
-            tx = tNode.x + tNode.width / 2;
-            ty = tNode.y + tNode.height;
-            cx1 = sx;
-            cy1 = (sy + ty) / 2;
-            cx2 = tx;
-            cy2 = (sy + ty) / 2;
-          }
-
-          const midX = (sx + tx) / 2;
-          const midY = (sy + ty) / 2;
-          const pathD = `M ${sx} ${sy} C ${cx1} ${cy1}, ${cx2} ${cy2}, ${tx} ${ty}`;
-
-          const trG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-          trG.style.cursor = 'pointer';
-
-          // 28px click hitbox
-          const hitPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-          hitPath.setAttribute('d', pathD);
-          hitPath.setAttribute('fill', 'none');
-          hitPath.setAttribute('stroke', '#000000');
-          hitPath.setAttribute('stroke-width', '28');
-          hitPath.setAttribute('opacity', '0.001');
-          hitPath.style.cursor = 'pointer';
-          hitPath.style.pointerEvents = 'stroke';
-          trG.appendChild(hitPath);
-
-          // Visible transition line
-          const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-          path.setAttribute('d', pathD);
-          path.setAttribute('fill', 'none');
-          path.setAttribute('stroke', isSelTr ? 'var(--selection-color)' : lineColor);
-          path.setAttribute('stroke-width', isSelTr ? '3.5' : '2');
-          if (isSelTr) path.style.filter = selGlow;
-          trG.appendChild(path);
-
-          // Arrowhead
-          const arrow = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
-          if (tx > sx + 20) arrow.setAttribute('points', `${tx - 7},${ty - 5} ${tx},${ty} ${tx - 7},${ty + 5}`);
-          else if (tx < sx - 20) arrow.setAttribute('points', `${tx + 7},${ty - 5} ${tx},${ty} ${tx + 7},${ty + 5}`);
-          else if (ty > sy) arrow.setAttribute('points', `${tx - 5},${ty - 7} ${tx},${ty} ${tx + 5},${ty - 7}`);
-          else arrow.setAttribute('points', `${tx - 5},${ty + 7} ${tx},${ty} ${tx + 5},${ty + 7}`);
-          arrow.setAttribute('fill', isSelTr ? 'var(--selection-color)' : lineColor);
-          trG.appendChild(arrow);
-
-          // Label Badge
-          if (tr.label) {
-            const badgeW = tr.label.length * 6.5 + 18;
-            const badgeRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-            badgeRect.setAttribute('x', `${midX - badgeW / 2}`);
-            badgeRect.setAttribute('y', `${midY - 10}`);
-            badgeRect.setAttribute('width', `${badgeW}`);
-            badgeRect.setAttribute('height', '20');
-            badgeRect.setAttribute('rx', '4');
-            badgeRect.setAttribute('fill', cardBg);
-            badgeRect.setAttribute('stroke', isSelTr ? 'var(--selection-color)' : cardBorder);
-            badgeRect.setAttribute('stroke-width', isSelTr ? '2.5' : '1');
-            if (isSelTr) badgeRect.style.filter = selGlow;
-            trG.appendChild(badgeRect);
-
-            const badgeTxt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-            badgeTxt.setAttribute('x', `${midX}`);
-            badgeTxt.setAttribute('y', `${midY + 4}`);
-            badgeTxt.setAttribute('text-anchor', 'middle');
-            badgeTxt.setAttribute('fill', labelFont);
-            badgeTxt.setAttribute('font-size', '10px');
-            badgeTxt.setAttribute('font-weight', '500');
-            badgeTxt.textContent = tr.label;
-            trG.appendChild(badgeTxt);
-          }
-
-          const selectThisTransition = () => {
-            if (typeof AppController !== 'undefined' && AppController.instance) {
-              AppController.instance.selectVisualObject({
-                type: 'State Transition',
-                title: `${tr.origSrc} → ${tr.origTgt}`,
-                fields: [
-                  { key: 'label', label: 'Event / Trigger Label', type: 'text', value: tr.label },
-                  { key: 'font', label: '1. Label Font Color', type: 'color', value: labelFont },
-                  { key: 'color', label: '2. Transition Line Color', type: 'color', value: lineColor }
-                ],
-                onSave: (vals) => {
-                  const newKey = `${tr.src}->${tr.tgt}:${vals.label}`;
-                  MultiDiagramVisualizer.setColor(newKey, vals.color);
-                  MultiDiagramVisualizer.setColor(`${newKey}_font`, vals.font);
-                  MultiDiagramVisualizer.syncColorToCode(newKey, vals.color);
-                  MultiDiagramVisualizer.syncColorToCode(`${newKey}_font`, vals.font);
-                  MultiDiagramVisualizer.updateCodeLine((curCode) => {
-                    const lines = curCode.split('\n');
-                    const idx = lines.findIndex(l => !l.trim().startsWith('%%') && new RegExp(`^\\s*${tr.origSrc.replace('[*]', '\\[\\*\\]')}\\s*-->\\s*${tr.origTgt.replace('[*]', '\\[\\*\\]')}`, 'i').test(l.trim()));
-                    if (idx !== -1) {
-                      const lead = lines[idx].match(/^(\s*)/)[1] || '  ';
-                      const lblStr = vals.label ? ` : ${vals.label}` : '';
-                      lines[idx] = `${lead}${tr.origSrc} --> ${tr.origTgt}${lblStr}`;
-                    }
-                    return lines.join('\n');
-                  });
-                }
-              });
-            }
-          };
-
-          [trG, hitPath, path].forEach(el => {
-            el.addEventListener('mousedown', (e) => { e.stopPropagation(); selectThisTransition(); });
-            el.addEventListener('click', (e) => { e.stopPropagation(); selectThisTransition(); });
-          });
-
-          edgesLayer.appendChild(trG);
-        });
-
-        // Draw Draggable States
-        stateArray.forEach(s => {
-          const stateG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-          stateG.style.cursor = 'move';
-
-          const isSelState = (s.id === selTitle || s.label === selTitle);
-
-          if (s.isStart) {
-            // Initial Start State: Solid Black Circle
-            const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-            circle.setAttribute('cx', `${s.x + s.width / 2}`);
-            circle.setAttribute('cy', `${s.y + s.height / 2}`);
-            circle.setAttribute('r', '13');
-            circle.setAttribute('fill', s.fillColor);
-            circle.setAttribute('stroke', isSelState ? 'var(--selection-color)' : s.borderColor);
-            circle.setAttribute('stroke-width', isSelState ? '3.5' : '1.5');
-            if (isSelState) circle.style.filter = selGlow;
-            stateG.appendChild(circle);
-          } else if (s.isEnd) {
-            // Final End State: Bullseye Ring with solid center dot
-            const outerCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-            outerCircle.setAttribute('cx', `${s.x + s.width / 2}`);
-            outerCircle.setAttribute('cy', `${s.y + s.height / 2}`);
-            outerCircle.setAttribute('r', '15');
-            outerCircle.setAttribute('fill', cardBg);
-            outerCircle.setAttribute('stroke', isSelState ? 'var(--selection-color)' : s.borderColor);
-            outerCircle.setAttribute('stroke-width', isSelState ? '3' : '2');
-            if (isSelState) outerCircle.style.filter = selGlow;
-            stateG.appendChild(outerCircle);
-
-            const innerCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-            innerCircle.setAttribute('cx', `${s.x + s.width / 2}`);
-            innerCircle.setAttribute('cy', `${s.y + s.height / 2}`);
-            innerCircle.setAttribute('r', '8.5');
-            innerCircle.setAttribute('fill', s.fillColor);
-            stateG.appendChild(innerCircle);
-          } else {
-            // Normal State Capsule
-            const capsule = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-            capsule.setAttribute('x', `${s.x}`);
-            capsule.setAttribute('y', `${s.y}`);
-            capsule.setAttribute('width', `${s.width}`);
-            capsule.setAttribute('height', `${s.height}`);
-            capsule.setAttribute('rx', '18');
-            capsule.setAttribute('fill', s.fillColor);
-            capsule.setAttribute('stroke', isSelState ? 'var(--selection-color)' : s.borderColor);
-            capsule.setAttribute('stroke-width', isSelState ? '3.5' : '1.8');
-            if (isSelState) capsule.style.filter = selGlow;
-            stateG.appendChild(capsule);
-
-            let icon = '⚙️';
-            if (s.id.toLowerCase().includes('success') || s.id.toLowerCase().includes('complete') || s.id.toLowerCase().includes('done')) icon = '✅';
-            else if (s.id.toLowerCase().includes('fail') || s.id.toLowerCase().includes('err')) icon = '❌';
-            else if (s.id.toLowerCase().includes('retry')) icon = '🔄';
-            else if (s.id.toLowerCase().includes('dead')) icon = '💀';
-            else if (s.id.toLowerCase().includes('process')) icon = '⚡';
-
-            const titleTxt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-            titleTxt.setAttribute('x', `${s.x + s.width / 2}`);
-            titleTxt.setAttribute('y', `${s.y + s.height / 2 + 5}`);
-            titleTxt.setAttribute('text-anchor', 'middle');
-            titleTxt.setAttribute('fill', s.fontColor);
-            titleTxt.setAttribute('font-size', '13px');
-            titleTxt.setAttribute('font-weight', 'bold');
-            titleTxt.textContent = `${icon} ${s.label}`;
-            stateG.appendChild(titleTxt);
-          }
-
-          // Attach Draggable mover
-          MultiDiagramVisualizer.makeDraggable(
-            stateG,
-            s.id,
-            () => ({ x: s.x, y: s.y }),
-            (newX, newY) => {
-              MultiDiagramVisualizer.setPosition(s.id, newX, newY);
-            },
-            () => {
-              if (typeof AppController !== 'undefined' && AppController.instance) {
-                AppController.instance.recordHistory();
-              }
-            }
-          );
-
-          stateG.addEventListener('click', (e) => {
-            e.stopPropagation();
-            if (s.isStart || s.isEnd) return;
-            if (typeof AppController !== 'undefined' && AppController.instance) {
-              AppController.instance.selectVisualObject({
-                type: 'State Machine Node',
-                title: s.label,
-                fields: [
-                  { key: 'label', label: 'State Name / Label', type: 'text', value: s.label },
-                  { key: 'font', label: '1. Font / Text Color', type: 'color', value: s.fontColor },
-                  { key: 'fill', label: '2. State Fill Color', type: 'color', value: s.fillColor },
-                  { key: 'border', label: '3. State Border Color', type: 'color', value: s.borderColor }
-                ],
-                onSave: (vals) => {
-                  MultiDiagramVisualizer.setColor(s.id, vals.fill);
-                  MultiDiagramVisualizer.setColor(`${s.id}_font`, vals.font);
-                  MultiDiagramVisualizer.setColor(`${s.id}_border`, vals.border);
-                  MultiDiagramVisualizer.syncColorToCode(s.id, vals.fill);
-                  MultiDiagramVisualizer.syncColorToCode(`${s.id}_font`, vals.font);
-                  MultiDiagramVisualizer.syncColorToCode(`${s.id}_border`, vals.border);
-
-                  if (typeof AppController !== 'undefined' && AppController.instance && AppController.instance.selectedVisualObject) {
-                    AppController.instance.selectedVisualObject.title = vals.label;
-                  }
-
-                  MultiDiagramVisualizer.updateCodeLine((curCode) => {
-                    const lines = curCode.split('\n');
-                    const idx = lines.findIndex(l => !l.trim().startsWith('%%') && new RegExp(`^\\s*${s.id}\\b`, 'i').test(l.trim()));
-                    if (idx !== -1 && vals.label !== s.label) {
-                      lines[idx] = lines[idx].replace(new RegExp(`\\b${s.id}\\b`, 'g'), vals.label);
-                    }
-                    return lines.join('\n');
-                  });
-                }
-              });
-            }
-          });
-
-          nodesLayer.appendChild(stateG);
-        });
-        break;
-      }
-
+            
       case 'c4context': {
         const rawLines = (code || '').split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('%%'));
         let title = 'Enterprise Cloud Banking & Payments Architecture Platform';
@@ -10292,15 +9423,88 @@ class MultiDiagramVisualizer {
           }
         }
 
-        // 2. Parse State Diagram (Rendered by MultiDiagramVisualizer suite)
+        // 2. Parse State Diagram
         if (detectedType === 'stateDiagram') {
-          newGraph.addNode({ id: 'visual_chart_bounds', text: '', shape: 'rectangle', x: 40, y: 40, width: 880, height: 600, fillColor: 'transparent', borderColor: 'transparent', fontColor: 'transparent' });
+          lines.forEach(l => {
+            const line = l.trim();
+            if (!line || line.startsWith('stateDiagram') || line.startsWith('%%')) return;
+            const match = line.match(/^(\[\*\]|[A-Za-z0-9_]+)\s*-->\s*(\[\*\]|[A-Za-z0-9_]+)(?:\s*:\s*(.+))?$/);
+            if (match) {
+              const src = match[1];
+              const tgt = match[2];
+              const label = match[3] ? match[3].trim() : undefined;
+
+              [src, tgt].forEach(id => {
+                if (!newGraph.getNode(id)) {
+                  newGraph.addNode({
+                    id,
+                    text: id === '[*]' ? '●' : id,
+                    shape: id === '[*]' ? 'circle' : 'rounded',
+                    width: id === '[*]' ? 40 : 140,
+                    height: id === '[*]' ? 40 : 50,
+                    fillColor: id === '[*]' ? '#212121' : '#E3F2FD',
+                    borderColor: id === '[*]' ? '#000000' : '#90CAF9',
+                    fontColor: id === '[*]' ? '#FFFFFF' : '#0D47A1'
+                  });
+                }
+              });
+
+              newGraph.addEdge({
+                id: Utils.uid('edge'),
+                source: src,
+                target: tgt,
+                label,
+                type: '-->'
+              });
+            }
+          });
+          AutoLayoutEngine.layout(newGraph, 'TD');
           return { graph: newGraph, error: null };
         }
 
-        // 3. Parse Class Diagram (Rendered by MultiDiagramVisualizer suite)
+        // 3. Parse Class Diagram
         if (detectedType === 'classDiagram') {
-          newGraph.addNode({ id: 'visual_chart_bounds', text: '', shape: 'rectangle', x: 40, y: 40, width: 880, height: 550, fillColor: 'transparent', borderColor: 'transparent', fontColor: 'transparent' });
+          let curClass = null;
+          lines.forEach(l => {
+            const line = l.trim();
+            if (!line || line.startsWith('classDiagram') || line.startsWith('%%')) return;
+
+            const cMatch = line.match(/^class\s+([A-Za-z0-9_]+)(?:\s*\{)?/);
+            if (cMatch) {
+              curClass = cMatch[1];
+              if (!newGraph.getNode(curClass)) {
+                newGraph.addNode({
+                  id: curClass,
+                  text: curClass,
+                  shape: 'rectangle',
+                  width: 170,
+                  height: 90,
+                  fillColor: '#E3F2FD',
+                  borderColor: '#90CAF9',
+                  fontColor: '#0D47A1'
+                });
+              }
+              return;
+            }
+
+            if (line === '}') {
+              curClass = null;
+              return;
+            }
+
+            const inhMatch = line.match(/^([A-Za-z0-9_]+)\s*<\|--\s*([A-Za-z0-9_]+)/);
+            if (inhMatch) {
+              const baseC = inhMatch[1];
+              const subC = inhMatch[2];
+              [baseC, subC].forEach(id => {
+                if (!newGraph.getNode(id)) {
+                  newGraph.addNode({ id, text: id, shape: 'rectangle', width: 160, height: 70, fillColor: '#E3F2FD', borderColor: '#90CAF9', fontColor: '#0D47A1' });
+                }
+              });
+              newGraph.addEdge({ id: Utils.uid('edge'), source: baseC, target: subC, type: '-->', label: 'Inherits' });
+            }
+          });
+          AutoLayoutEngine.layout(newGraph, 'TD');
           return { graph: newGraph, error: null };
         }
 
@@ -10710,7 +9914,7 @@ class MultiDiagramVisualizer {
       renderAll() {
         this.updateTransform();
 
-        const isVisualSpecial = ['sequence', 'gantt', 'pie', 'gitGraph', 'gitgraph', 'journey', 'mindmap', 'timeline', 'quadrant', 'sankey', 'erDiagram', 'erdiagram', 'classDiagram', 'classdiagram', 'stateDiagram', 'statediagram', 'c4context'].includes(this.graph.diagramType);
+        const isVisualSpecial = ['sequence', 'gantt', 'pie', 'gitGraph', 'gitgraph', 'journey', 'mindmap', 'timeline', 'quadrant', 'sankey', 'erDiagram', 'erdiagram', 'c4context'].includes(this.graph.diagramType);
 
         if (isVisualSpecial) {
           const isDark = this.themeMgr.currentTheme === 'dark';
