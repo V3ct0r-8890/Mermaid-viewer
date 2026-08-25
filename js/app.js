@@ -39,6 +39,7 @@
         this.setupInitialDiagram();
         this.renderAll();
         this.recordHistory();
+        setTimeout(() => this.zoomToFit(), 60);
       }
 
       cacheDom() {
@@ -1480,8 +1481,8 @@
         }
 
         this.renderAll();
-        this.zoomToFit();
         this.recordHistory();
+        setTimeout(() => this.zoomToFit(), 30);
         Utils.showToast(`Loaded ${tpl.name} template`, 'success');
       }
 

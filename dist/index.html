@@ -10377,6 +10377,7 @@ MultiDiagramVisualizer.register('timeline', function(code, nodesLayer, edgesLaye
         this.setupInitialDiagram();
         this.renderAll();
         this.recordHistory();
+        setTimeout(() => this.zoomToFit(), 60);
       }
 
       cacheDom() {
@@ -11818,8 +11819,8 @@ MultiDiagramVisualizer.register('timeline', function(code, nodesLayer, edgesLaye
         }
 
         this.renderAll();
-        this.zoomToFit();
         this.recordHistory();
+        setTimeout(() => this.zoomToFit(), 30);
         Utils.showToast(`Loaded ${tpl.name} template`, 'success');
       }
 
