@@ -71,17 +71,26 @@
         id: 'stateDiagram',
         name: 'State Diagram (v2)',
         badge: 'stateDiagram-v2',
-        desc: 'State machine states, transitions, error retries',
+        desc: 'Choice conditions, concurrent active states, power modes',
         code: `stateDiagram-v2
-  [*] --> Idle
-  Idle --> Processing : New Task
-  Processing --> Succeeded : Complete
-  Processing --> Failed : Error
-  Failed --> Retrying : Retry Allowed
-  Retrying --> Processing : Attempt Again
-  Retrying --> DeadLetter : Max Retries Exceeded
-  Succeeded --> [*]
-  DeadLetter --> [*]`
+    state battery_check <<choice>>
+    [*] --> PowerOn
+    PowerOn --> battery_check
+    battery_check --> LowPowerMode : battery < 20%
+    battery_check --> Active : battery >= 20%
+
+    state Active {
+        [*] --> Playing
+        Playing --> Paused : pause
+        Paused --> Playing : play
+        --
+        [*] --> ScreenOn
+        ScreenOn --> ScreenDimmed : idle 30s
+        ScreenDimmed --> ScreenOn : touch
+    }
+
+    LowPowerMode --> [*] : power off
+    Active --> [*] : power off`
       },
       {
         id: 'erDiagram',

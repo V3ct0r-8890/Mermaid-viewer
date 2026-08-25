@@ -1900,17 +1900,26 @@
         id: 'stateDiagram',
         name: 'State Diagram (v2)',
         badge: 'stateDiagram-v2',
-        desc: 'State machine states, transitions, error retries',
+        desc: 'Choice conditions, concurrent active states, power modes',
         code: `stateDiagram-v2
-  [*] --> Idle
-  Idle --> Processing : New Task
-  Processing --> Succeeded : Complete
-  Processing --> Failed : Error
-  Failed --> Retrying : Retry Allowed
-  Retrying --> Processing : Attempt Again
-  Retrying --> DeadLetter : Max Retries Exceeded
-  Succeeded --> [*]
-  DeadLetter --> [*]`
+    state battery_check <<choice>>
+    [*] --> PowerOn
+    PowerOn --> battery_check
+    battery_check --> LowPowerMode : battery < 20%
+    battery_check --> Active : battery >= 20%
+
+    state Active {
+        [*] --> Playing
+        Playing --> Paused : pause
+        Paused --> Playing : play
+        --
+        [*] --> ScreenOn
+        ScreenOn --> ScreenDimmed : idle 30s
+        ScreenDimmed --> ScreenOn : touch
+    }
+
+    LowPowerMode --> [*] : power off
+    Active --> [*] : power off`
       },
       {
         id: 'erDiagram',
@@ -9592,29 +9601,140 @@ MultiDiagramVisualizer.register('timeline', function(code, nodesLayer, edgesLaye
 
         // 2. Parse State Diagram
         if (detectedType === 'stateDiagram') {
+          let currentGroup = null;
+          let regionIndex = 1;
+          let startCount = 0;
+          let endCount = 0;
+
           lines.forEach(l => {
             const line = l.trim();
             if (!line || line.startsWith('stateDiagram') || line.startsWith('%%')) return;
+
+            // Choice pseudo-state: state battery_check <<choice>>
+            const choiceMatch = line.match(/^state\s+([A-Za-z0-9_]+)\s*<<choice>>/i);
+            if (choiceMatch) {
+              const id = choiceMatch[1];
+              if (!newGraph.getNode(id)) {
+                newGraph.addNode({
+                  id,
+                  text: '◆',
+                  shape: 'rhombus',
+                  width: 44,
+                  height: 44,
+                  fillColor: '#FFF3E0',
+                  borderColor: '#FF9800',
+                  fontColor: '#E65100'
+                });
+              }
+              return;
+            }
+
+            // Fork / Join pseudo-states: state fork_state <<fork>>
+            const forkJoinMatch = line.match(/^state\s+([A-Za-z0-9_]+)\s*<<(fork|join)>>/i);
+            if (forkJoinMatch) {
+              const id = forkJoinMatch[1];
+              if (!newGraph.getNode(id)) {
+                newGraph.addNode({
+                  id,
+                  text: '',
+                  shape: 'rectangle',
+                  width: 70,
+                  height: 10,
+                  fillColor: '#212121',
+                  borderColor: '#000000',
+                  fontColor: '#FFFFFF'
+                });
+              }
+              return;
+            }
+
+            // Start of composite state: state Active {
+            const compMatch = line.match(/^state\s+([A-Za-z0-9_]+)\s*\{/i);
+            if (compMatch) {
+              currentGroup = compMatch[1];
+              regionIndex = 1;
+              return;
+            }
+
+            // Concurrent region divider inside composite state: --
+            if (line === '--') {
+              regionIndex++;
+              return;
+            }
+
+            // End of composite state: }
+            if (line === '}') {
+              currentGroup = null;
+              return;
+            }
+
             const match = line.match(/^(\[\*\]|[A-Za-z0-9_]+)\s*-->\s*(\[\*\]|[A-Za-z0-9_]+)(?:\s*:\s*(.+))?$/);
             if (match) {
-              const src = match[1];
-              const tgt = match[2];
+              let src = match[1];
+              let tgt = match[2];
               const label = match[3] ? match[3].trim() : undefined;
 
-              [src, tgt].forEach(id => {
-                if (!newGraph.getNode(id)) {
+              if (src === '[*]') {
+                startCount++;
+                const startId = currentGroup ? `${currentGroup}_start_${regionIndex}` : (startCount === 1 ? '[*]' : `start_${startCount}`);
+                if (!newGraph.getNode(startId)) {
                   newGraph.addNode({
-                    id,
-                    text: id === '[*]' ? '●' : id,
-                    shape: id === '[*]' ? 'circle' : 'rounded',
-                    width: id === '[*]' ? 40 : 140,
-                    height: id === '[*]' ? 40 : 50,
-                    fillColor: id === '[*]' ? '#212121' : '#E3F2FD',
-                    borderColor: id === '[*]' ? '#000000' : '#90CAF9',
-                    fontColor: id === '[*]' ? '#FFFFFF' : '#0D47A1'
+                    id: startId,
+                    text: '●',
+                    shape: 'circle',
+                    width: 36,
+                    height: 36,
+                    fillColor: '#212121',
+                    borderColor: '#000000',
+                    fontColor: '#FFFFFF'
                   });
                 }
-              });
+                src = startId;
+              } else {
+                if (!newGraph.getNode(src)) {
+                  newGraph.addNode({
+                    id: src,
+                    text: src,
+                    shape: 'rounded',
+                    width: 140,
+                    height: 48,
+                    fillColor: '#E3F2FD',
+                    borderColor: '#90CAF9',
+                    fontColor: '#0D47A1'
+                  });
+                }
+              }
+
+              if (tgt === '[*]') {
+                endCount++;
+                const endId = `end_${src}_${endCount}`;
+                if (!newGraph.getNode(endId)) {
+                  newGraph.addNode({
+                    id: endId,
+                    text: '◉',
+                    shape: 'circle',
+                    width: 36,
+                    height: 36,
+                    fillColor: '#212121',
+                    borderColor: '#000000',
+                    fontColor: '#FFFFFF'
+                  });
+                }
+                tgt = endId;
+              } else {
+                if (!newGraph.getNode(tgt)) {
+                  newGraph.addNode({
+                    id: tgt,
+                    text: tgt,
+                    shape: 'rounded',
+                    width: 140,
+                    height: 48,
+                    fillColor: '#E3F2FD',
+                    borderColor: '#90CAF9',
+                    fontColor: '#0D47A1'
+                  });
+                }
+              }
 
               newGraph.addEdge({
                 id: Utils.uid('edge'),
