@@ -654,29 +654,27 @@ class MultiDiagramVisualizer {
           relationships.push({ src: 'BankAccount', relType: '<|--', tgt: 'CheckingAccount', label: '' });
         }
 
-        // Layout Classes in a clean hierarchical or 2/3 column grid
+        // Layout Classes in a clean hierarchical layout
         const classArray = Array.from(classes.values());
-        const cardW = 230;
+        const cardW = 240;
 
-        // Default positions
         classArray.forEach((c, idx) => {
           const mCount = Math.max(1, c.members.length);
           c.width = cardW;
-          c.height = 38 + mCount * 22 + 12;
+          c.height = 38 + mCount * 22 + 14;
 
           let defX = 60 + (idx % 3) * (cardW + 80);
           let defY = 70 + Math.floor(idx / 3) * 220;
 
-          // If base class in inheritance, put on top
-          if (idx === 0 && classArray.length === 3) {
-            defX = 350;
+          if (c.name === 'BankAccount') {
+            defX = 330;
             defY = 60;
-          } else if (idx === 1 && classArray.length === 3) {
+          } else if (c.name === 'SavingsAccount') {
             defX = 140;
-            defY = 270;
-          } else if (idx === 2 && classArray.length === 3) {
+            defY = 280;
+          } else if (c.name === 'CheckingAccount') {
             defX = 520;
-            defY = 270;
+            defY = 280;
           }
 
           const savedPos = MultiDiagramVisualizer.getPosition(c.name, defX, defY);
@@ -686,8 +684,6 @@ class MultiDiagramVisualizer {
 
         // Draw Relationships
         relationships.forEach(rel => {
-          // Note: In UML <|--, BankAccount <|-- SavingsAccount means SavingsAccount extends BankAccount
-          // So line originates from tgt (SavingsAccount) pointing to src (BankAccount)
           const isInheritance = rel.relType === '<|--' || rel.relType === '<|..';
           const fromNode = isInheritance ? classes.get(rel.tgt) : classes.get(rel.src);
           const toNode = isInheritance ? classes.get(rel.src) : classes.get(rel.tgt);
@@ -723,7 +719,10 @@ class MultiDiagramVisualizer {
 
           const midX = (sx + tx) / 2;
           const midY = (sy + ty) / 2;
-          const pathD = `M ${sx} ${sy} C ${(sx + tx) / 2} ${sy}, ${(sx + tx) / 2} ${ty}, ${tx} ${ty}`;
+          
+          // If inheritance triangle, line stops at triangle base (ty + 10)
+          const lineEndY = (isInheritance && ty < sy) ? ty + 10 : ty;
+          const pathD = `M ${sx} ${sy} C ${(sx + tx) / 2} ${sy}, ${(sx + tx) / 2} ${lineEndY}, ${tx} ${lineEndY}`;
 
           const relG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
           relG.style.cursor = 'pointer';
@@ -751,12 +750,12 @@ class MultiDiagramVisualizer {
 
           // Arrowhead / Marker
           if (rel.relType.includes('<|') || rel.relType.includes('|>')) {
-            // Hollow UML Triangle
+            // Hollow UML Generalization Triangle
             const tri = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
             if (ty < sy) {
-              tri.setAttribute('points', `${tx - 6},${ty + 10} ${tx},${ty} ${tx + 6},${ty + 10}`);
+              tri.setAttribute('points', `${tx - 7},${ty + 11} ${tx},${ty} ${tx + 7},${ty + 11}`);
             } else {
-              tri.setAttribute('points', `${tx - 6},${ty - 10} ${tx},${ty} ${tx + 6},${ty - 10}`);
+              tri.setAttribute('points', `${tx - 7},${ty - 11} ${tx},${ty} ${tx + 7},${ty - 11}`);
             }
             tri.setAttribute('fill', cardBg);
             tri.setAttribute('stroke', isSelRel ? 'var(--selection-color)' : lineColor);
@@ -906,7 +905,6 @@ class MultiDiagramVisualizer {
           c.members.forEach((mStr, mIdx) => {
             const mY = c.y + 42 + mIdx * 22;
 
-            // Draw method divider line before first method (with parenthesis)
             if (mStr.includes('(') && !hasMethodSep && mIdx > 0) {
               hasMethodSep = true;
               const mDiv = document.createElementNS('http://www.w3.org/2000/svg', 'line');
@@ -920,7 +918,6 @@ class MultiDiagramVisualizer {
               cardG.appendChild(mDiv);
             }
 
-            // Visibility badge (+ / - / # / ~)
             let visSymbol = '+';
             let cleanMember = mStr;
             if (/^[+\-#~]/.test(mStr)) {
@@ -1020,60 +1017,100 @@ class MultiDiagramVisualizer {
         const rawLines = (code || '').split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('%%'));
         const states = new Map();
         const transitions = [];
+        let endStateCounter = 0;
 
-        rawLines.forEach(line => {
+        rawLines.forEach((line, lineIdx) => {
           if (line.toLowerCase().startsWith('statediagram')) return;
 
-          // Transition: [*] --> Idle : start or Idle --> Processing : New Task
           const trMatch = line.match(/^(\[\*\]|[A-Za-z0-9_]+)\s*-->\s*(\[\*\]|[A-Za-z0-9_]+)(?:\s*:\s*(.+))?$/i);
           if (trMatch) {
-            const src = trMatch[1].trim();
-            const tgt = trMatch[2].trim();
+            let src = trMatch[1].trim();
+            let tgt = trMatch[2].trim();
             const label = trMatch[3] ? trMatch[3].trim().replace(/^["']|["']$/g, '') : '';
 
-            [src, tgt].forEach(sId => {
-              if (!states.has(sId)) {
-                const isStart = sId === '[*]';
-                states.set(sId, {
-                  id: sId,
-                  label: isStart ? 'Start' : sId,
-                  isSpecial: isStart,
-                  fillColor: MultiDiagramVisualizer.getColor(sId, isStart ? '#212121' : (isDark ? '#2D4A66' : '#E3F2FD')),
-                  fontColor: MultiDiagramVisualizer.getColor(`${sId}_font`, isStart ? '#FFFFFF' : primaryText),
-                  borderColor: MultiDiagramVisualizer.getColor(`${sId}_border`, isStart ? '#000000' : primaryBorder)
+            // Handle start state [*]
+            if (src === '[*]') {
+              src = '[*]_start';
+              if (!states.has(src)) {
+                states.set(src, {
+                  id: src,
+                  label: 'Start',
+                  isStart: true,
+                  isEnd: false,
+                  fillColor: MultiDiagramVisualizer.getColor(src, '#212121'),
+                  fontColor: MultiDiagramVisualizer.getColor(`${src}_font`, '#FFFFFF'),
+                  borderColor: MultiDiagramVisualizer.getColor(`${src}_border`, '#000000')
                 });
               }
-            });
+            } else if (!states.has(src)) {
+              states.set(src, {
+                id: src,
+                label: src,
+                isStart: false,
+                isEnd: false,
+                fillColor: MultiDiagramVisualizer.getColor(src, isDark ? '#2D4A66' : '#E3F2FD'),
+                fontColor: MultiDiagramVisualizer.getColor(`${src}_font`, primaryText),
+                borderColor: MultiDiagramVisualizer.getColor(`${src}_border`, primaryBorder)
+              });
+            }
 
-            transitions.push({ src, tgt, label });
+            // Handle end state [*] as distinct final state per transition
+            if (tgt === '[*]') {
+              endStateCounter++;
+              tgt = `[*]_end_${src}`;
+              if (!states.has(tgt)) {
+                states.set(tgt, {
+                  id: tgt,
+                  label: 'End',
+                  isStart: false,
+                  isEnd: true,
+                  fillColor: MultiDiagramVisualizer.getColor(tgt, '#212121'),
+                  fontColor: MultiDiagramVisualizer.getColor(`${tgt}_font`, '#FFFFFF'),
+                  borderColor: MultiDiagramVisualizer.getColor(`${tgt}_border`, isDark ? '#FFFFFF' : '#212121')
+                });
+              }
+            } else if (!states.has(tgt)) {
+              states.set(tgt, {
+                id: tgt,
+                label: tgt,
+                isStart: false,
+                isEnd: false,
+                fillColor: MultiDiagramVisualizer.getColor(tgt, isDark ? '#2D4A66' : '#E3F2FD'),
+                fontColor: MultiDiagramVisualizer.getColor(`${tgt}_font`, primaryText),
+                borderColor: MultiDiagramVisualizer.getColor(`${tgt}_border`, primaryBorder)
+              });
+            }
+
+            transitions.push({ src, tgt, origSrc: trMatch[1].trim(), origTgt: trMatch[2].trim(), label });
           }
         });
 
         if (states.size === 0) {
-          states.set('[*]', { id: '[*]', label: 'Start', isSpecial: true, fillColor: '#212121', fontColor: '#FFFFFF', borderColor: '#000000' });
-          states.set('Idle', { id: 'Idle', label: 'Idle', isSpecial: false, fillColor: '#E3F2FD', fontColor: primaryText, borderColor: primaryBorder });
-          states.set('Processing', { id: 'Processing', label: 'Processing', isSpecial: false, fillColor: '#E3F2FD', fontColor: primaryText, borderColor: primaryBorder });
-          transitions.push({ src: '[*]', tgt: 'Idle', label: '' });
-          transitions.push({ src: 'Idle', tgt: 'Processing', label: 'New Task' });
+          states.set('[*]_start', { id: '[*]_start', label: 'Start', isStart: true, isEnd: false, fillColor: '#212121', fontColor: '#FFFFFF', borderColor: '#000000' });
+          states.set('Idle', { id: 'Idle', label: 'Idle', isStart: false, isEnd: false, fillColor: '#E3F2FD', fontColor: primaryText, borderColor: primaryBorder });
+          states.set('Processing', { id: 'Processing', label: 'Processing', isStart: false, isEnd: false, fillColor: '#E3F2FD', fontColor: primaryText, borderColor: primaryBorder });
+          transitions.push({ src: '[*]_start', tgt: 'Idle', origSrc: '[*]', origTgt: 'Idle', label: '' });
         }
 
-        // Layout States in a clean sequence/grid
+        // Layout States with Distinct Start and End States
         const stateArray = Array.from(states.values());
         const defaultStatePositions = {
-          '[*]': { x: 80, y: 160 },
-          'Idle': { x: 200, y: 145 },
-          'Processing': { x: 420, y: 145 },
-          'Succeeded': { x: 670, y: 80 },
-          'Failed': { x: 420, y: 310 },
-          'Retrying': { x: 670, y: 310 },
-          'DeadLetter': { x: 670, y: 440 }
+          '[*]_start': { x: 50, y: 155 },
+          'Idle': { x: 160, y: 140 },
+          'Processing': { x: 390, y: 140 },
+          'Succeeded': { x: 650, y: 70 },
+          '[*]_end_Succeeded': { x: 860, y: 84 },
+          'Failed': { x: 390, y: 310 },
+          'Retrying': { x: 650, y: 310 },
+          'DeadLetter': { x: 650, y: 440 },
+          '[*]_end_DeadLetter': { x: 860, y: 454 }
         };
 
         let customIdx = 0;
         stateArray.forEach(s => {
-          if (s.id === '[*]') {
-            s.width = 36;
-            s.height = 36;
+          if (s.isStart || s.isEnd) {
+            s.width = 34;
+            s.height = 34;
           } else {
             s.width = 160;
             s.height = 64;
@@ -1097,36 +1134,69 @@ class MultiDiagramVisualizer {
           if (!sNode || !tNode) return;
 
           const trKey = `${tr.src}->${tr.tgt}:${tr.label}`;
-          const isSelTr = (tr.label === selTitle || `${tr.src} → ${tr.tgt}` === selTitle);
+          const isSelTr = (tr.label === selTitle || `${tr.origSrc} → ${tr.origTgt}` === selTitle);
           const lineColor = MultiDiagramVisualizer.getColor(trKey, MultiDiagramVisualizer.getColor(`${tr.src}->${tr.tgt}`, linkColor));
           const labelFont = MultiDiagramVisualizer.getColor(`${trKey}_font`, textColor);
 
           let sx, sy, tx, ty;
-          if (sNode.x + sNode.width < tNode.x) {
+          let cx1, cy1, cx2, cy2;
+
+          // Special loop cases:
+          // Retrying -> Processing (backwards upward curve)
+          if (tr.src === 'Retrying' && tr.tgt === 'Processing') {
+            sx = sNode.x + sNode.width / 2;
+            sy = sNode.y;
+            tx = tNode.x + tNode.width;
+            ty = tNode.y + tNode.height / 2;
+            cx1 = sx - 40;
+            cy1 = sy - 60;
+            cx2 = tx + 80;
+            cy2 = ty + 30;
+          } else if (sNode.x + sNode.width < tNode.x) {
+            // Flow to the right
             sx = sNode.x + sNode.width;
             sy = sNode.y + sNode.height / 2;
             tx = tNode.x;
             ty = tNode.y + tNode.height / 2;
+            cx1 = (sx + tx) / 2;
+            cy1 = sy;
+            cx2 = (sx + tx) / 2;
+            cy2 = ty;
           } else if (tNode.x + tNode.width < sNode.x) {
+            // Flow to the left
             sx = sNode.x;
             sy = sNode.y + sNode.height / 2;
             tx = tNode.x + tNode.width;
             ty = tNode.y + tNode.height / 2;
+            cx1 = (sx + tx) / 2;
+            cy1 = sy;
+            cx2 = (sx + tx) / 2;
+            cy2 = ty;
           } else if (sNode.y < tNode.y) {
+            // Flow downward
             sx = sNode.x + sNode.width / 2;
             sy = sNode.y + sNode.height;
             tx = tNode.x + tNode.width / 2;
             ty = tNode.y;
+            cx1 = sx;
+            cy1 = (sy + ty) / 2;
+            cx2 = tx;
+            cy2 = (sy + ty) / 2;
           } else {
+            // Flow upward
             sx = sNode.x + sNode.width / 2;
             sy = sNode.y;
             tx = tNode.x + tNode.width / 2;
             ty = tNode.y + tNode.height;
+            cx1 = sx;
+            cy1 = (sy + ty) / 2;
+            cx2 = tx;
+            cy2 = (sy + ty) / 2;
           }
 
           const midX = (sx + tx) / 2;
           const midY = (sy + ty) / 2;
-          const pathD = `M ${sx} ${sy} C ${(sx + tx) / 2} ${sy}, ${(sx + tx) / 2} ${ty}, ${tx} ${ty}`;
+          const pathD = `M ${sx} ${sy} C ${cx1} ${cy1}, ${cx2} ${cy2}, ${tx} ${ty}`;
 
           const trG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
           trG.style.cursor = 'pointer';
@@ -1153,8 +1223,8 @@ class MultiDiagramVisualizer {
 
           // Arrowhead
           const arrow = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
-          if (tx > sx) arrow.setAttribute('points', `${tx - 7},${ty - 5} ${tx},${ty} ${tx - 7},${ty + 5}`);
-          else if (tx < sx) arrow.setAttribute('points', `${tx + 7},${ty - 5} ${tx},${ty} ${tx + 7},${ty + 5}`);
+          if (tx > sx + 20) arrow.setAttribute('points', `${tx - 7},${ty - 5} ${tx},${ty} ${tx - 7},${ty + 5}`);
+          else if (tx < sx - 20) arrow.setAttribute('points', `${tx + 7},${ty - 5} ${tx},${ty} ${tx + 7},${ty + 5}`);
           else if (ty > sy) arrow.setAttribute('points', `${tx - 5},${ty - 7} ${tx},${ty} ${tx + 5},${ty - 7}`);
           else arrow.setAttribute('points', `${tx - 5},${ty + 7} ${tx},${ty} ${tx + 5},${ty + 7}`);
           arrow.setAttribute('fill', isSelTr ? 'var(--selection-color)' : lineColor);
@@ -1190,7 +1260,7 @@ class MultiDiagramVisualizer {
             if (typeof AppController !== 'undefined' && AppController.instance) {
               AppController.instance.selectVisualObject({
                 type: 'State Transition',
-                title: `${tr.src} → ${tr.tgt}`,
+                title: `${tr.origSrc} → ${tr.origTgt}`,
                 fields: [
                   { key: 'label', label: 'Event / Trigger Label', type: 'text', value: tr.label },
                   { key: 'font', label: '1. Label Font Color', type: 'color', value: labelFont },
@@ -1204,11 +1274,11 @@ class MultiDiagramVisualizer {
                   MultiDiagramVisualizer.syncColorToCode(`${newKey}_font`, vals.font);
                   MultiDiagramVisualizer.updateCodeLine((curCode) => {
                     const lines = curCode.split('\n');
-                    const idx = lines.findIndex(l => !l.trim().startsWith('%%') && new RegExp(`^\\s*${tr.src.replace('[*]', '\\[\\*\\]')}\\s*-->\\s*${tr.tgt.replace('[*]', '\\[\\*\\]')}`, 'i').test(l.trim()));
+                    const idx = lines.findIndex(l => !l.trim().startsWith('%%') && new RegExp(`^\\s*${tr.origSrc.replace('[*]', '\\[\\*\\]')}\\s*-->\\s*${tr.origTgt.replace('[*]', '\\[\\*\\]')}`, 'i').test(l.trim()));
                     if (idx !== -1) {
                       const lead = lines[idx].match(/^(\s*)/)[1] || '  ';
                       const lblStr = vals.label ? ` : ${vals.label}` : '';
-                      lines[idx] = `${lead}${tr.src} --> ${tr.tgt}${lblStr}`;
+                      lines[idx] = `${lead}${tr.origSrc} --> ${tr.origTgt}${lblStr}`;
                     }
                     return lines.join('\n');
                   });
@@ -1232,17 +1302,35 @@ class MultiDiagramVisualizer {
 
           const isSelState = (s.id === selTitle || s.label === selTitle);
 
-          if (s.id === '[*]') {
-            // Initial Start State: Solid Black/Dark Circle with ring
+          if (s.isStart) {
+            // Initial Start State: Solid Black Circle
             const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
             circle.setAttribute('cx', `${s.x + s.width / 2}`);
             circle.setAttribute('cy', `${s.y + s.height / 2}`);
-            circle.setAttribute('r', '14');
+            circle.setAttribute('r', '13');
             circle.setAttribute('fill', s.fillColor);
             circle.setAttribute('stroke', isSelState ? 'var(--selection-color)' : s.borderColor);
-            circle.setAttribute('stroke-width', isSelState ? '3.5' : '2');
+            circle.setAttribute('stroke-width', isSelState ? '3.5' : '1.5');
             if (isSelState) circle.style.filter = selGlow;
             stateG.appendChild(circle);
+          } else if (s.isEnd) {
+            // Final End State: Bullseye Ring with solid center dot
+            const outerCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            outerCircle.setAttribute('cx', `${s.x + s.width / 2}`);
+            outerCircle.setAttribute('cy', `${s.y + s.height / 2}`);
+            outerCircle.setAttribute('r', '15');
+            outerCircle.setAttribute('fill', cardBg);
+            outerCircle.setAttribute('stroke', isSelState ? 'var(--selection-color)' : s.borderColor);
+            outerCircle.setAttribute('stroke-width', isSelState ? '3' : '2');
+            if (isSelState) outerCircle.style.filter = selGlow;
+            stateG.appendChild(outerCircle);
+
+            const innerCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            innerCircle.setAttribute('cx', `${s.x + s.width / 2}`);
+            innerCircle.setAttribute('cy', `${s.y + s.height / 2}`);
+            innerCircle.setAttribute('r', '8.5');
+            innerCircle.setAttribute('fill', s.fillColor);
+            stateG.appendChild(innerCircle);
           } else {
             // Normal State Capsule
             const capsule = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
@@ -1292,7 +1380,7 @@ class MultiDiagramVisualizer {
 
           stateG.addEventListener('click', (e) => {
             e.stopPropagation();
-            if (s.id === '[*]') return;
+            if (s.isStart || s.isEnd) return;
             if (typeof AppController !== 'undefined' && AppController.instance) {
               AppController.instance.selectVisualObject({
                 type: 'State Machine Node',
