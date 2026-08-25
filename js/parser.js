@@ -144,49 +144,9 @@
           return { graph: newGraph, error: null };
         }
 
-        // 3. Parse Class Diagram
+        // 3. Parse Class Diagram (Rendered by isolated classdiagram module)
         if (detectedType === 'classDiagram') {
-          let curClass = null;
-          lines.forEach(l => {
-            const line = l.trim();
-            if (!line || line.startsWith('classDiagram') || line.startsWith('%%')) return;
-
-            const cMatch = line.match(/^class\s+([A-Za-z0-9_]+)(?:\s*\{)?/);
-            if (cMatch) {
-              curClass = cMatch[1];
-              if (!newGraph.getNode(curClass)) {
-                newGraph.addNode({
-                  id: curClass,
-                  text: curClass,
-                  shape: 'rectangle',
-                  width: 170,
-                  height: 90,
-                  fillColor: '#E3F2FD',
-                  borderColor: '#90CAF9',
-                  fontColor: '#0D47A1'
-                });
-              }
-              return;
-            }
-
-            if (line === '}') {
-              curClass = null;
-              return;
-            }
-
-            const inhMatch = line.match(/^([A-Za-z0-9_]+)\s*<\|--\s*([A-Za-z0-9_]+)/);
-            if (inhMatch) {
-              const baseC = inhMatch[1];
-              const subC = inhMatch[2];
-              [baseC, subC].forEach(id => {
-                if (!newGraph.getNode(id)) {
-                  newGraph.addNode({ id, text: id, shape: 'rectangle', width: 160, height: 70, fillColor: '#E3F2FD', borderColor: '#90CAF9', fontColor: '#0D47A1' });
-                }
-              });
-              newGraph.addEdge({ id: Utils.uid('edge'), source: baseC, target: subC, type: '-->', label: 'Inherits' });
-            }
-          });
-          AutoLayoutEngine.layout(newGraph, 'TD');
+          newGraph.addNode({ id: 'visual_chart_bounds', text: '', shape: 'rectangle', x: 40, y: 40, width: 840, height: 600, fillColor: 'transparent', borderColor: 'transparent', fontColor: 'transparent' });
           return { graph: newGraph, error: null };
         }
 

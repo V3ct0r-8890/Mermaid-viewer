@@ -49,23 +49,28 @@
         id: 'classDiagram',
         name: 'Class Diagram',
         badge: 'classDiagram',
-        desc: 'OOP class models, attributes, methods, inheritance',
+        desc: 'OOP classes, attributes, methods, inheritance',
         code: `classDiagram
-  class BankAccount {
-    +String owner
-    +Decimal balance
-    +deposit(amount)
-    +withdraw(amount)
-  }
-  class SavingsAccount {
-    +Decimal interestRate
-    +addInterest()
-  }
-  class CheckingAccount {
-    +Decimal overdraftLimit
-  }
-  BankAccount <|-- SavingsAccount
-  BankAccount <|-- CheckingAccount`
+    Animal <|-- Duck
+    Animal <|-- Fish
+    Animal <|-- Zebra
+    Animal : +int age
+    Animal : +String gender
+    Animal: +isMammal()
+    Animal: +mate()
+    class Duck{
+      +String beakColor
+      +swim()
+      +quack()
+    }
+    class Fish{
+      -int sizeInFeet
+      -canEat()
+    }
+    class Zebra{
+      +bool is_wild
+      +run()
+    }`
       },
       {
         id: 'stateDiagram',
