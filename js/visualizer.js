@@ -494,6 +494,358 @@ class MultiDiagramVisualizer {
         break;
       }
 
+            case 'c4context': {
+        const rawLines = (code || '').split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('%%'));
+        let title = 'System Architecture Context';
+        const nodes = new Map();
+        const relationships = [];
+
+        rawLines.forEach(line => {
+          if (line.toLowerCase().startsWith('c4context') || line.toLowerCase().startsWith('c4container') || line.toLowerCase().startsWith('c4component')) return;
+
+          const titleMatch = line.match(/^title\s+(.+)$/i);
+          if (titleMatch) { title = titleMatch[1].trim(); return; }
+
+          // Node match: Type(alias, "label", "desc"...) or Type(alias, "label", "tech", "desc")
+          const nodeMatch = line.match(/^(Person|Person_Ext|System|System_Ext|SystemDb|SystemDb_Ext|Container|ContainerDb|Component)\s*\(\s*([A-Za-z0-9_]+)\s*,\s*"([^"]+)"(?:\s*,\s*"([^"]*)")?(?:\s*,\s*"([^"]*)")?\s*\)/i);
+          if (nodeMatch) {
+            const kind = nodeMatch[1];
+            const alias = nodeMatch[2];
+            const label = nodeMatch[3];
+            let desc = '';
+            let tech = '';
+
+            if (nodeMatch[5] !== undefined) {
+              tech = nodeMatch[4] || '';
+              desc = nodeMatch[5] || '';
+            } else {
+              desc = nodeMatch[4] || '';
+            }
+
+            const isPerson = kind.toLowerCase().startsWith('person');
+            const isExt = kind.toLowerCase().includes('_ext');
+            const isDb = kind.toLowerCase().includes('db');
+
+            let defaultFill = isPerson ? '#08427B' : (isExt ? '#686868' : (isDb ? '#1168BD' : '#1168BD'));
+            let defaultBorder = isPerson ? '#052A50' : (isExt ? '#4A4A4A' : '#0B4884');
+            let defaultFont = '#FFFFFF';
+
+            nodes.set(alias, {
+              alias,
+              kind,
+              label,
+              desc,
+              tech,
+              isPerson,
+              isExt,
+              isDb,
+              fillColor: MultiDiagramVisualizer.getColor(alias, defaultFill),
+              fontColor: MultiDiagramVisualizer.getColor(`${alias}_font`, defaultFont),
+              borderColor: MultiDiagramVisualizer.getColor(`${alias}_border`, defaultBorder)
+            });
+            return;
+          }
+
+          // Relationship match: Rel(from, to, "label", "tech") or BiRel(...)
+          const relMatch = line.match(/^(?:Rel|BiRel)\s*\(\s*([A-Za-z0-9_]+)\s*,\s*([A-Za-z0-9_]+)\s*,\s*"([^"]+)"(?:\s*,\s*"([^"]*)")?\s*\)/i);
+          if (relMatch) {
+            const from = relMatch[1];
+            const to = relMatch[2];
+            const rLabel = relMatch[3];
+            const rTech = relMatch[4] || '';
+            relationships.push({ from, to, label: rLabel, tech: rTech });
+          }
+        });
+
+        if (nodes.size === 0) {
+          nodes.set('customer', { alias: 'customer', kind: 'Person', label: 'Customer', desc: 'A client of the bank', isPerson: true, isExt: false, isDb: false, fillColor: '#08427B', fontColor: '#FFFFFF', borderColor: '#052A50' });
+          nodes.set('banking_system', { alias: 'banking_system', kind: 'System', label: 'Internet Banking', desc: 'Allows customers to view accounts and make payments', isPerson: false, isExt: false, isDb: false, fillColor: '#1168BD', fontColor: '#FFFFFF', borderColor: '#0B4884' });
+          nodes.set('mail_system', { alias: 'mail_system', kind: 'System_Ext', label: 'E-mail Subsystem', desc: 'Sends confirmation emails', isPerson: false, isExt: true, isDb: false, fillColor: '#686868', fontColor: '#FFFFFF', borderColor: '#4A4A4A' });
+          nodes.set('core_banking', { alias: 'core_banking', kind: 'System_Ext', label: 'Mainframe Core Banking', desc: 'Stores account balances and ledgers', isPerson: false, isExt: true, isDb: false, fillColor: '#686868', fontColor: '#FFFFFF', borderColor: '#4A4A4A' });
+          relationships.push({ from: 'customer', to: 'banking_system', label: 'Views accounts, makes payments using', tech: 'HTTPS' });
+          relationships.push({ from: 'banking_system', to: 'mail_system', label: 'Sends e-mails using', tech: 'SMTP' });
+          relationships.push({ from: 'banking_system', to: 'core_banking', label: 'Retrieves balances, posts transactions using', tech: 'gRPC' });
+        }
+
+        // Title
+        const titleEl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        titleEl.setAttribute('x', '40');
+        titleEl.setAttribute('y', '36');
+        titleEl.setAttribute('fill', primaryText);
+        titleEl.setAttribute('font-size', '16px');
+        titleEl.setAttribute('font-weight', 'bold');
+        titleEl.textContent = title;
+        nodesLayer.appendChild(titleEl);
+
+        // Layout Nodes hierarchically:
+        // Tier 1 (top): Persons
+        // Tier 2 (middle): Internal Systems / Containers
+        // Tier 3 (bottom): External Systems & Databases
+        const persons = [];
+        const internalSystems = [];
+        const externalSystems = [];
+
+        nodes.forEach(n => {
+          if (n.isPerson) persons.push(n);
+          else if (n.isExt) externalSystems.push(n);
+          else internalSystems.push(n);
+        });
+
+        const cardW = 210;
+        const cardH = 96;
+
+        const layoutRow = (items, y) => {
+          const totalRowW = items.length * cardW + (items.length - 1) * 70;
+          const startX = Math.max(50, (760 - totalRowW) / 2);
+          items.forEach((item, idx) => {
+            item.x = startX + idx * (cardW + 70);
+            item.y = y;
+            item.width = cardW;
+            item.height = cardH;
+          });
+        };
+
+        layoutRow(persons, 70);
+        layoutRow(internalSystems, persons.length > 0 ? 220 : 120);
+        const bottomY = (persons.length > 0 ? 220 : 120) + (internalSystems.length > 0 ? 150 : 0);
+        layoutRow(externalSystems, bottomY);
+
+        // Draw Relationships
+        relationships.forEach(rel => {
+          const sNode = nodes.get(rel.from);
+          const tNode = nodes.get(rel.to);
+          if (!sNode || !tNode) return;
+
+          const relKey = `${rel.from}->${rel.to}:${rel.label}`;
+          const lineColor = MultiDiagramVisualizer.getColor(relKey, MultiDiagramVisualizer.getColor(`${rel.from}->${rel.to}`, linkColor));
+          const labelFont = MultiDiagramVisualizer.getColor(`${relKey}_font`, textColor);
+
+          let sx, sy, tx, ty;
+          if (sNode.y + sNode.height < tNode.y) {
+            sx = sNode.x + sNode.width / 2;
+            sy = sNode.y + sNode.height;
+            tx = tNode.x + tNode.width / 2;
+            ty = tNode.y;
+          } else if (tNode.y + tNode.height < sNode.y) {
+            sx = sNode.x + sNode.width / 2;
+            sy = sNode.y;
+            tx = tNode.x + tNode.width / 2;
+            ty = tNode.y + tNode.height;
+          } else if (sNode.x + sNode.width < tNode.x) {
+            sx = sNode.x + sNode.width;
+            sy = sNode.y + sNode.height / 2;
+            tx = tNode.x;
+            ty = tNode.y + tNode.height / 2;
+          } else {
+            sx = sNode.x;
+            sy = sNode.y + sNode.height / 2;
+            tx = tNode.x + tNode.width;
+            ty = tNode.y + tNode.height / 2;
+          }
+
+          const midX = (sx + tx) / 2;
+          const midY = (sy + ty) / 2;
+
+          const relG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+          relG.style.cursor = 'pointer';
+
+          const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+          path.setAttribute('d', `M ${sx} ${sy} C ${midX} ${sy}, ${midX} ${ty}, ${tx} ${ty}`);
+          path.setAttribute('fill', 'none');
+          path.setAttribute('stroke', lineColor);
+          path.setAttribute('stroke-width', '2');
+          path.setAttribute('stroke-dasharray', '5,4');
+          relG.appendChild(path);
+
+          // Arrowhead
+          const arrow = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+          if (ty > sy) {
+            arrow.setAttribute('points', `${tx - 5},${ty - 7} ${tx},${ty} ${tx + 5},${ty - 7}`);
+          } else if (tx > sx) {
+            arrow.setAttribute('points', `${tx - 7},${ty - 5} ${tx},${ty} ${tx - 7},${ty + 5}`);
+          } else {
+            arrow.setAttribute('points', `${tx + 7},${ty - 5} ${tx},${ty} ${tx + 7},${ty + 5}`);
+          }
+          arrow.setAttribute('fill', lineColor);
+          relG.appendChild(arrow);
+
+          // Relationship Label Badge
+          const fullLabel = rel.tech ? `${rel.label} [${rel.tech}]` : rel.label;
+          const badgeW = fullLabel.length * 6.2 + 20;
+          const badgeH = 22;
+
+          const badgeRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+          badgeRect.setAttribute('x', `${midX - badgeW / 2}`);
+          badgeRect.setAttribute('y', `${midY - 11}`);
+          badgeRect.setAttribute('width', `${badgeW}`);
+          badgeRect.setAttribute('height', `${badgeH}`);
+          badgeRect.setAttribute('rx', '4');
+          const isSelRel = (rel.label === selTitle || `${rel.from} → ${rel.to}` === selTitle);
+          badgeRect.setAttribute('fill', cardBg);
+          badgeRect.setAttribute('stroke', isSelRel ? 'var(--selection-color)' : cardBorder);
+          badgeRect.setAttribute('stroke-width', isSelRel ? '2.5' : '1');
+          if (isSelRel) badgeRect.style.filter = selGlow;
+          relG.appendChild(badgeRect);
+
+          const badgeTxt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+          badgeTxt.setAttribute('x', `${midX}`);
+          badgeTxt.setAttribute('y', `${midY + 4}`);
+          badgeTxt.setAttribute('text-anchor', 'middle');
+          badgeTxt.setAttribute('fill', labelFont);
+          badgeTxt.setAttribute('font-size', '9.5px');
+          badgeTxt.setAttribute('font-weight', '500');
+          badgeTxt.textContent = fullLabel;
+          relG.appendChild(badgeTxt);
+
+          relG.addEventListener('mousedown', (e) => e.stopPropagation());
+          relG.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (typeof AppController !== 'undefined' && AppController.instance) {
+              AppController.instance.selectVisualObject({
+                type: 'C4 Relationship',
+                title: `${rel.from} → ${rel.to}`,
+                fields: [
+                  { key: 'label', label: 'Action / Description', type: 'text', value: rel.label },
+                  { key: 'tech', label: 'Protocol / Technology (e.g. HTTPS, gRPC)', type: 'text', value: rel.tech || '' },
+                  { key: 'font', label: '1. Label Font Color', type: 'color', value: labelFont },
+                  { key: 'color', label: '2. Line / Arrow Color', type: 'color', value: lineColor }
+                ],
+                onSave: (vals) => {
+                  const newKey = `${rel.from}->${rel.to}:${vals.label}`;
+                  MultiDiagramVisualizer.setColor(newKey, vals.color);
+                  MultiDiagramVisualizer.setColor(`${newKey}_font`, vals.font);
+                  MultiDiagramVisualizer.syncColorToCode(newKey, vals.color);
+                  MultiDiagramVisualizer.syncColorToCode(`${newKey}_font`, vals.font);
+                  MultiDiagramVisualizer.updateCodeLine((curCode) => {
+                    const lines = curCode.split('\n');
+                    const idx = lines.findIndex(l => !l.trim().startsWith('%%') && new RegExp(`^\\s*(?:Rel|BiRel)\\s*\\(\\s*${rel.from}\\s*,\\s*${rel.to}`, 'i').test(l.trim()));
+                    if (idx !== -1) {
+                      const lead = lines[idx].match(/^(\s*)/)[1] || '  ';
+                      const techStr = vals.tech ? `, "${vals.tech}"` : '';
+                      lines[idx] = `${lead}Rel(${rel.from}, ${rel.to}, "${vals.label}"${techStr})`;
+                    }
+                    return lines.join('\n');
+                  });
+                }
+              });
+            }
+          });
+
+          edgesLayer.appendChild(relG);
+        });
+
+        // Draw C4 Elements
+        nodes.forEach(n => {
+          const cardG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+          cardG.style.cursor = 'pointer';
+
+          const card = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+          card.setAttribute('x', `${n.x}`);
+          card.setAttribute('y', `${n.y}`);
+          card.setAttribute('width', `${n.width}`);
+          card.setAttribute('height', `${n.height}`);
+          card.setAttribute('rx', n.isPerson ? '16' : '8');
+          const isSelC4 = (n.label === selTitle || n.alias === selTitle);
+          card.setAttribute('fill', n.fillColor);
+          card.setAttribute('stroke', isSelC4 ? 'var(--selection-color)' : n.borderColor);
+          card.setAttribute('stroke-width', isSelC4 ? '3.5' : '1.8');
+          if (isSelC4) card.style.filter = selGlow;
+          cardG.appendChild(card);
+
+          // Header Icon & Title
+          const icon = n.isPerson ? '👤' : (n.isDb ? '🛢️' : (n.isExt ? '☁️' : '🏛️'));
+          const titleTxt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+          titleTxt.setAttribute('x', `${n.x + n.width / 2}`);
+          titleTxt.setAttribute('y', `${n.y + 24}`);
+          titleTxt.setAttribute('text-anchor', 'middle');
+          titleTxt.setAttribute('fill', n.fontColor);
+          titleTxt.setAttribute('font-size', '13px');
+          titleTxt.setAttribute('font-weight', 'bold');
+          titleTxt.textContent = `${icon} ${n.label}`;
+          cardG.appendChild(titleTxt);
+
+          // Type Subtitle Pill
+          const subTypeStr = `[${n.kind.replace('_', ' ')}]`;
+          const subTxt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+          subTxt.setAttribute('x', `${n.x + n.width / 2}`);
+          subTxt.setAttribute('y', `${n.y + 42}`);
+          subTxt.setAttribute('text-anchor', 'middle');
+          subTxt.setAttribute('fill', n.fontColor);
+          subTxt.setAttribute('opacity', '0.85');
+          subTxt.setAttribute('font-size', '10px');
+          subTxt.setAttribute('font-weight', '500');
+          subTxt.textContent = subTypeStr;
+          cardG.appendChild(subTxt);
+
+          // Description (multiline truncated)
+          if (n.desc) {
+            const descTxt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            descTxt.setAttribute('x', `${n.x + n.width / 2}`);
+            descTxt.setAttribute('y', `${n.y + 64}`);
+            descTxt.setAttribute('text-anchor', 'middle');
+            descTxt.setAttribute('fill', n.fontColor);
+            descTxt.setAttribute('opacity', '0.75');
+            descTxt.setAttribute('font-size', '9.5px');
+            const cleanDesc = n.desc.length > 36 ? n.desc.substring(0, 33) + '...' : n.desc;
+            descTxt.textContent = cleanDesc;
+            cardG.appendChild(descTxt);
+          }
+
+          cardG.addEventListener('mousedown', (e) => e.stopPropagation());
+          cardG.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (typeof AppController !== 'undefined' && AppController.instance) {
+              AppController.instance.selectVisualObject({
+                type: `C4 ${n.kind}`,
+                title: n.label,
+                fields: [
+                  { key: 'label', label: 'Display Name / Label', type: 'text', value: n.label },
+                  { key: 'kind', label: 'C4 Element Type', type: 'select', value: n.kind, options: [
+                    { value: 'Person', label: 'Person (Internal User / Actor)' },
+                    { value: 'Person_Ext', label: 'Person_Ext (External User / Actor)' },
+                    { value: 'System', label: 'System (Software System)' },
+                    { value: 'System_Ext', label: 'System_Ext (External System / SaaS)' },
+                    { value: 'SystemDb', label: 'SystemDb (Database / Storage)' },
+                    { value: 'Container', label: 'Container (App / API / Microservice)' },
+                    { value: 'Component', label: 'Component (Internal Module)' }
+                  ]},
+                  { key: 'desc', label: 'Description', type: 'textarea', rows: 3, value: n.desc || '' },
+                  { key: 'font', label: '1. Font / Text Color', type: 'color', value: n.fontColor },
+                  { key: 'fill', label: '2. Node Fill Color', type: 'color', value: n.fillColor },
+                  { key: 'border', label: '3. Node Border / Stroke Color', type: 'color', value: n.borderColor }
+                ],
+                onSave: (vals) => {
+                  MultiDiagramVisualizer.setColor(n.alias, vals.fill);
+                  MultiDiagramVisualizer.setColor(`${n.alias}_font`, vals.font);
+                  MultiDiagramVisualizer.setColor(`${n.alias}_border`, vals.border);
+                  MultiDiagramVisualizer.syncColorToCode(n.alias, vals.fill);
+                  MultiDiagramVisualizer.syncColorToCode(`${n.alias}_font`, vals.font);
+                  MultiDiagramVisualizer.syncColorToCode(`${n.alias}_border`, vals.border);
+
+                  if (typeof AppController !== 'undefined' && AppController.instance && AppController.instance.selectedVisualObject) {
+                    AppController.instance.selectedVisualObject.title = vals.label;
+                  }
+
+                  MultiDiagramVisualizer.updateCodeLine((curCode) => {
+                    const lines = curCode.split('\n');
+                    const idx = lines.findIndex(l => !l.trim().startsWith('%%') && new RegExp(`^(?:Person|Person_Ext|System|System_Ext|SystemDb|SystemDb_Ext|Container|ContainerDb|Component)\\s*\\(\\s*${n.alias}\\b`, 'i').test(l.trim()));
+                    if (idx !== -1) {
+                      const lead = lines[idx].match(/^(\s*)/)[1] || '  ';
+                      const descStr = vals.desc ? `, "${vals.desc}"` : '';
+                      lines[idx] = `${lead}${vals.kind}(${n.alias}, "${vals.label}"${descStr})`;
+                    }
+                    return lines.join('\n');
+                  });
+                }
+              });
+            }
+          });
+
+          nodesLayer.appendChild(cardG);
+        });
+        break;
+      }
+
       case 'sequence': {
         const rawLines = (code || '').split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('%%') && !l.startsWith('sequenceDiagram'));
         const autoNumber = (code || '').toLowerCase().includes('autonumber');

@@ -229,24 +229,9 @@
           return { graph: newGraph, error: null };
         }
 
-        // 5. Parse C4 Context
+        // 5. Parse C4 Context (Rendered by MultiDiagramVisualizer suite)
         if (detectedType === 'c4context') {
-          lines.forEach(l => {
-            const line = l.trim();
-            const pMatch = line.match(/^Person\(([A-Za-z0-9_]+),\s*"([^"]+)"/);
-            if (pMatch) {
-              newGraph.addNode({ id: pMatch[1], text: pMatch[2] + '\n[Person]', shape: 'rounded', width: 160, height: 60, fillColor: '#0288D1', borderColor: '#0288D1', fontColor: '#FFFFFF' });
-            }
-            const sMatch = line.match(/^System(?:_Ext)?\(([A-Za-z0-9_]+),\s*"([^"]+)"/);
-            if (sMatch) {
-              newGraph.addNode({ id: sMatch[1], text: sMatch[2] + '\n[System]', shape: 'rectangle', width: 170, height: 70, fillColor: line.includes('System_Ext') ? '#ECEFF1' : '#E3F2FD', borderColor: '#90CAF9', fontColor: '#0D47A1' });
-            }
-            const rMatch = line.match(/^Rel\(([A-Za-z0-9_]+),\s*([A-Za-z0-9_]+),\s*"([^"]+)"(?:,\s*"([^"]+)")?\)/);
-            if (rMatch) {
-              newGraph.addEdge({ id: Utils.uid('edge'), source: rMatch[1], target: rMatch[2], type: '-->', label: rMatch[3] + (rMatch[4] ? ` [${rMatch[4]}]` : '') });
-            }
-          });
-          AutoLayoutEngine.layout(newGraph, 'TD');
+          newGraph.addNode({ id: 'visual_chart_bounds', text: '', shape: 'rectangle', x: 40, y: 40, width: 850, height: 550, fillColor: 'transparent', borderColor: 'transparent', fontColor: 'transparent' });
           return { graph: newGraph, error: null };
         }
 
