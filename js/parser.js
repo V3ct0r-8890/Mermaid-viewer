@@ -223,37 +223,9 @@
           return { graph: newGraph, error: null };
         }
 
-        // 4. Parse ER Diagram
+        // 4. Parse ER Diagram (Rendered by MultiDiagramVisualizer suite)
         if (detectedType === 'erDiagram') {
-          lines.forEach(l => {
-            const line = l.trim();
-            if (!line || line.startsWith('erDiagram') || line.startsWith('%%')) return;
-
-            const relMatch = line.match(/^([A-Za-z0-9_]+)\s*(\|\|--o\{|\|\|--\|\{|\}\|--\|\{|\}\|--o\{)\s*([A-Za-z0-9_]+)(?:\s*:\s*(.+))?/);
-            if (relMatch) {
-              const src = relMatch[1];
-              const tgt = relMatch[3];
-              const label = relMatch[4] ? relMatch[4].trim() : 'relates';
-
-              [src, tgt].forEach(id => {
-                if (!newGraph.getNode(id)) {
-                  newGraph.addNode({
-                    id,
-                    text: id,
-                    shape: 'rectangle',
-                    width: 160,
-                    height: 70,
-                    fillColor: '#ECEFF1',
-                    borderColor: '#B0BEC5',
-                    fontColor: '#263238'
-                  });
-                }
-              });
-
-              newGraph.addEdge({ id: Utils.uid('edge'), source: src, target: tgt, type: '-->', label });
-            }
-          });
-          AutoLayoutEngine.layout(newGraph, 'TD');
+          newGraph.addNode({ id: 'visual_chart_bounds', text: '', shape: 'rectangle', x: 40, y: 40, width: 780, height: 500, fillColor: 'transparent', borderColor: 'transparent', fontColor: 'transparent' });
           return { graph: newGraph, error: null };
         }
 
