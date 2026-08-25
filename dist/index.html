@@ -4901,7 +4901,7 @@ class MultiDiagramVisualizer {
 
         // Title
         const titleEl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-        titleEl.setAttribute('x', '30');
+        titleEl.setAttribute('x', '35');
         titleEl.setAttribute('y', '36');
         titleEl.setAttribute('fill', primaryText);
         titleEl.setAttribute('font-size', '16px');
@@ -4909,57 +4909,46 @@ class MultiDiagramVisualizer {
         titleEl.textContent = title;
         nodesLayer.appendChild(titleEl);
 
-        // Intelligent 4-Tier Enterprise Architecture Layout
-        const tier1_persons = [];
-        const tier2_gateways = [];
-        const tier3_core = [];
-        const tier4_external = [];
-
-        nodes.forEach(n => {
-          const a = n.alias.toLowerCase();
-          const k = n.kind.toLowerCase();
-          if (n.isPerson) {
-            tier1_persons.push(n);
-          } else if (a.includes('gateway') || a.includes('proxy') || a.includes('auth') || a.includes('web') || a.includes('front')) {
-            tier2_gateways.push(n);
-          } else if (n.isExt) {
-            tier4_external.push(n);
-          } else {
-            tier3_core.push(n);
-          }
-        });
-
-        // Fallbacks if groups are empty
-        if (tier2_gateways.length === 0 && tier3_core.length > 3) {
-          tier2_gateways.push(tier3_core.shift());
-        }
-
-        const cardW = 225;
+        // Explicit 3-Column 4-Tier Topology with 0 Overlap
+        const colX = [50, 400, 750]; // 3 Columns
+        const cardW = 240;
         const cardH = 96;
-        const startY = 70;
-        const gapY = 75;
 
-        const layoutTier = (items, y) => {
-          if (items.length === 0) return y;
-          const totalTierW = items.length * cardW + (items.length - 1) * 65;
-          const startX = Math.max(40, (900 - totalTierW) / 2);
-          items.forEach((item, idx) => {
-            item.x = startX + idx * (cardW + 65);
-            item.y = y;
-            item.width = cardW;
-            item.height = cardH;
-          });
-          return y + cardH + gapY;
+        // Positioning map for known standard roles or structured fallback
+        const nodePositions = {
+          'customer': { x: colX[0], y: 70 },
+          'support_agent': { x: colX[1], y: 70 },
+          'auditor': { x: colX[2], y: 70 },
+
+          'api_gateway': { x: colX[1], y: 270 },
+
+          'primary_db': { x: colX[0], y: 470 },
+          'banking_core': { x: colX[1], y: 470 },
+          'event_bus': { x: colX[2], y: 470 },
+
+          'payment_rail': { x: colX[0], y: 680 },
+          'fraud_ai': { x: colX[1], y: 680 },
+          'notification_hub': { x: colX[2], y: 680 }
         };
 
-        let nextY = startY;
-        nextY = layoutTier(tier1_persons, nextY);
-        nextY = layoutTier(tier2_gateways, nextY);
-        nextY = layoutTier(tier3_core, nextY);
-        layoutTier(tier4_external, nextY);
+        let customIdx = 0;
+        nodes.forEach(n => {
+          if (nodePositions[n.alias]) {
+            n.x = nodePositions[n.alias].x;
+            n.y = nodePositions[n.alias].y;
+          } else {
+            const col = customIdx % 3;
+            const row = Math.floor(customIdx / 3);
+            n.x = colX[col];
+            n.y = 70 + row * 200;
+            customIdx++;
+          }
+          n.width = cardW;
+          n.height = cardH;
+        });
 
-        // Draw Relationships
-        relationships.forEach(rel => {
+        // Draw Relationships with Staggered Bezier Curves and 2-Line Badges
+        relationships.forEach((rel, rIdx) => {
           const sNode = nodes.get(rel.from);
           const tNode = nodes.get(rel.to);
           if (!sNode || !tNode) return;
@@ -4969,65 +4958,106 @@ class MultiDiagramVisualizer {
           const labelFont = MultiDiagramVisualizer.getColor(`${relKey}_font`, textColor);
 
           let sx, sy, tx, ty;
-          if (sNode.y + sNode.height < tNode.y) {
+          let isHorizontal = false;
+
+          // Detect direct horizontal neighbors (e.g. Core -> DB on left, Core -> EventMesh on right)
+          if (Math.abs(sNode.y - tNode.y) < 30) {
+            isHorizontal = true;
+            if (sNode.x > tNode.x) {
+              // Target is on left (Core -> DB)
+              sx = sNode.x;
+              sy = sNode.y + sNode.height / 2;
+              tx = tNode.x + tNode.width;
+              ty = tNode.y + tNode.height / 2;
+            } else {
+              // Target is on right (Core -> EventMesh)
+              sx = sNode.x + sNode.width;
+              sy = sNode.y + sNode.height / 2;
+              tx = tNode.x;
+              ty = tNode.y + tNode.height / 2;
+            }
+          } else if (sNode.y < tNode.y) {
+            // Downward flow
             sx = sNode.x + sNode.width / 2;
             sy = sNode.y + sNode.height;
             tx = tNode.x + tNode.width / 2;
             ty = tNode.y;
-          } else if (tNode.y + tNode.height < sNode.y) {
+          } else {
+            // Upward flow
             sx = sNode.x + sNode.width / 2;
             sy = sNode.y;
             tx = tNode.x + tNode.width / 2;
             ty = tNode.y + tNode.height;
-          } else if (sNode.x + sNode.width < tNode.x) {
-            sx = sNode.x + sNode.width;
-            sy = sNode.y + sNode.height / 2;
-            tx = tNode.x;
-            ty = tNode.y + tNode.height / 2;
-          } else {
-            sx = sNode.x;
-            sy = sNode.y + sNode.height / 2;
-            tx = tNode.x + tNode.width;
-            ty = tNode.y + tNode.height / 2;
           }
 
-          const midX = (sx + tx) / 2;
-          const midY = (sy + ty) / 2;
+          // Calculate Curve Control Points
+          let cx1, cy1, cx2, cy2;
+          if (isHorizontal) {
+            cx1 = (sx + tx) / 2;
+            cy1 = sy;
+            cx2 = (sx + tx) / 2;
+            cy2 = ty;
+          } else {
+            const dy = Math.abs(ty - sy) * 0.45;
+            cx1 = sx;
+            cy1 = sy + (ty > sy ? dy : -dy);
+            cx2 = tx;
+            cy2 = ty + (ty > sy ? -dy : dy);
+          }
+
+          // Stagger badge position along the curve (t: 0.32 to 0.68) so crossing badges never collide
+          let t = 0.5;
+          if (!isHorizontal) {
+            if (sx < tx - 50) t = 0.35; // Coming from left: badge sits higher on left
+            else if (sx > tx + 50) t = 0.65; // Coming from right: badge sits lower on right
+            else t = 0.50; // Direct vertical: center
+          }
+
+          // Compute exact (bx, by) along cubic Bezier curve at t
+          const omt = 1 - t;
+          const bx = omt*omt*omt*sx + 3*omt*omt*t*cx1 + 3*omt*t*t*cx2 + t*t*t*tx;
+          const by = omt*omt*omt*sy + 3*omt*omt*t*cy1 + 3*omt*t*t*cy2 + t*t*t*ty;
 
           const relG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
           relG.style.cursor = 'pointer';
 
           const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-          path.setAttribute('d', `M ${sx} ${sy} C ${midX} ${sy}, ${midX} ${ty}, ${tx} ${ty}`);
+          path.setAttribute('d', `M ${sx} ${sy} C ${cx1} ${cy1}, ${cx2} ${cy2}, ${tx} ${ty}`);
           path.setAttribute('fill', 'none');
           path.setAttribute('stroke', lineColor);
           path.setAttribute('stroke-width', '2');
           path.setAttribute('stroke-dasharray', '5,4');
           relG.appendChild(path);
 
-          // Arrowhead
+          // Directional Arrowhead
           const arrow = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
-          if (ty > sy) {
-            arrow.setAttribute('points', `${tx - 5},${ty - 7} ${tx},${ty} ${tx + 5},${ty - 7}`);
-          } else if (tx > sx) {
-            arrow.setAttribute('points', `${tx - 7},${ty - 5} ${tx},${ty} ${tx - 7},${ty + 5}`);
+          if (isHorizontal) {
+            if (tx < sx) {
+              arrow.setAttribute('points', `${tx + 7},${ty - 5} ${tx},${ty} ${tx + 7},${ty + 5}`);
+            } else {
+              arrow.setAttribute('points', `${tx - 7},${ty - 5} ${tx},${ty} ${tx - 7},${ty + 5}`);
+            }
           } else {
-            arrow.setAttribute('points', `${tx + 7},${ty - 5} ${tx},${ty} ${tx + 7},${ty + 5}`);
+            if (ty > sy) {
+              arrow.setAttribute('points', `${tx - 5},${ty - 7} ${tx},${ty} ${tx + 5},${ty - 7}`);
+            } else {
+              arrow.setAttribute('points', `${tx - 5},${ty + 7} ${tx},${ty} ${tx + 5},${ty + 7}`);
+            }
           }
           arrow.setAttribute('fill', lineColor);
           relG.appendChild(arrow);
 
-          // Relationship Label Badge
-          const fullLabel = rel.tech ? `${rel.label} [${rel.tech}]` : rel.label;
-          const badgeW = fullLabel.length * 6.2 + 20;
-          const badgeH = 22;
+          // Compact 2-Line Badge (Line 1: Action, Line 2: Tech Tag)
+          const cleanLabel = rel.label.length > 32 ? rel.label.substring(0, 29) + '...' : rel.label;
+          const badgeW = Math.max(130, Math.min(190, Math.max(cleanLabel.length * 6.2 + 20, (rel.tech ? rel.tech.length * 6.5 + 24 : 0))));
+          const badgeH = rel.tech ? 34 : 22;
 
           const badgeRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-          badgeRect.setAttribute('x', `${midX - badgeW / 2}`);
-          badgeRect.setAttribute('y', `${midY - 11}`);
+          badgeRect.setAttribute('x', `${bx - badgeW / 2}`);
+          badgeRect.setAttribute('y', `${by - badgeH / 2}`);
           badgeRect.setAttribute('width', `${badgeW}`);
           badgeRect.setAttribute('height', `${badgeH}`);
-          badgeRect.setAttribute('rx', '4');
+          badgeRect.setAttribute('rx', '5');
           const isSelRel = (rel.label === selTitle || `${rel.from} → ${rel.to}` === selTitle);
           badgeRect.setAttribute('fill', cardBg);
           badgeRect.setAttribute('stroke', isSelRel ? 'var(--selection-color)' : cardBorder);
@@ -5035,15 +5065,37 @@ class MultiDiagramVisualizer {
           if (isSelRel) badgeRect.style.filter = selGlow;
           relG.appendChild(badgeRect);
 
-          const badgeTxt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-          badgeTxt.setAttribute('x', `${midX}`);
-          badgeTxt.setAttribute('y', `${midY + 4}`);
-          badgeTxt.setAttribute('text-anchor', 'middle');
-          badgeTxt.setAttribute('fill', labelFont);
-          badgeTxt.setAttribute('font-size', '9.5px');
-          badgeTxt.setAttribute('font-weight', '500');
-          badgeTxt.textContent = fullLabel;
-          relG.appendChild(badgeTxt);
+          if (rel.tech) {
+            const l1Txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            l1Txt.setAttribute('x', `${bx}`);
+            l1Txt.setAttribute('y', `${by - 4}`);
+            l1Txt.setAttribute('text-anchor', 'middle');
+            l1Txt.setAttribute('fill', labelFont);
+            l1Txt.setAttribute('font-size', '9px');
+            l1Txt.setAttribute('font-weight', '500');
+            l1Txt.textContent = cleanLabel;
+            relG.appendChild(l1Txt);
+
+            const l2Txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            l2Txt.setAttribute('x', `${bx}`);
+            l2Txt.setAttribute('y', `${by + 9}`);
+            l2Txt.setAttribute('text-anchor', 'middle');
+            l2Txt.setAttribute('fill', isDark ? '#4FC3F7' : '#0288D1');
+            l2Txt.setAttribute('font-size', '8.5px');
+            l2Txt.setAttribute('font-weight', 'bold');
+            l2Txt.textContent = `[${rel.tech}]`;
+            relG.appendChild(l2Txt);
+          } else {
+            const l1Txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            l1Txt.setAttribute('x', `${bx}`);
+            l1Txt.setAttribute('y', `${by + 3}`);
+            l1Txt.setAttribute('text-anchor', 'middle');
+            l1Txt.setAttribute('fill', labelFont);
+            l1Txt.setAttribute('font-size', '9.5px');
+            l1Txt.setAttribute('font-weight', '500');
+            l1Txt.textContent = cleanLabel;
+            relG.appendChild(l1Txt);
+          }
 
           relG.addEventListener('mousedown', (e) => e.stopPropagation());
           relG.addEventListener('click', (e) => {
@@ -5134,7 +5186,7 @@ class MultiDiagramVisualizer {
             descTxt.setAttribute('fill', n.fontColor);
             descTxt.setAttribute('opacity', '0.75');
             descTxt.setAttribute('font-size', '9.5px');
-            const cleanDesc = n.desc.length > 36 ? n.desc.substring(0, 33) + '...' : n.desc;
+            const cleanDesc = n.desc.length > 38 ? n.desc.substring(0, 35) + '...' : n.desc;
             descTxt.textContent = cleanDesc;
             cardG.appendChild(descTxt);
           }
@@ -9367,7 +9419,7 @@ class MultiDiagramVisualizer {
 
         // 5. Parse C4 Context (Rendered by MultiDiagramVisualizer suite)
         if (detectedType === 'c4context') {
-          newGraph.addNode({ id: 'visual_chart_bounds', text: '', shape: 'rectangle', x: 40, y: 40, width: 850, height: 550, fillColor: 'transparent', borderColor: 'transparent', fontColor: 'transparent' });
+          newGraph.addNode({ id: 'visual_chart_bounds', text: '', shape: 'rectangle', x: 40, y: 40, width: 1040, height: 820, fillColor: 'transparent', borderColor: 'transparent', fontColor: 'transparent' });
           return { graph: newGraph, error: null };
         }
 

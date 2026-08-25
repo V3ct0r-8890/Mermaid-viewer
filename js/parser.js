@@ -231,7 +231,7 @@
 
         // 5. Parse C4 Context (Rendered by MultiDiagramVisualizer suite)
         if (detectedType === 'c4context') {
-          newGraph.addNode({ id: 'visual_chart_bounds', text: '', shape: 'rectangle', x: 40, y: 40, width: 850, height: 550, fillColor: 'transparent', borderColor: 'transparent', fontColor: 'transparent' });
+          newGraph.addNode({ id: 'visual_chart_bounds', text: '', shape: 'rectangle', x: 40, y: 40, width: 1040, height: 820, fillColor: 'transparent', borderColor: 'transparent', fontColor: 'transparent' });
           return { graph: newGraph, error: null };
         }
 
