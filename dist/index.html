@@ -4404,6 +4404,7 @@ class MultiDiagramVisualizer {
     }
 
     app.codeEditor.value = curCode;
+    app.graph.customRawCode = curCode;
     if (app.codeHighlight) {
       app.codeHighlight.innerHTML = SyntaxHighlighter.highlight(curCode);
     }
@@ -4421,10 +4422,11 @@ class MultiDiagramVisualizer {
     }
 
     app.codeEditor.value = newCode;
+    app.graph.customRawCode = newCode;
     if (app.codeHighlight) {
       app.codeHighlight.innerHTML = SyntaxHighlighter.highlight(newCode);
     }
-    app.scheduleRender();
+    app.renderAll();
   }
 
   static makeDraggable(element, alias, getPos, setPos, onDragEnd) {
@@ -10834,8 +10836,10 @@ MultiDiagramVisualizer.register('timeline', function(code, nodesLayer, edgesLaye
                     f.value = draftValues[f.key];
                     initialValues[f.key] = draftValues[f.key];
                   });
+                  this.graph.customRawCode = this.codeEditor.value;
                   this.renderAll();
                   this.recordHistory();
+                  Utils.showToast('Properties applied', 'success');
                 }
               });
 

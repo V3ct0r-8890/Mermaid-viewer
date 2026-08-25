@@ -65,6 +65,7 @@ class MultiDiagramVisualizer {
     }
 
     app.codeEditor.value = curCode;
+    app.graph.customRawCode = curCode;
     if (app.codeHighlight) {
       app.codeHighlight.innerHTML = SyntaxHighlighter.highlight(curCode);
     }
@@ -82,10 +83,11 @@ class MultiDiagramVisualizer {
     }
 
     app.codeEditor.value = newCode;
+    app.graph.customRawCode = newCode;
     if (app.codeHighlight) {
       app.codeHighlight.innerHTML = SyntaxHighlighter.highlight(newCode);
     }
-    app.scheduleRender();
+    app.renderAll();
   }
 
   static makeDraggable(element, alias, getPos, setPos, onDragEnd) {

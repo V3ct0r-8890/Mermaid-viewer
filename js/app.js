@@ -831,8 +831,10 @@
                     f.value = draftValues[f.key];
                     initialValues[f.key] = draftValues[f.key];
                   });
+                  this.graph.customRawCode = this.codeEditor.value;
                   this.renderAll();
                   this.recordHistory();
+                  Utils.showToast('Properties applied', 'success');
                 }
               });
 
