@@ -157,6 +157,12 @@
           return { graph: newGraph, error: null };
         }
 
+        // 7. Parse Sequence Diagram
+        if (detectedType === 'sequence') {
+          newGraph.addNode({ id: 'visual_chart_bounds', text: '', shape: 'rectangle', x: 40, y: 20, width: 980, height: 860, fillColor: 'transparent', borderColor: 'transparent', fontColor: 'transparent' });
+          return { graph: newGraph, error: null };
+        }
+
         // 6. Parse Treemap (Rendered by MultiDiagramVisualizer suite)
         if (detectedType === 'treemap') {
           newGraph.addNode({ id: 'visual_chart_bounds', text: '', shape: 'rectangle', x: 30, y: 30, width: 900, height: 430, fillColor: 'transparent', borderColor: 'transparent', fontColor: 'transparent' });

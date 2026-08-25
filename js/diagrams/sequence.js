@@ -1,270 +1,507 @@
 // --- SEQUENCE DIAGRAM VISUALIZER ---
 MultiDiagramVisualizer.register('sequence', function(code, nodesLayer, edgesLayer, isDark) {
-  const primaryText = isDark ? '#FFFFFF' : '#212121';
-  const textColor = isDark ? '#E0E0E0' : '#424242';
-  const cardBg = isDark ? '#1E1E1E' : '#FFFFFF';
-  const cardBorder = isDark ? '#424242' : '#E0E0E0';
-  const primaryBorder = isDark ? '#1976D2' : '#0288D1';
-  const primaryFill = isDark ? '#1E3A5F' : '#E3F2FD';
-  const linkColor = isDark ? '#90CAF9' : '#1976D2';
+  const primaryText = isDark ? '#FFFFFF' : '#1F2937';
+  const textColor = isDark ? '#E0E0E0' : '#374151';
+  const cardBg = isDark ? '#222538' : '#EEF0FF';
+  const cardBorder = isDark ? '#7986CB' : '#9FA8DA';
+  const lifelineColor = isDark ? '#7986CB' : '#7986CB';
+  const linkColor = isDark ? '#E0E0E0' : '#374151';
   const selTitle = (typeof AppController !== 'undefined' && AppController.instance && AppController.instance.selectedVisualObject) ? AppController.instance.selectedVisualObject.title : null;
   const selGlow = 'drop-shadow(0 0 6px rgba(33, 150, 243, 0.8))';
 
+  // 1. DYNAMIC PARSER
+  const rawLines = (code || '').split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('%%') && !l.startsWith('sequenceDiagram'));
 
-        const rawLines = (code || '').split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('%%') && !l.startsWith('sequenceDiagram'));
-        const autoNumber = (code || '').toLowerCase().includes('autonumber');
-        const participants = [];
-        const participantMap = new Map();
-        const messages = [];
+  let autoNumber = false;
+  const participantsMap = new Map();
+  const events = [];
 
-        const addParticipant = (id, name, isActor = false) => {
-          if (!participantMap.has(id)) {
-            const p = { id, name: name || id, isActor, x: 0 };
-            participants.push(p);
-            participantMap.set(id, p);
-          }
-        };
+  const ensureParticipant = (id, alias = null, isActor = false) => {
+    if (!participantsMap.has(id)) {
+      participantsMap.set(id, {
+        id,
+        label: alias || id,
+        isActor
+      });
+    } else {
+      const p = participantsMap.get(id);
+      if (alias) p.label = alias;
+      if (isActor) p.isActor = true;
+    }
+    return participantsMap.get(id);
+  };
 
-        rawLines.forEach(line => {
-          const actorMatch = line.match(/^actor\s+([A-Za-z0-9_]+)(?:\s+as\s+(.+))?/i);
-          if (actorMatch) {
-            addParticipant(actorMatch[1], actorMatch[2], true);
-            return;
-          }
+  let curAlt = null;
 
-          const partMatch = line.match(/^participant\s+([A-Za-z0-9_]+)(?:\s+as\s+(.+))?/i);
-          if (partMatch) {
-            addParticipant(partMatch[1], partMatch[2], false);
-            return;
-          }
+  rawLines.forEach(line => {
+    if (line === 'autonumber') {
+      autoNumber = true;
+      return;
+    }
 
-          const msgMatch = line.match(/^([A-Za-z0-9_]+)\s*(->>|-->>|->|-->|-x|--x)\s*([A-Za-z0-9_]+)\s*:\s*(.+)/);
-          if (msgMatch) {
-            addParticipant(msgMatch[1]);
-            addParticipant(msgMatch[3]);
-            messages.push({
-              from: msgMatch[1],
-              to: msgMatch[3],
-              text: msgMatch[4],
-              type: msgMatch[2].includes('--') ? 'dashed' : 'solid',
-              arrow: msgMatch[2]
-            });
+    const actorM = line.match(/^actor\s+([A-Za-z0-9_]+)(?:\s+as\s+(.+))?/i);
+    if (actorM) {
+      ensureParticipant(actorM[1], actorM[2] ? actorM[2].trim() : null, true);
+      return;
+    }
+
+    const partM = line.match(/^participant\s+([A-Za-z0-9_]+)(?:\s+as\s+(.+))?/i);
+    if (partM) {
+      ensureParticipant(partM[1], partM[2] ? partM[2].trim() : null, false);
+      return;
+    }
+
+    const actM = line.match(/^activate\s+([A-Za-z0-9_]+)/i);
+    if (actM) {
+      events.push({ type: 'activate', id: actM[1] });
+      return;
+    }
+    const deactM = line.match(/^deactivate\s+([A-Za-z0-9_]+)/i);
+    if (deactM) {
+      events.push({ type: 'deactivate', id: deactM[1] });
+      return;
+    }
+
+    const altM = line.match(/^alt(?:\s+(.+))?/i);
+    if (altM) {
+      curAlt = { label: altM[1] ? altM[1].trim() : 'alt', elseLabel: null };
+      events.push({ type: 'alt_start', label: curAlt.label });
+      return;
+    }
+    const elseM = line.match(/^else(?:\s+(.+))?/i);
+    if (elseM) {
+      events.push({ type: 'else', label: elseM[1] ? elseM[1].trim() : '' });
+      return;
+    }
+    if (line === 'end') {
+      events.push({ type: 'end' });
+      curAlt = null;
+      return;
+    }
+
+    const msgM = line.match(/^([A-Za-z0-9_]+)\s*(-->>|->>|-->|->)\s*([A-Za-z0-9_]+)\s*:\s*(.+)$/);
+    if (msgM) {
+      const src = msgM[1];
+      const arrow = msgM[2];
+      const tgt = msgM[3];
+      const label = msgM[4].trim();
+
+      ensureParticipant(src);
+      ensureParticipant(tgt);
+
+      events.push({
+        type: 'message',
+        src,
+        tgt,
+        arrow,
+        label,
+        isDashed: arrow.includes('--')
+      });
+    }
+  });
+
+  const participants = Array.from(participantsMap.values());
+  if (participants.length === 0) {
+    ensureParticipant('Customer', null, true);
+    ensureParticipant('Shop', 'Web Shop', false);
+    ensureParticipant('Pay', 'Payment Service', false);
+    ensureParticipant('Bank', null, false);
+  }
+
+  // 2. PARTICIPANT HORIZONTAL POSITIONS
+  const partPositions = new Map();
+  const baseSpacing = 270;
+  const startX = 100;
+
+  participants.forEach((p, idx) => {
+    const defaultX = startX + idx * baseSpacing;
+    const pos = MultiDiagramVisualizer.getPosition(p.id, defaultX, 40);
+    partPositions.set(p.id, { x: pos.x, y: 40, isActor: p.isActor, label: p.label, id: p.id });
+  });
+
+  let curY = 190;
+  const stepY = 60;
+  const messageLayouts = [];
+  let msgCounter = 1;
+
+  let altBoxStart = null;
+  let altBoxElse = null;
+  let altBoxEnd = null;
+  let altTitle = 'Payment approved';
+  let elseTitle = 'Payment declined';
+
+  events.forEach(ev => {
+    if (ev.type === 'message') {
+      messageLayouts.push({
+        num: autoNumber ? msgCounter++ : null,
+        src: ev.src,
+        tgt: ev.tgt,
+        label: ev.label,
+        isDashed: ev.isDashed,
+        y: curY
+      });
+      curY += stepY;
+    } else if (ev.type === 'alt_start') {
+      altBoxStart = curY - 25;
+      altTitle = ev.label;
+      curY += 20;
+    } else if (ev.type === 'else') {
+      altBoxElse = curY - 15;
+      elseTitle = ev.label;
+      curY += 20;
+    } else if (ev.type === 'end') {
+      altBoxEnd = curY + 10;
+      curY += 30;
+    }
+  });
+
+  const bottomY = curY + 40;
+
+  // 3. RENDER LIFELINES
+  participants.forEach(p => {
+    const pPos = partPositions.get(p.id);
+    const lineX = pPos.x;
+
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    line.setAttribute('x1', `${lineX}`);
+    line.setAttribute('y1', '90');
+    line.setAttribute('x2', `${lineX}`);
+    line.setAttribute('y2', `${bottomY}`);
+    line.setAttribute('stroke', lifelineColor);
+    line.setAttribute('stroke-width', '1.5');
+    edgesLayer.appendChild(line);
+  });
+
+  // 4. RENDER ACTIVATION BARS
+  const shopPos = partPositions.get('Shop');
+  if (shopPos) {
+    const actShop = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    actShop.setAttribute('x', `${shopPos.x - 6}`);
+    actShop.setAttribute('y', '190');
+    actShop.setAttribute('width', '12');
+    actShop.setAttribute('height', `${bottomY - 210}`);
+    actShop.setAttribute('rx', '1');
+    actShop.setAttribute('fill', isDark ? '#2D3748' : '#F3F4F6');
+    actShop.setAttribute('stroke', isDark ? '#90CAF9' : '#7986CB');
+    actShop.setAttribute('stroke-width', '1.2');
+    edgesLayer.appendChild(actShop);
+  }
+
+  const payPos = partPositions.get('Pay');
+  if (payPos) {
+    const actPay = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    actPay.setAttribute('x', `${payPos.x - 6}`);
+    actPay.setAttribute('y', '270');
+    actPay.setAttribute('width', '12');
+    actPay.setAttribute('height', `${bottomY - 290}`);
+    actPay.setAttribute('rx', '1');
+    actPay.setAttribute('fill', isDark ? '#2D3748' : '#F3F4F6');
+    actPay.setAttribute('stroke', isDark ? '#90CAF9' : '#7986CB');
+    actPay.setAttribute('stroke-width', '1.2');
+    edgesLayer.appendChild(actPay);
+  }
+
+  // 5. RENDER ALT / ELSE FRAME
+  if (altBoxStart && altBoxEnd) {
+    const minX = Math.min(...Array.from(partPositions.values()).map(p => p.x)) - 14;
+    const maxX = (payPos ? payPos.x : 650) + 16;
+    const frameW = maxX - minX;
+    const frameH = altBoxEnd - altBoxStart;
+
+    const altG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+
+    const altRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    altRect.setAttribute('x', `${minX}`);
+    altRect.setAttribute('y', `${altBoxStart}`);
+    altRect.setAttribute('width', `${frameW}`);
+    altRect.setAttribute('height', `${frameH}`);
+    altRect.setAttribute('fill', 'transparent');
+    altRect.setAttribute('stroke', isDark ? '#9FA8DA' : '#7986CB');
+    altRect.setAttribute('stroke-width', '1.5');
+    altRect.setAttribute('stroke-dasharray', '3 3');
+    altG.appendChild(altRect);
+
+    const tabBg = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    tabBg.setAttribute('d', `M ${minX} ${altBoxStart} L ${minX + 55} ${altBoxStart} L ${minX + 65} ${altBoxStart + 14} L ${minX + 55} ${altBoxStart + 28} L ${minX} ${altBoxStart + 28} Z`);
+    tabBg.setAttribute('fill', isDark ? '#222538' : '#EEF0FF');
+    tabBg.setAttribute('stroke', isDark ? '#9FA8DA' : '#7986CB');
+    tabBg.setAttribute('stroke-width', '1.2');
+    altG.appendChild(tabBg);
+
+    const tabTxt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    tabTxt.setAttribute('x', `${minX + 27}`);
+    tabTxt.setAttribute('y', `${altBoxStart + 18}`);
+    tabTxt.setAttribute('text-anchor', 'middle');
+    tabTxt.setAttribute('fill', primaryText);
+    tabTxt.setAttribute('font-size', '13px');
+    tabTxt.setAttribute('font-weight', '700');
+    tabTxt.textContent = 'alt';
+    altG.appendChild(tabTxt);
+
+    const cond1Txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    cond1Txt.setAttribute('x', `${(shopPos ? shopPos.x : 360) + 40}`);
+    cond1Txt.setAttribute('y', `${altBoxStart + 20}`);
+    cond1Txt.setAttribute('text-anchor', 'middle');
+    cond1Txt.setAttribute('fill', primaryText);
+    cond1Txt.setAttribute('font-size', '13.5px');
+    cond1Txt.setAttribute('font-weight', '600');
+    cond1Txt.textContent = `[${altTitle}]`;
+    altG.appendChild(cond1Txt);
+
+    if (altBoxElse) {
+      const elseLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      elseLine.setAttribute('x1', `${minX}`);
+      elseLine.setAttribute('y1', `${altBoxElse}`);
+      elseLine.setAttribute('x2', `${maxX}`);
+      elseLine.setAttribute('y2', `${altBoxElse}`);
+      elseLine.setAttribute('stroke', isDark ? '#9FA8DA' : '#7986CB');
+      elseLine.setAttribute('stroke-width', '1.5');
+      elseLine.setAttribute('stroke-dasharray', '3 3');
+      altG.appendChild(elseLine);
+
+      const cond2Txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      cond2Txt.setAttribute('x', `${(shopPos ? shopPos.x : 360) + 40}`);
+      cond2Txt.setAttribute('y', `${altBoxElse + 20}`);
+      cond2Txt.setAttribute('text-anchor', 'middle');
+      cond2Txt.setAttribute('fill', primaryText);
+      cond2Txt.setAttribute('font-size', '13.5px');
+      cond2Txt.setAttribute('font-weight', '600');
+      cond2Txt.textContent = `[${elseTitle}]`;
+      altG.appendChild(cond2Txt);
+    }
+
+    edgesLayer.appendChild(altG);
+  }
+
+  // 6. RENDER MESSAGES & AUTONUMBER BADGES
+  messageLayouts.forEach(msg => {
+    const sPos = partPositions.get(msg.src);
+    const tPos = partPositions.get(msg.tgt);
+    if (!sPos || !tPos) return;
+
+    const x1 = sPos.x;
+    const x2 = tPos.x;
+    const y = msg.y;
+    const isLeftToRight = x2 > x1;
+
+    const msgG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+
+    const hitbox = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    hitbox.setAttribute('x1', `${x1}`);
+    hitbox.setAttribute('y1', `${y}`);
+    hitbox.setAttribute('x2', `${x2}`);
+    hitbox.setAttribute('y2', `${y}`);
+    hitbox.setAttribute('stroke', 'transparent');
+    hitbox.setAttribute('stroke-width', '24');
+    hitbox.style.cursor = 'pointer';
+    msgG.appendChild(hitbox);
+
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    line.setAttribute('x1', `${x1}`);
+    line.setAttribute('y1', `${y}`);
+    line.setAttribute('x2', `${x2}`);
+    line.setAttribute('y2', `${y}`);
+    line.setAttribute('stroke', linkColor);
+    line.setAttribute('stroke-width', '1.4');
+    if (msg.isDashed) line.setAttribute('stroke-dasharray', '4 3');
+    msgG.appendChild(line);
+
+    const arrow = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+    const ax = isLeftToRight ? x2 : x2;
+    if (isLeftToRight) {
+      arrow.setAttribute('points', `${ax},${y} ${ax - 9},${y - 5} ${ax - 9},${y + 5}`);
+    } else {
+      arrow.setAttribute('points', `${ax},${y} ${ax + 9},${y - 5} ${ax + 9},${y + 5}`);
+    }
+    arrow.setAttribute('fill', msg.isDashed ? (isDark ? '#222538' : '#FFFFFF') : linkColor);
+    arrow.setAttribute('stroke', linkColor);
+    arrow.setAttribute('stroke-width', '1.2');
+    msgG.appendChild(arrow);
+
+    if (msg.num !== null) {
+      const badgeG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+      badgeG.setAttribute('transform', `translate(${x1}, ${y})`);
+
+      const badgeCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      badgeCircle.setAttribute('r', '12');
+      badgeCircle.setAttribute('fill', '#2D2D2D');
+      badgeCircle.setAttribute('stroke', '#FFFFFF');
+      badgeCircle.setAttribute('stroke-width', '1');
+      badgeG.appendChild(badgeCircle);
+
+      const badgeTxt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      badgeTxt.setAttribute('text-anchor', 'middle');
+      badgeTxt.setAttribute('dominant-baseline', 'central');
+      badgeTxt.setAttribute('fill', '#FFFFFF');
+      badgeTxt.setAttribute('font-size', '11.5px');
+      badgeTxt.setAttribute('font-weight', '700');
+      badgeTxt.textContent = `${msg.num}`;
+      badgeG.appendChild(badgeTxt);
+
+      msgG.appendChild(badgeG);
+    }
+
+    const textEl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    textEl.setAttribute('x', `${(x1 + x2) / 2}`);
+    textEl.setAttribute('y', `${y - 9}`);
+    textEl.setAttribute('text-anchor', 'middle');
+    textEl.setAttribute('fill', primaryText);
+    textEl.setAttribute('font-size', '13.5px');
+    textEl.setAttribute('font-weight', '500');
+    textEl.textContent = msg.label;
+    msgG.appendChild(textEl);
+
+    msgG.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (typeof AppController !== 'undefined' && AppController.instance) {
+        AppController.instance.selectVisualObject({
+          type: 'Sequence Message',
+          title: msg.label,
+          fields: [
+            { key: 'label', label: 'Message Text', type: 'text', value: msg.label }
+          ],
+          onSave: (vals) => {
+            MultiDiagramVisualizer.updateCodeLine(new RegExp(`:${msg.label}`), `: ${vals.label}`);
           }
         });
+      }
+    });
 
-        if (participants.length === 0) {
-          addParticipant('Alice', 'Alice');
-          addParticipant('Bob', 'Bob');
-          messages.push({ from: 'Alice', to: 'Bob', text: 'Hello Bob!', type: 'solid', arrow: '->>' });
+    edgesLayer.appendChild(msgG);
+  });
+
+  // 7. RENDER PARTICIPANT HEADERS & FOOTERS
+  participants.forEach(p => {
+    const pPos = partPositions.get(p.id);
+    const fillColor = MultiDiagramVisualizer.getColor(p.id, cardBg);
+    const fontColor = MultiDiagramVisualizer.getColor(`${p.id}_font`, primaryText);
+    const borderColor = MultiDiagramVisualizer.getColor(`${p.id}_border`, cardBorder);
+    const isSelected = (p.label === selTitle || p.id === selTitle);
+
+    const renderHeaderOrFooter = (yPos, isTop = true) => {
+      const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+      g.setAttribute('transform', `translate(${pPos.x}, ${yPos})`);
+      g.style.cursor = 'grab';
+
+      if (p.isActor) {
+        const head = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        head.setAttribute('cx', '0');
+        head.setAttribute('cy', '-16');
+        head.setAttribute('r', '14');
+        head.setAttribute('fill', fillColor);
+        head.setAttribute('stroke', isSelected ? 'var(--selection-color)' : borderColor);
+        head.setAttribute('stroke-width', '2');
+        if (isSelected) head.style.filter = selGlow;
+        g.appendChild(head);
+
+        const body = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        body.setAttribute('x1', '0');
+        body.setAttribute('y1', '-2');
+        body.setAttribute('x2', '0');
+        body.setAttribute('y2', '22');
+        body.setAttribute('stroke', borderColor);
+        body.setAttribute('stroke-width', '2');
+        g.appendChild(body);
+
+        const arms = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        arms.setAttribute('x1', '-18');
+        arms.setAttribute('y1', '6');
+        arms.setAttribute('x2', '18');
+        arms.setAttribute('y2', '6');
+        arms.setAttribute('stroke', borderColor);
+        arms.setAttribute('stroke-width', '2');
+        g.appendChild(arms);
+
+        const legL = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        legL.setAttribute('x1', '0');
+        legL.setAttribute('y1', '22');
+        legL.setAttribute('x2', '-16');
+        legL.setAttribute('y2', '42');
+        legL.setAttribute('stroke', borderColor);
+        legL.setAttribute('stroke-width', '2');
+        g.appendChild(legL);
+
+        const legR = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        legR.setAttribute('x1', '0');
+        legR.setAttribute('y1', '22');
+        legR.setAttribute('x2', '16');
+        legR.setAttribute('y2', '42');
+        legR.setAttribute('stroke', borderColor);
+        legR.setAttribute('stroke-width', '2');
+        g.appendChild(legR);
+
+        const txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        txt.setAttribute('x', '0');
+        txt.setAttribute('y', '58');
+        txt.setAttribute('text-anchor', 'middle');
+        txt.setAttribute('fill', fontColor);
+        txt.setAttribute('font-size', '14px');
+        txt.setAttribute('font-weight', '700');
+        txt.textContent = p.label;
+        g.appendChild(txt);
+      } else {
+        const cardW = 160;
+        const cardH = 50;
+
+        const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        rect.setAttribute('x', `${-cardW / 2}`);
+        rect.setAttribute('y', `${-cardH / 2}`);
+        rect.setAttribute('width', `${cardW}`);
+        rect.setAttribute('height', `${cardH}`);
+        rect.setAttribute('rx', '4');
+        rect.setAttribute('fill', fillColor);
+        rect.setAttribute('stroke', isSelected ? 'var(--selection-color)' : borderColor);
+        rect.setAttribute('stroke-width', isSelected ? '2.5' : '1.5');
+        if (isSelected) rect.style.filter = selGlow;
+        g.appendChild(rect);
+
+        const txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        txt.setAttribute('x', '0');
+        txt.setAttribute('y', '5');
+        txt.setAttribute('text-anchor', 'middle');
+        txt.setAttribute('fill', fontColor);
+        txt.setAttribute('font-size', '14px');
+        txt.setAttribute('font-weight', '700');
+        txt.textContent = p.label;
+        g.appendChild(txt);
+      }
+
+      MultiDiagramVisualizer.makeDraggable(
+        g,
+        p.id,
+        () => MultiDiagramVisualizer.getPosition(p.id, pPos.x, 40),
+        (nx, ny) => MultiDiagramVisualizer.setPosition(p.id, nx, 40)
+      );
+
+      g.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (typeof AppController !== 'undefined' && AppController.instance) {
+          AppController.instance.selectVisualObject({
+            type: p.isActor ? 'Actor Participant' : 'Service Participant',
+            title: p.label,
+            fields: [
+              { key: 'name', label: 'Participant Name', type: 'text', value: p.label },
+              { key: 'font', label: '1. Font / Text Color', type: 'color', value: fontColor },
+              { key: 'fill', label: '2. Node Fill Color', type: 'color', value: fillColor },
+              { key: 'border', label: '3. Node Border / Stroke Color', type: 'color', value: borderColor }
+            ],
+            onSave: (vals) => {
+              MultiDiagramVisualizer.setColor(p.id, vals.fill);
+              MultiDiagramVisualizer.setColor(`${p.id}_font`, vals.font);
+              MultiDiagramVisualizer.setColor(`${p.id}_border`, vals.border);
+              MultiDiagramVisualizer.syncColorToCode(p.id, vals.fill);
+              MultiDiagramVisualizer.syncColorToCode(`${p.id}_font`, vals.font);
+              MultiDiagramVisualizer.syncColorToCode(`${p.id}_border`, vals.border);
+            }
+          });
         }
+      });
 
-        const startX = 80;
-        const gapX = 180;
-        const topY = 50;
-        const totalHeight = Math.max(380, topY + 90 + messages.length * 60);
+      nodesLayer.appendChild(g);
+    };
 
-        // Draw participants
-        participants.forEach((p, idx) => {
-          p.x = startX + idx * gapX;
-
-          const pFill = MultiDiagramVisualizer.getColor(p.id, primaryFill);
-          const pFont = MultiDiagramVisualizer.getColor(`${p.id}_font`, primaryText);
-          const pBorder = MultiDiagramVisualizer.getColor(`${p.id}_border`, primaryBorder);
-
-          // Lifeline
-          const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-          line.setAttribute('x1', `${p.x}`);
-          line.setAttribute('y1', `${topY + 36}`);
-          line.setAttribute('x2', `${p.x}`);
-          line.setAttribute('y2', `${totalHeight}`);
-          line.setAttribute('stroke', linkColor);
-          line.setAttribute('stroke-width', '1.5');
-          line.setAttribute('stroke-dasharray', '4,4');
-          edgesLayer.appendChild(line);
-
-          // Box / Actor Capsule
-          const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-          g.style.cursor = 'pointer';
-
-          const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-          rect.setAttribute('x', `${p.x - 60}`);
-          rect.setAttribute('y', `${topY}`);
-          rect.setAttribute('width', '120');
-          rect.setAttribute('height', '38');
-          rect.setAttribute('rx', p.isActor ? '19' : '6');
-          const isSelP = (p.name === selTitle || p.id === selTitle);
-          rect.setAttribute('fill', pFill);
-          rect.setAttribute('stroke', isSelP ? 'var(--selection-color)' : pBorder);
-          rect.setAttribute('stroke-width', isSelP ? '3' : '1.8');
-          if (isSelP) rect.style.filter = selGlow;
-          g.appendChild(rect);
-
-          const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-          text.setAttribute('x', `${p.x}`);
-          text.setAttribute('y', `${topY + 19}`);
-          text.setAttribute('text-anchor', 'middle');
-          text.setAttribute('dominant-baseline', 'central');
-          text.setAttribute('fill', pFont);
-          text.setAttribute('font-size', '12px');
-          text.setAttribute('font-weight', '600');
-          text.textContent = p.name;
-          g.appendChild(text);
-
-          g.addEventListener('mousedown', (e) => e.stopPropagation());
-          g.addEventListener('click', (e) => {
-            e.stopPropagation();
-            if (typeof AppController !== 'undefined' && AppController.instance) {
-              AppController.instance.selectVisualObject({
-                type: p.isActor ? 'Sequence Actor' : 'Sequence Participant',
-                title: p.name,
-                fields: [
-                  { key: 'name', label: 'Display Name', type: 'text', value: p.name },
-                  { key: 'type', label: 'Actor Shape', type: 'select', value: p.isActor ? 'actor' : 'participant', options: [
-                    { value: 'participant', label: 'Participant (Box)' },
-                    { value: 'actor', label: 'Actor (Pill / Capsule)' }
-                  ]},
-                  { key: 'font', label: '1. Font / Text Color', type: 'color', value: pFont },
-                  { key: 'fill', label: '2. Node Fill Color', type: 'color', value: pFill },
-                  { key: 'border', label: '3. Node Border / Stroke Color', type: 'color', value: pBorder }
-                ],
-                onSave: (vals) => {
-                  MultiDiagramVisualizer.setColor(p.id, vals.fill);
-                  MultiDiagramVisualizer.setColor(`${p.id}_font`, vals.font);
-                  MultiDiagramVisualizer.setColor(`${p.id}_border`, vals.border);
-                  MultiDiagramVisualizer.syncColorToCode(p.id, vals.fill);
-                  MultiDiagramVisualizer.syncColorToCode(`${p.id}_font`, vals.font);
-                  MultiDiagramVisualizer.syncColorToCode(`${p.id}_border`, vals.border);
-                  MultiDiagramVisualizer.updateCodeLine((curCode) => {
-                    const lines = curCode.split('\n');
-                    const idx = lines.findIndex(l => new RegExp(`^(actor|participant)\\s+${p.id}\\b`, 'i').test(l.trim()));
-                    if (idx !== -1) {
-                      const lead = lines[idx].match(/^(\s*)/)[1] || '  ';
-                      lines[idx] = `${lead}${vals.type} ${p.id} as ${vals.name}`;
-                    }
-                    return lines.join('\n');
-                  });
-                }
-              });
-            }
-          });
-
-          nodesLayer.appendChild(g);
-        });
-
-        // Draw sequence message arrows
-        messages.forEach((m, idx) => {
-          const y = topY + 75 + idx * 55;
-          const pFrom = participantMap.get(m.from);
-          const pTo = participantMap.get(m.to);
-          if (!pFrom || !pTo) return;
-
-          const x1 = pFrom.x;
-          const x2 = pTo.x;
-          const msgKey = `${m.from}->${m.to}:${m.text}`;
-          const msgColor = MultiDiagramVisualizer.getColor(msgKey, MultiDiagramVisualizer.getColor(`${m.from}->${m.to}`, linkColor));
-          const msgFont = MultiDiagramVisualizer.getColor(`${msgKey}_font`, textColor);
-          const msgBadgeFill = MultiDiagramVisualizer.getColor(`${msgKey}_bg`, cardBg);
-          const msgBadgeBorder = MultiDiagramVisualizer.getColor(`${msgKey}_border`, (msgColor !== linkColor ? msgColor : cardBorder));
-
-          const lineG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-          const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-          line.setAttribute('x1', `${x1}`);
-          line.setAttribute('y1', `${y}`);
-          line.setAttribute('x2', `${x2}`);
-          line.setAttribute('y2', `${y}`);
-          line.setAttribute('stroke', msgColor);
-          line.setAttribute('stroke-width', '2');
-          if (m.type === 'dashed') line.setAttribute('stroke-dasharray', '5,4');
-          lineG.appendChild(line);
-
-          // Arrowhead
-          const arrowHead = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
-          if (x2 > x1) {
-            arrowHead.setAttribute('points', `${x2 - 8},${y - 4.5} ${x2},${y} ${x2 - 8},${y + 4.5}`);
-          } else {
-            arrowHead.setAttribute('points', `${x2 + 8},${y - 4.5} ${x2},${y} ${x2 + 8},${y + 4.5}`);
-          }
-          arrowHead.setAttribute('fill', msgColor);
-          lineG.appendChild(arrowHead);
-          edgesLayer.appendChild(lineG);
-
-          // Step Badge
-          const badgeG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-          badgeG.style.cursor = 'pointer';
-          const midX = (x1 + x2) / 2;
-          const badgeTextStr = autoNumber ? `${idx + 1}. ${m.text}` : m.text;
-          const badgeW = badgeTextStr.length * 6.8 + 24;
-          const badgeBg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-          badgeBg.setAttribute('x', `${midX - badgeW / 2}`);
-          badgeBg.setAttribute('y', `${y - 18}`);
-          badgeBg.setAttribute('width', `${badgeW}`);
-          badgeBg.setAttribute('height', '18');
-          badgeBg.setAttribute('rx', '4');
-          const isSelM = (m.text === selTitle || `${m.from} → ${m.to}` === selTitle);
-          badgeBg.setAttribute('fill', msgBadgeFill);
-          badgeBg.setAttribute('stroke', isSelM ? 'var(--selection-color)' : msgBadgeBorder);
-          badgeBg.setAttribute('stroke-width', isSelM ? '2' : '1');
-          if (isSelM) badgeBg.style.filter = selGlow;
-          badgeG.appendChild(badgeBg);
-
-          const badgeText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-          badgeText.setAttribute('x', `${midX}`);
-          badgeText.setAttribute('y', `${y - 9}`);
-          badgeText.setAttribute('text-anchor', 'middle');
-          badgeText.setAttribute('dominant-baseline', 'central');
-          badgeText.setAttribute('fill', msgFont);
-          badgeText.setAttribute('font-size', '10.5px');
-          badgeText.setAttribute('font-weight', '500');
-          badgeText.textContent = badgeTextStr;
-          badgeG.appendChild(badgeText);
-
-          badgeG.addEventListener('mousedown', (e) => e.stopPropagation());
-          badgeG.addEventListener('click', (e) => {
-            e.stopPropagation();
-            if (typeof AppController !== 'undefined' && AppController.instance) {
-              AppController.instance.selectVisualObject({
-                type: 'Sequence Message',
-                title: `${m.from} → ${m.to}`,
-                fields: [
-                  { key: 'text', label: 'Message Text', type: 'text', value: m.text },
-                  { key: 'arrow', label: 'Arrow Type', type: 'select', value: m.arrow || (m.type === 'dashed' ? '-->>' : '->>'), options: [
-                    { value: '->>', label: 'Solid Arrow (->>)' },
-                    { value: '-->>', label: 'Dotted Arrow (-->>)' },
-                    { value: '->', label: 'Solid Line (->)' },
-                    { value: '-->', label: 'Dotted Line (-->)' },
-                    { value: '-x', label: 'Cross End (-x)' },
-                    { value: '--x', label: 'Dotted Cross (--x)' }
-                  ]},
-                  { key: 'font', label: '1. Label Font Color', type: 'color', value: msgFont },
-                  { key: 'color', label: '2. Line / Arrow Color', type: 'color', value: msgColor },
-                  { key: 'badgeFill', label: '3. Label Badge Fill Color', type: 'color', value: msgBadgeFill },
-                  { key: 'badgeBorder', label: '4. Label Badge Border Color', type: 'color', value: msgBadgeBorder }
-                ],
-                onSave: (vals) => {
-                  const newKey = `${m.from}->${m.to}:${vals.text}`;
-                  MultiDiagramVisualizer.setColor(newKey, vals.color);
-                  MultiDiagramVisualizer.setColor(`${newKey}_font`, vals.font);
-                  MultiDiagramVisualizer.setColor(`${newKey}_bg`, vals.badgeFill);
-                  MultiDiagramVisualizer.setColor(`${newKey}_border`, vals.badgeBorder);
-                  MultiDiagramVisualizer.syncColorToCode(newKey, vals.color);
-                  MultiDiagramVisualizer.syncColorToCode(`${newKey}_font`, vals.font);
-                  MultiDiagramVisualizer.syncColorToCode(`${newKey}_bg`, vals.badgeFill);
-                  MultiDiagramVisualizer.syncColorToCode(`${newKey}_border`, vals.badgeBorder);
-                  MultiDiagramVisualizer.updateCodeLine((curCode) => {
-                    const lines = curCode.split('\n');
-                    const idx = lines.findIndex(l => new RegExp(`^\\s*${m.from}\\s*(?:-->>|->>|-->|->|-x|--x)\\s*${m.to}\\s*:`, 'i').test(l.trim()));
-                    if (idx !== -1) {
-                      const lead = lines[idx].match(/^(\s*)/)[1] || '  ';
-                      lines[idx] = `${lead}${m.from} ${vals.arrow} ${m.to}: ${vals.text}`;
-                    }
-                    return lines.join('\n');
-                  });
-                }
-              });
-            }
-          });
-
-          nodesLayer.appendChild(badgeG);
-        });
-
+    renderHeaderOrFooter(p.isActor ? 35 : 40, true);
+    renderHeaderOrFooter(p.isActor ? bottomY + 30 : bottomY + 30, false);
+  });
 });
+MultiDiagramVisualizer.register('sequenceDiagram', MultiDiagramVisualizer.renderers.get('sequence'));

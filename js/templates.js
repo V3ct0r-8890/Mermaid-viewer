@@ -30,20 +30,29 @@
         id: 'sequence',
         name: 'Sequence Diagram',
         badge: 'sequenceDiagram',
-        desc: 'Actor & microservice request/response flow over time',
+        desc: 'Actor & service lifelines, autonumber steps, alt/else branches',
         code: `sequenceDiagram
-  autonumber
-  actor User as User
-  participant App as Web App
-  participant API as API Server
-  participant DB as Database
+    autonumber
+    actor Customer
+    participant Shop as Web Shop
+    participant Pay as Payment Service
+    participant Bank
 
-  User->>App: Click Checkout
-  App->>API: POST /api/orders
-  API->>DB: INSERT INTO orders
-  DB-->>API: 1 row affected (ID: 1042)
-  API-->>App: 201 Created (Order #1042)
-  App-->>User: Show Order Confirmation`
+    Customer->>Shop: Place order
+    activate Shop
+    Shop->>Pay: Create payment request
+    activate Pay
+    Pay->>Bank: Authorize card
+    Bank-->>Pay: Authorization result
+    alt Payment approved
+        Pay-->>Shop: Payment confirmed
+        Shop-->>Customer: Show receipt
+    else Payment declined
+        Pay-->>Shop: Payment failed
+        Shop-->>Customer: Ask for another card
+    end
+    deactivate Pay
+    deactivate Shop`
       },
       {
         id: 'classDiagram',
