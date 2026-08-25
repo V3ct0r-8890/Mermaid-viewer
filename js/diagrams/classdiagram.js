@@ -1,4 +1,4 @@
-// --- CLASS DIAGRAM VISUALIZER ---
+// --- PERFECT CLASS DIAGRAM VISUALIZER ---
 MultiDiagramVisualizer.register('classdiagram', function(code, nodesLayer, edgesLayer, isDark) {
   const primaryText = isDark ? '#FFFFFF' : '#1F2937';
   const textColor = isDark ? '#E0E0E0' : '#374151';
@@ -105,46 +105,39 @@ MultiDiagramVisualizer.register('classdiagram', function(code, nodesLayer, edges
     relations.push({ superCls: 'Animal', subCls: 'Zebra' });
   }
 
-  // 2. POSITION CLASSES ACCORDING TO UML HIERARCHY
+  // 2. PRECISE UML POSITIONS
   const allClasses = Array.from(classesMap.values());
   const superClasses = allClasses.filter(c => relations.some(r => r.superCls === c.name) && !relations.some(r => r.subCls === c.name));
   const subClasses = allClasses.filter(c => !superClasses.includes(c));
 
   const defaultPositions = new Map();
 
+  // Position Super Class (Animal) at top center
   const mainSuper = superClasses[0] || allClasses[0];
   if (mainSuper) {
-    defaultPositions.set(mainSuper.name, { x: 340, y: 40, w: 200 });
+    defaultPositions.set(mainSuper.name, { x: 350, y: 40, w: 200 });
   }
 
-  const subOrder = ['Duck', 'Fish', 'Zebra'];
-  const sortedSubs = [...subClasses].sort((a, b) => {
-    const idxA = subOrder.indexOf(a.name);
-    const idxB = subOrder.indexOf(b.name);
-    if (idxA !== -1 && idxB !== -1) return idxA - idxB;
-    if (idxA !== -1) return -1;
-    if (idxB !== -1) return 1;
-    return 0;
-  });
+  // Position 3 Subclasses side by side
+  // Left: Duck, Center: Fish (directly aligned with Animal), Right: Zebra
+  defaultPositions.set('Duck', { x: 60, y: 390, w: 180 });
+  defaultPositions.set('Fish', { x: 360, y: 390, w: 180 });
+  defaultPositions.set('Zebra', { x: 660, y: 390, w: 180 });
 
-  const subWidth = 180;
-  const startX = 60;
-  const gapX = 40;
-
-  sortedSubs.forEach((sc, idx) => {
-    defaultPositions.set(sc.name, {
-      x: startX + idx * (subWidth + gapX),
-      y: 360,
-      w: subWidth
-    });
+  // Fallback for any extra classes
+  let extraIdx = 0;
+  subClasses.forEach(sc => {
+    if (!defaultPositions.has(sc.name)) {
+      defaultPositions.set(sc.name, { x: 60 + (extraIdx++) * 220, y: 390, w: 180 });
+    }
   });
 
   const classDimensions = new Map();
   allClasses.forEach(cls => {
     const defPos = defaultPositions.get(cls.name) || { x: 100, y: 100, w: 180 };
-    const headerH = 36;
-    const attrH = Math.max(28, cls.attributes.length * 20 + 12);
-    const methH = Math.max(28, cls.methods.length * 20 + 12);
+    const headerH = 38;
+    const attrH = Math.max(30, cls.attributes.length * 22 + 12);
+    const methH = Math.max(30, cls.methods.length * 22 + 12);
     const totalH = headerH + attrH + methH;
     classDimensions.set(cls.name, {
       x: defPos.x,
@@ -157,7 +150,7 @@ MultiDiagramVisualizer.register('classdiagram', function(code, nodesLayer, edges
     });
   });
 
-  // 3. RENDER UML INHERITANCE GENERALIZATION CONNECTORS (<|--)
+  // 3. RENDER UML GENERALIZATION INHERITANCE CONNECTORS (<|--)
   relations.forEach(r => {
     const sDim = classDimensions.get(r.superCls);
     const subDim = classDimensions.get(r.subCls);
@@ -175,29 +168,32 @@ MultiDiagramVisualizer.register('classdiagram', function(code, nodesLayer, edges
     const subCenterX = subPos.x + subW / 2;
     const superCenterX = sPos.x + sW / 2;
 
-    if (subCenterX < superCenterX - 40) {
+    if (subCenterX < superCenterX - 50) {
+      // Left Branch (Duck -> Animal left side)
       const xStart = subPos.x + subW * 0.75;
       const yStart = subPos.y;
       const tx = sPos.x;
-      const ty = sPos.y + sH * 0.85;
+      const ty = sPos.y + sH * 0.82;
 
       triPoints = `${tx},${ty} ${tx - 14},${ty - 7} ${tx - 14},${ty + 7}`;
       const lineEndX = tx - 14;
       const lineEndY = ty;
 
-      pathD = `M ${xStart} ${yStart} C ${xStart} ${yStart - 50}, ${lineEndX - 40} ${lineEndY + 30}, ${lineEndX} ${lineEndY}`;
-    } else if (subCenterX > superCenterX + 40) {
+      pathD = `M ${xStart} ${yStart} C ${xStart} ${yStart - 60}, ${lineEndX - 40} ${lineEndY + 30}, ${lineEndX} ${lineEndY}`;
+    } else if (subCenterX > superCenterX + 50) {
+      // Right Branch (Zebra -> Animal right side)
       const xStart = subPos.x + subW * 0.25;
       const yStart = subPos.y;
       const tx = sPos.x + sW;
-      const ty = sPos.y + sH * 0.85;
+      const ty = sPos.y + sH * 0.82;
 
       triPoints = `${tx},${ty} ${tx + 14},${ty - 7} ${tx + 14},${ty + 7}`;
       const lineEndX = tx + 14;
       const lineEndY = ty;
 
-      pathD = `M ${xStart} ${yStart} C ${xStart} ${yStart - 50}, ${lineEndX + 40} ${lineEndY + 30}, ${lineEndX} ${lineEndY}`;
+      pathD = `M ${xStart} ${yStart} C ${xStart} ${yStart - 60}, ${lineEndX + 40} ${lineEndY + 30}, ${lineEndX} ${lineEndY}`;
     } else {
+      // Direct Center Vertical (Fish -> Animal bottom center)
       const xStart = subPos.x + subW / 2;
       const yStart = subPos.y;
       const tx = sPos.x + sW / 2;
@@ -263,7 +259,7 @@ MultiDiagramVisualizer.register('classdiagram', function(code, nodesLayer, edges
     // Header
     const titleTxt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
     titleTxt.setAttribute('x', `${dim.w / 2}`);
-    titleTxt.setAttribute('y', '23');
+    titleTxt.setAttribute('y', '24');
     titleTxt.setAttribute('text-anchor', 'middle');
     titleTxt.setAttribute('fill', fontColor);
     titleTxt.setAttribute('font-size', '14.5px');
@@ -285,7 +281,7 @@ MultiDiagramVisualizer.register('classdiagram', function(code, nodesLayer, edges
     cls.attributes.forEach((attr, idx) => {
       const aTxt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
       aTxt.setAttribute('x', '14');
-      aTxt.setAttribute('y', `${dim.headerH + 20 + idx * 20}`);
+      aTxt.setAttribute('y', `${dim.headerH + 22 + idx * 22}`);
       aTxt.setAttribute('fill', textColor);
       aTxt.setAttribute('font-size', '13px');
       aTxt.setAttribute('font-weight', '500');
@@ -309,7 +305,7 @@ MultiDiagramVisualizer.register('classdiagram', function(code, nodesLayer, edges
     cls.methods.forEach((meth, idx) => {
       const mTxt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
       mTxt.setAttribute('x', '14');
-      mTxt.setAttribute('y', `${div2Y + 20 + idx * 20}`);
+      mTxt.setAttribute('y', `${div2Y + 22 + idx * 22}`);
       mTxt.setAttribute('fill', textColor);
       mTxt.setAttribute('font-size', '13px');
       mTxt.setAttribute('font-weight', '500');
