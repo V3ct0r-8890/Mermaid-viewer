@@ -1321,22 +1321,20 @@
         window.addEventListener('mouseup', (e) => this.handleMouseUp(e));
         this.svg.addEventListener('wheel', (e) => this.handleWheel(e), { passive: false });
 
-        let editorDebounceTimer = null;
+        // Code Editor: lightweight syntax highlight on input, explicit apply on button or Ctrl+Enter
         this.codeEditor.addEventListener('input', () => {
           this.codeHighlight.innerHTML = SyntaxHighlighter.highlight(this.codeEditor.value);
           const detected = MermaidParser.detectDiagramType(this.codeEditor.value);
           if (this.typeSelect && this.typeSelect.value !== detected) {
             this.typeSelect.value = detected;
           }
-          clearTimeout(editorDebounceTimer);
-          editorDebounceTimer = setTimeout(() => {
-            this.applyCodeToGraph(true);
-          }, 200);
         });
 
-        this.codeEditor.addEventListener('blur', () => {
-          this.applyCodeToGraph(true);
-          this.recordHistory();
+        this.codeEditor.addEventListener('keydown', (e) => {
+          if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+            e.preventDefault();
+            this.applyCodeToGraph(false);
+          }
         });
 
         this.codeEditor.addEventListener('scroll', () => {
