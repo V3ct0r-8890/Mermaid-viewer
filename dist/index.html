@@ -4666,7 +4666,7 @@ class MultiDiagramVisualizer {
 
       case 'pie': {
         const rawLines = (code || '').split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('%%'));
-        let title = 'Data Distribution';
+        let title = 'Cloud Infrastructure Resource Distribution';
         const data = [];
         const colors = ['#2196F3', '#4CAF50', '#FF9800', '#E91E63', '#9C27B0', '#00BCD4', '#009688', '#673AB7', '#FF5722'];
 
@@ -4679,29 +4679,32 @@ class MultiDiagramVisualizer {
           const m = line.match(/^["']?([^"':]+)["']?\s*:\s*([0-9.]+)/);
           if (m) {
             const rawLbl = m[1].trim();
+            const defaultCol = colors[data.length % colors.length];
             data.push({
               label: rawLbl,
               val: parseFloat(m[2]),
-              color: MultiDiagramVisualizer.getColor(rawLbl, colors[data.length % colors.length])
+              fillColor: MultiDiagramVisualizer.getColor(rawLbl, defaultCol),
+              fontColor: MultiDiagramVisualizer.getColor(`${rawLbl}_font`, textColor),
+              borderColor: MultiDiagramVisualizer.getColor(`${rawLbl}_border`, cardBg)
             });
           }
         });
 
         if (data.length === 0) {
-          data.push({ label: 'Category A', val: 40, color: '#2196F3' });
-          data.push({ label: 'Category B', val: 35, color: '#4CAF50' });
-          data.push({ label: 'Category C', val: 25, color: '#FF9800' });
+          data.push({ label: 'Category A', val: 40, fillColor: '#2196F3', fontColor: textColor, borderColor: cardBg });
+          data.push({ label: 'Category B', val: 35, fillColor: '#4CAF50', fontColor: textColor, borderColor: cardBg });
+          data.push({ label: 'Category C', val: 25, fillColor: '#FF9800', fontColor: textColor, borderColor: cardBg });
         }
 
         const total = data.reduce((acc, d) => acc + d.val, 0) || 1;
         const cx = 220;
-        const cy = 200;
+        const cy = 210;
         const r = 130;
 
         // Title
         const titleEl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
         titleEl.setAttribute('x', '220');
-        titleEl.setAttribute('y', '36');
+        titleEl.setAttribute('y', '38');
         titleEl.setAttribute('text-anchor', 'middle');
         titleEl.setAttribute('fill', primaryText);
         titleEl.setAttribute('font-size', '15px');
@@ -4727,11 +4730,34 @@ class MultiDiagramVisualizer {
           const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
           path.setAttribute('d', pathData);
           const isSelPie = (d.label === selTitle);
-          path.setAttribute('fill', d.color);
-          path.setAttribute('stroke', isSelPie ? 'var(--selection-color)' : cardBg);
+          path.setAttribute('fill', d.fillColor);
+          path.setAttribute('stroke', isSelPie ? 'var(--selection-color)' : d.borderColor);
           path.setAttribute('stroke-width', isSelPie ? '3.5' : '2');
           if (isSelPie) path.style.filter = selGlow;
           path.style.cursor = 'pointer';
+
+          const pct = ((d.val / total) * 100).toFixed(1);
+
+          // Slice mid-angle percentage label inside/along slice
+          const midSliceAngle = curAngle + sliceAngle / 2;
+          const labelDist = r * 0.65;
+          const sliceLabelX = cx + labelDist * Math.cos(midSliceAngle);
+          const sliceLabelY = cy + labelDist * Math.sin(midSliceAngle);
+
+          if (sliceAngle > 0.25) {
+            const sliceText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            sliceText.setAttribute('x', `${sliceLabelX}`);
+            sliceText.setAttribute('y', `${sliceLabelY}`);
+            sliceText.setAttribute('text-anchor', 'middle');
+            sliceText.setAttribute('dominant-baseline', 'central');
+            sliceText.setAttribute('fill', '#FFFFFF');
+            sliceText.setAttribute('font-size', '11px');
+            sliceText.setAttribute('font-weight', 'bold');
+            sliceText.setAttribute('pointer-events', 'none');
+            sliceText.setAttribute('style', 'text-shadow: 0 1px 2px rgba(0,0,0,0.6);');
+            sliceText.textContent = `${pct}%`;
+            g.appendChild(sliceText);
+          }
 
           const attachPieClick = (targetEl) => {
             targetEl.addEventListener('mousedown', (e) => e.stopPropagation());
@@ -4744,11 +4770,17 @@ class MultiDiagramVisualizer {
                   fields: [
                     { key: 'label', label: 'Slice Label', type: 'text', value: d.label },
                     { key: 'val', label: 'Value / Proportion', type: 'number', step: 1, min: 0, value: d.val },
-                    { key: 'color', label: 'Slice Color', type: 'color', value: d.color }
+                    { key: 'font', label: '1. Font / Legend Color', type: 'color', value: d.fontColor },
+                    { key: 'fill', label: '2. Node / Slice Fill Color', type: 'color', value: d.fillColor },
+                    { key: 'border', label: '3. Node / Slice Border Color', type: 'color', value: d.borderColor }
                   ],
                   onSave: (vals) => {
-                    MultiDiagramVisualizer.setColor(vals.label, vals.color);
-                    MultiDiagramVisualizer.syncColorToCode(vals.label, vals.color);
+                    MultiDiagramVisualizer.setColor(vals.label, vals.fill);
+                    MultiDiagramVisualizer.setColor(`${vals.label}_font`, vals.font);
+                    MultiDiagramVisualizer.setColor(`${vals.label}_border`, vals.border);
+                    MultiDiagramVisualizer.syncColorToCode(vals.label, vals.fill);
+                    MultiDiagramVisualizer.syncColorToCode(`${vals.label}_font`, vals.font);
+                    MultiDiagramVisualizer.syncColorToCode(`${vals.label}_border`, vals.border);
                     MultiDiagramVisualizer.updateCodeLine((curCode) => {
                       const lines = curCode.split('\n');
                       const esc = d.label.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\</body>');
@@ -4772,23 +4804,25 @@ class MultiDiagramVisualizer {
           // Legend item
           const legG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
           legG.style.cursor = 'pointer';
-          const legY = 80 + idx * 28;
+          const legY = 85 + idx * 30;
 
           const legRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
           legRect.setAttribute('x', '390');
           legRect.setAttribute('y', `${legY}`);
-          legRect.setAttribute('width', '14');
-          legRect.setAttribute('height', '14');
-          legRect.setAttribute('rx', '3');
-          legRect.setAttribute('fill', d.color);
+          legRect.setAttribute('width', '16');
+          legRect.setAttribute('height', '16');
+          legRect.setAttribute('rx', '4');
+          legRect.setAttribute('fill', d.fillColor);
+          legRect.setAttribute('stroke', d.borderColor);
+          legRect.setAttribute('stroke-width', '1.5');
           legG.appendChild(legRect);
 
-          const pct = ((d.val / total) * 100).toFixed(1);
           const legText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-          legText.setAttribute('x', '412');
-          legText.setAttribute('y', `${legY + 11}`);
-          legText.setAttribute('fill', textColor);
-          legText.setAttribute('font-size', '11.5px');
+          legText.setAttribute('x', '415');
+          legText.setAttribute('y', `${legY + 12}`);
+          legText.setAttribute('fill', d.fontColor);
+          legText.setAttribute('font-size', '12px');
+          legText.setAttribute('font-weight', '500');
           legText.textContent = `${d.label} (${pct}%)`;
           legG.appendChild(legText);
 
