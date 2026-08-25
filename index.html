@@ -169,31 +169,63 @@
             </div>
           </div>
 
+          <!-- 1. Font Color -->
           <div class="prop-group">
-            <label>Fill Color</label>
+            <label>1. Font / Text Color</label>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <input type="color" id="prop-node-font" style="width:32px; height:26px; border:none; border-radius:3px; cursor:pointer;">
+              <span id="prop-node-font-val" style="font-size:11px; font-family:var(--code-font);">#0D47A1</span>
+            </div>
+            <div class="color-swatches" id="node-font-swatches" style="margin-top:6px;">
+              <div class="color-swatch" style="background:#0D47A1;" data-color="#0D47A1" title="Dark Blue"></div>
+              <div class="color-swatch" style="background:#212121;" data-color="#212121" title="Dark"></div>
+              <div class="color-swatch" style="background:#FFFFFF;" data-color="#FFFFFF" title="White"></div>
+              <div class="color-swatch" style="background:#1B5E20;" data-color="#1B5E20" title="Dark Green"></div>
+              <div class="color-swatch" style="background:#E65100;" data-color="#E65100" title="Dark Orange"></div>
+              <div class="color-swatch" style="background:#B71C1C;" data-color="#B71C1C" title="Dark Red"></div>
+              <div class="color-swatch" style="background:#4A148C;" data-color="#4A148C" title="Dark Purple"></div>
+              <div class="color-swatch" style="background:#2196F3;" data-color="#2196F3" title="Blue"></div>
+              <div class="color-swatch" style="background:#E1F5FE;" data-color="#E1F5FE" title="Light Cyan"></div>
+            </div>
+          </div>
+
+          <!-- 2. Node Fill Color -->
+          <div class="prop-group">
+            <label>2. Node Fill Color</label>
             <div style="display:flex; align-items:center; gap:8px;">
               <input type="color" id="prop-node-fill" style="width:32px; height:26px; border:none; border-radius:3px; cursor:pointer;">
               <span id="prop-node-fill-val" style="font-size:11px; font-family:var(--code-font);">#E3F2FD</span>
             </div>
-            <div class="color-swatches" id="fill-swatches">
-              <div class="color-swatch" style="background:#E3F2FD;" data-fill="#E3F2FD" data-border="#90CAF9" data-font="#0D47A1" title="Light Blue"></div>
-              <div class="color-swatch" style="background:#E8F5E9;" data-fill="#E8F5E9" data-border="#A5D6A7" data-font="#1B5E20" title="Green"></div>
-              <div class="color-swatch" style="background:#FFF3E0;" data-fill="#FFF3E0" data-border="#FFE082" data-font="#E65100" title="Orange"></div>
-              <div class="color-swatch" style="background:#F3E5F5;" data-fill="#F3E5F5" data-border="#CE93D8" data-font="#4A148C" title="Purple"></div>
-              <div class="color-swatch" style="background:#FFEBEE;" data-fill="#FFEBEE" data-border="#EF9A9A" data-font="#B71C1C" title="Red"></div>
-              <div class="color-swatch" style="background:#ECEFF1;" data-fill="#ECEFF1" data-border="#B0BEC5" data-font="#263238" title="Gray"></div>
-              <div class="color-swatch" style="background:#2D4A66;" data-fill="#2D4A66" data-border="#4FC3F7" data-font="#E1F5FE" title="Dark Blue"></div>
+            <div class="color-swatches" id="node-fill-swatches" style="margin-top:6px;">
+              <div class="color-swatch" style="background:#E3F2FD;" data-color="#E3F2FD" title="Light Blue"></div>
+              <div class="color-swatch" style="background:#E8F5E9;" data-color="#E8F5E9" title="Light Green"></div>
+              <div class="color-swatch" style="background:#FFF3E0;" data-color="#FFF3E0" title="Light Orange"></div>
+              <div class="color-swatch" style="background:#F3E5F5;" data-color="#F3E5F5" title="Light Purple"></div>
+              <div class="color-swatch" style="background:#FFEBEE;" data-color="#FFEBEE" title="Light Red"></div>
+              <div class="color-swatch" style="background:#ECEFF1;" data-color="#ECEFF1" title="Light Gray"></div>
+              <div class="color-swatch" style="background:#2D4A66;" data-color="#2D4A66" title="Dark Blue"></div>
+              <div class="color-swatch" style="background:#2B2D30;" data-color="#2B2D30" title="Dark Gray"></div>
+              <div class="color-swatch" style="background:#FFFFFF;" data-color="#FFFFFF" title="White"></div>
             </div>
           </div>
 
-          <div class="prop-row">
-            <div class="prop-group" style="margin-bottom:0;">
-              <label>Border Color</label>
-              <input type="color" id="prop-node-border" style="width:100%; height:26px; border:none; border-radius:3px; cursor:pointer;">
+          <!-- 3. Node Border Color -->
+          <div class="prop-group">
+            <label>3. Node Border / Stroke Color</label>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <input type="color" id="prop-node-border" style="width:32px; height:26px; border:none; border-radius:3px; cursor:pointer;">
+              <span id="prop-node-border-val" style="font-size:11px; font-family:var(--code-font);">#90CAF9</span>
             </div>
-            <div class="prop-group" style="margin-bottom:0;">
-              <label>Font Color</label>
-              <input type="color" id="prop-node-font" style="width:100%; height:26px; border:none; border-radius:3px; cursor:pointer;">
+            <div class="color-swatches" id="node-border-swatches" style="margin-top:6px;">
+              <div class="color-swatch" style="background:#90CAF9;" data-color="#90CAF9" title="Blue Border"></div>
+              <div class="color-swatch" style="background:#A5D6A7;" data-color="#A5D6A7" title="Green Border"></div>
+              <div class="color-swatch" style="background:#FFE082;" data-color="#FFE082" title="Orange Border"></div>
+              <div class="color-swatch" style="background:#CE93D8;" data-color="#CE93D8" title="Purple Border"></div>
+              <div class="color-swatch" style="background:#EF9A9A;" data-color="#EF9A9A" title="Red Border"></div>
+              <div class="color-swatch" style="background:#B0BEC5;" data-color="#B0BEC5" title="Gray Border"></div>
+              <div class="color-swatch" style="background:#4FC3F7;" data-color="#4FC3F7" title="Cyan Border"></div>
+              <div class="color-swatch" style="background:#212121;" data-color="#212121" title="Dark Border"></div>
+              <div class="color-swatch" style="background:#616161;" data-color="#616161" title="Medium Gray"></div>
             </div>
           </div>
 

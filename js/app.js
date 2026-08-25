@@ -885,10 +885,17 @@
             document.getElementById('prop-node-h').value = this.nodeInitialValues.height;
             document.getElementById('prop-node-x').value = this.nodeInitialValues.x;
             document.getElementById('prop-node-y').value = this.nodeInitialValues.y;
-            document.getElementById('prop-node-fill').value = this.nodeInitialValues.fillColor;
-            document.getElementById('prop-node-fill-val').textContent = this.nodeInitialValues.fillColor;
-            document.getElementById('prop-node-border').value = this.nodeInitialValues.borderColor;
             document.getElementById('prop-node-font').value = this.nodeInitialValues.fontColor;
+            const fontValEl = document.getElementById('prop-node-font-val');
+            if (fontValEl) fontValEl.textContent = this.nodeInitialValues.fontColor;
+
+            document.getElementById('prop-node-fill').value = this.nodeInitialValues.fillColor;
+            const fillValEl = document.getElementById('prop-node-fill-val');
+            if (fillValEl) fillValEl.textContent = this.nodeInitialValues.fillColor;
+
+            document.getElementById('prop-node-border').value = this.nodeInitialValues.borderColor;
+            const borderValEl = document.getElementById('prop-node-border-val');
+            if (borderValEl) borderValEl.textContent = this.nodeInitialValues.borderColor;
             return;
           }
         }
@@ -977,10 +984,17 @@
           document.getElementById('prop-node-h').value = this.nodeInitialValues.height;
           document.getElementById('prop-node-x').value = this.nodeInitialValues.x;
           document.getElementById('prop-node-y').value = this.nodeInitialValues.y;
-          document.getElementById('prop-node-fill').value = this.nodeInitialValues.fillColor;
-          document.getElementById('prop-node-fill-val').textContent = this.nodeInitialValues.fillColor;
-          document.getElementById('prop-node-border').value = this.nodeInitialValues.borderColor;
           document.getElementById('prop-node-font').value = this.nodeInitialValues.fontColor;
+          const fontValReset = document.getElementById('prop-node-font-val');
+          if (fontValReset) fontValReset.textContent = this.nodeInitialValues.fontColor;
+
+          document.getElementById('prop-node-fill').value = this.nodeInitialValues.fillColor;
+          const fillValReset = document.getElementById('prop-node-fill-val');
+          if (fillValReset) fillValReset.textContent = this.nodeInitialValues.fillColor;
+
+          document.getElementById('prop-node-border').value = this.nodeInitialValues.borderColor;
+          const borderValReset = document.getElementById('prop-node-border-val');
+          if (borderValReset) borderValReset.textContent = this.nodeInitialValues.borderColor;
           Utils.showToast('Node properties reset', 'info');
         });
 
@@ -990,20 +1004,48 @@
           this.updatePropertiesPanel();
         });
 
-        document.getElementById('prop-node-fill')?.addEventListener('input', (e) => {
-          document.getElementById('prop-node-fill-val').textContent = e.target.value;
+        // 1. Font Color input & swatches
+        document.getElementById('prop-node-font')?.addEventListener('input', (e) => {
+          const valEl = document.getElementById('prop-node-font-val');
+          if (valEl) valEl.textContent = e.target.value;
+        });
+        document.querySelectorAll('#node-font-swatches .color-swatch').forEach(swatch => {
+          swatch.addEventListener('click', () => {
+            const col = swatch.getAttribute('data-color');
+            const inp = document.getElementById('prop-node-font');
+            const valEl = document.getElementById('prop-node-font-val');
+            if (inp) inp.value = col;
+            if (valEl) valEl.textContent = col;
+          });
         });
 
-        document.querySelectorAll('#fill-swatches .color-swatch').forEach(swatch => {
+        // 2. Node Fill Color input & swatches
+        document.getElementById('prop-node-fill')?.addEventListener('input', (e) => {
+          const valEl = document.getElementById('prop-node-fill-val');
+          if (valEl) valEl.textContent = e.target.value;
+        });
+        document.querySelectorAll('#node-fill-swatches .color-swatch').forEach(swatch => {
           swatch.addEventListener('click', () => {
-            const fill = swatch.getAttribute('data-fill');
-            const border = swatch.getAttribute('data-border');
-            const font = swatch.getAttribute('data-font');
+            const col = swatch.getAttribute('data-color');
+            const inp = document.getElementById('prop-node-fill');
+            const valEl = document.getElementById('prop-node-fill-val');
+            if (inp) inp.value = col;
+            if (valEl) valEl.textContent = col;
+          });
+        });
 
-            document.getElementById('prop-node-fill').value = fill;
-            document.getElementById('prop-node-fill-val').textContent = fill;
-            document.getElementById('prop-node-border').value = border;
-            document.getElementById('prop-node-font').value = font;
+        // 3. Node Border Color input & swatches
+        document.getElementById('prop-node-border')?.addEventListener('input', (e) => {
+          const valEl = document.getElementById('prop-node-border-val');
+          if (valEl) valEl.textContent = e.target.value;
+        });
+        document.querySelectorAll('#node-border-swatches .color-swatch').forEach(swatch => {
+          swatch.addEventListener('click', () => {
+            const col = swatch.getAttribute('data-color');
+            const inp = document.getElementById('prop-node-border');
+            const valEl = document.getElementById('prop-node-border-val');
+            if (inp) inp.value = col;
+            if (valEl) valEl.textContent = col;
           });
         });
 
