@@ -4467,6 +4467,8 @@ class MultiDiagramVisualizer {
   }
 
   static render(type, code, nodesLayer, edgesLayer, isDark = false) {
+    nodesLayer.innerHTML = '';
+    edgesLayer.innerHTML = '';
     MultiDiagramVisualizer.parseColorDirectives(code);
 
     const normType = String(type || '').toLowerCase();
@@ -10076,6 +10078,8 @@ MultiDiagramVisualizer.register('timeline', function(code, nodesLayer, edgesLaye
 
       renderAll() {
         this.updateTransform();
+        this.nodesLayer.innerHTML = '';
+        this.edgesLayer.innerHTML = '';
 
         const isVisualSpecial = ['sequence', 'gantt', 'pie', 'gitGraph', 'gitgraph', 'journey', 'mindmap', 'timeline', 'quadrant', 'sankey', 'erDiagram', 'erdiagram', 'c4context'].includes(this.graph.diagramType);
 
@@ -11444,6 +11448,13 @@ MultiDiagramVisualizer.register('timeline', function(code, nodesLayer, edgesLaye
         this.selectedEdgeId = null;
         this.selectedVisualObject = null;
         this.updatePropertiesPanel();
+
+        if (typeof MultiDiagramVisualizer !== 'undefined') {
+          MultiDiagramVisualizer.customColors.clear();
+          MultiDiagramVisualizer.nodePositions.clear();
+        }
+        this.nodesLayer.innerHTML = '';
+        this.edgesLayer.innerHTML = '';
 
         this.recordHistory();
         this.graph.diagramType = tpl.id;

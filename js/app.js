@@ -75,6 +75,8 @@
 
       renderAll() {
         this.updateTransform();
+        this.nodesLayer.innerHTML = '';
+        this.edgesLayer.innerHTML = '';
 
         const isVisualSpecial = ['sequence', 'gantt', 'pie', 'gitGraph', 'gitgraph', 'journey', 'mindmap', 'timeline', 'quadrant', 'sankey', 'erDiagram', 'erdiagram', 'c4context'].includes(this.graph.diagramType);
 
@@ -1443,6 +1445,13 @@
         this.selectedEdgeId = null;
         this.selectedVisualObject = null;
         this.updatePropertiesPanel();
+
+        if (typeof MultiDiagramVisualizer !== 'undefined') {
+          MultiDiagramVisualizer.customColors.clear();
+          MultiDiagramVisualizer.nodePositions.clear();
+        }
+        this.nodesLayer.innerHTML = '';
+        this.edgesLayer.innerHTML = '';
 
         this.recordHistory();
         this.graph.diagramType = tpl.id;

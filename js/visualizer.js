@@ -128,6 +128,8 @@ class MultiDiagramVisualizer {
   }
 
   static render(type, code, nodesLayer, edgesLayer, isDark = false) {
+    nodesLayer.innerHTML = '';
+    edgesLayer.innerHTML = '';
     MultiDiagramVisualizer.parseColorDirectives(code);
 
     const normType = String(type || '').toLowerCase();
