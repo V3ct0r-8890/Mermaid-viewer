@@ -2206,6 +2206,7 @@
           { id: 'r1', type: 'blocked', pattern: 'Database->Client' }
         ];
         this.layoutDirection = 'TD';
+        this.curveStyle = 'basis';
         this.gridSnap = true;
         this.gridSize = 20;
       }
@@ -2254,6 +2255,7 @@
           diagramType: this.diagramType,
           customRawCode: this.customRawCode,
           layout: this.layoutDirection,
+          curveStyle: this.curveStyle,
           nodes: JSON.parse(JSON.stringify(this.nodes)),
           edges: JSON.parse(JSON.stringify(this.edges)),
           rules: JSON.parse(JSON.stringify(this.rules)),
@@ -2268,6 +2270,7 @@
         this.diagramType = proj.diagramType || 'flowchart_td';
         this.customRawCode = proj.customRawCode || null;
         this.layoutDirection = proj.layout || 'TD';
+        this.curveStyle = proj.curveStyle || 'basis';
         this.nodes = proj.nodes || [];
         this.edges = proj.edges || [];
         this.rules = proj.rules || [];
@@ -2412,6 +2415,10 @@
         }
 
         const lines = [];
+        const curve = graph.curveStyle || (graph.edges.find(e => e.curve && e.curve !== 'basis')?.curve);
+        if (curve && curve !== 'basis') {
+          lines.push(`%%{init: {"flowchart": {"curve": "${curve}"}} }%%`);
+        }
         lines.push(`flowchart ${graph.layoutDirection}`);
 
         const declaredNodes = new Set();
@@ -8193,6 +8200,10 @@ class MultiDiagramVisualizer {
 
         // 1. Parse Flowchart
         if (detectedType === 'flowchart_td' || detectedType === 'flowchart_lr') {
+          const initCurveM = code.match(/["']?curve["']?\s*:\s*["']?([A-Za-z0-9_]+)["']?/i);
+          if (initCurveM) {
+            newGraph.curveStyle = initCurveM[1];
+          }
           let lineIdx = 0;
           try {
             for (lineIdx = 0; lineIdx < lines.length; lineIdx++) {
@@ -9874,7 +9885,10 @@ class MultiDiagramVisualizer {
           edge.label = document.getElementById('prop-edge-label').value.trim() || undefined;
           edge.type = document.getElementById('prop-edge-type').value;
           const curveVal = document.getElementById('prop-edge-curve')?.value;
-          if (curveVal) edge.curve = curveVal;
+          if (curveVal) {
+            edge.curve = curveVal;
+            this.graph.curveStyle = curveVal;
+          }
           const col = document.getElementById('prop-edge-color')?.value;
           if (col) edge.color = col;
           const wid = parseFloat(document.getElementById('prop-edge-width')?.value);

@@ -32,6 +32,10 @@
 
         // 1. Parse Flowchart
         if (detectedType === 'flowchart_td' || detectedType === 'flowchart_lr') {
+          const initCurveM = code.match(/["']?curve["']?\s*:\s*["']?([A-Za-z0-9_]+)["']?/i);
+          if (initCurveM) {
+            newGraph.curveStyle = initCurveM[1];
+          }
           let lineIdx = 0;
           try {
             for (lineIdx = 0; lineIdx < lines.length; lineIdx++) {

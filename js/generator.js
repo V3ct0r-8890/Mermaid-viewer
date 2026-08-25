@@ -11,6 +11,10 @@
         }
 
         const lines = [];
+        const curve = graph.curveStyle || (graph.edges.find(e => e.curve && e.curve !== 'basis')?.curve);
+        if (curve && curve !== 'basis') {
+          lines.push(`%%{init: {"flowchart": {"curve": "${curve}"}} }%%`);
+        }
         lines.push(`flowchart ${graph.layoutDirection}`);
 
         const declaredNodes = new Set();

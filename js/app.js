@@ -1121,7 +1121,10 @@
           edge.label = document.getElementById('prop-edge-label').value.trim() || undefined;
           edge.type = document.getElementById('prop-edge-type').value;
           const curveVal = document.getElementById('prop-edge-curve')?.value;
-          if (curveVal) edge.curve = curveVal;
+          if (curveVal) {
+            edge.curve = curveVal;
+            this.graph.curveStyle = curveVal;
+          }
           const col = document.getElementById('prop-edge-color')?.value;
           if (col) edge.color = col;
           const wid = parseFloat(document.getElementById('prop-edge-width')?.value);

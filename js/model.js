@@ -9,6 +9,7 @@
           { id: 'r1', type: 'blocked', pattern: 'Database->Client' }
         ];
         this.layoutDirection = 'TD';
+        this.curveStyle = 'basis';
         this.gridSnap = true;
         this.gridSize = 20;
       }
@@ -57,6 +58,7 @@
           diagramType: this.diagramType,
           customRawCode: this.customRawCode,
           layout: this.layoutDirection,
+          curveStyle: this.curveStyle,
           nodes: JSON.parse(JSON.stringify(this.nodes)),
           edges: JSON.parse(JSON.stringify(this.edges)),
           rules: JSON.parse(JSON.stringify(this.rules)),
@@ -71,6 +73,7 @@
         this.diagramType = proj.diagramType || 'flowchart_td';
         this.customRawCode = proj.customRawCode || null;
         this.layoutDirection = proj.layout || 'TD';
+        this.curveStyle = proj.curveStyle || 'basis';
         this.nodes = proj.nodes || [];
         this.edges = proj.edges || [];
         this.rules = proj.rules || [];
