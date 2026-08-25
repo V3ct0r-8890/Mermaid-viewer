@@ -6,6 +6,10 @@ function bundle(outputFile = 'dist/index.html') {
   const html = fs.readFileSync('index.html', 'utf8');
   const css = fs.readFileSync('css/styles.css', 'utf8');
 
+  const diagramFiles = fs.existsSync('js/diagrams')
+    ? fs.readdirSync('js/diagrams').filter(f => f.endsWith('.js')).map(f => 'js/diagrams/' + f)
+    : [];
+
   const jsFiles = [
     'js/templates.js',
     'js/utils.js',
@@ -13,6 +17,7 @@ function bundle(outputFile = 'dist/index.html') {
     'js/layout.js',
     'js/generator.js',
     'js/visualizer.js',
+    ...diagramFiles,
     'js/parser.js',
     'js/highlighter.js',
     'js/export.js',
