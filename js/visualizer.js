@@ -1110,7 +1110,9 @@ class MultiDiagramVisualizer {
               name,
               score: parseInt(taskMatch[2]),
               actor: taskMatch[3].trim(),
-              color: MultiDiagramVisualizer.getColor(name, cardBg)
+              fillColor: MultiDiagramVisualizer.getColor(name, cardBg),
+              fontColor: MultiDiagramVisualizer.getColor(`${name}_font`, primaryText),
+              borderColor: MultiDiagramVisualizer.getColor(`${name}_border`, cardBorder)
             });
           }
         });
@@ -1156,16 +1158,16 @@ class MultiDiagramVisualizer {
             card.setAttribute('height', '80');
             card.setAttribute('rx', '8');
             const isSelJ = (t.name === selTitle);
-            card.setAttribute('fill', t.color);
-            card.setAttribute('stroke', isSelJ ? 'var(--selection-color)' : cardBorder);
-            card.setAttribute('stroke-width', isSelJ ? '2.5' : '1.5');
+            card.setAttribute('fill', t.fillColor);
+            card.setAttribute('stroke', isSelJ ? 'var(--selection-color)' : t.borderColor);
+            card.setAttribute('stroke-width', isSelJ ? '3' : '1.5');
             if (isSelJ) card.style.filter = selGlow;
             cardG.appendChild(card);
 
             const tName = document.createElementNS('http://www.w3.org/2000/svg', 'text');
             tName.setAttribute('x', `${x + 10}`);
             tName.setAttribute('y', `${ty + 22}`);
-            tName.setAttribute('fill', primaryText);
+            tName.setAttribute('fill', t.fontColor);
             tName.setAttribute('font-size', '11.5px');
             tName.setAttribute('font-weight', '600');
             tName.textContent = t.name;
@@ -1175,7 +1177,8 @@ class MultiDiagramVisualizer {
             const tScore = document.createElementNS('http://www.w3.org/2000/svg', 'text');
             tScore.setAttribute('x', `${x + 10}`);
             tScore.setAttribute('y', `${ty + 44}`);
-            tScore.setAttribute('fill', textColor);
+            tScore.setAttribute('fill', t.fontColor);
+            tScore.setAttribute('opacity', '0.85');
             tScore.setAttribute('font-size', '11px');
             tScore.textContent = `${emoji} Satisfaction: ${t.score}/5`;
             cardG.appendChild(tScore);
@@ -1205,11 +1208,17 @@ class MultiDiagramVisualizer {
                       { value: 1, label: '1 - 😡 Bad' }
                     ], value: t.score },
                     { key: 'actor', label: 'Involved Actor(s)', type: 'text', value: t.actor },
-                    { key: 'color', label: 'Card Color', type: 'color', value: t.color }
+                    { key: 'font', label: '1. Font / Text Color', type: 'color', value: t.fontColor },
+                    { key: 'fill', label: '2. Node / Card Fill Color', type: 'color', value: t.fillColor },
+                    { key: 'border', label: '3. Node / Card Border Color', type: 'color', value: t.borderColor }
                   ],
                   onSave: (vals) => {
-                    MultiDiagramVisualizer.setColor(vals.name, vals.color);
-                    MultiDiagramVisualizer.syncColorToCode(vals.name, vals.color);
+                    MultiDiagramVisualizer.setColor(vals.name, vals.fill);
+                    MultiDiagramVisualizer.setColor(`${vals.name}_font`, vals.font);
+                    MultiDiagramVisualizer.setColor(`${vals.name}_border`, vals.border);
+                    MultiDiagramVisualizer.syncColorToCode(vals.name, vals.fill);
+                    MultiDiagramVisualizer.syncColorToCode(`${vals.name}_font`, vals.font);
+                    MultiDiagramVisualizer.syncColorToCode(`${vals.name}_border`, vals.border);
                     MultiDiagramVisualizer.updateCodeLine((curCode) => {
                       const lines = curCode.split('\n');
                       const esc = t.name.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
@@ -1364,8 +1373,10 @@ class MultiDiagramVisualizer {
         rootEl.setAttribute('rx', rootNode.shape === 'circle' ? `${rootNode.height / 2}` : '8');
         const isSelRoot = (rootNode.text === selTitle);
         const rFill = MultiDiagramVisualizer.getColor('root', primaryFill);
+        const rFont = MultiDiagramVisualizer.getColor('root_font', primaryText);
+        const rBorder = MultiDiagramVisualizer.getColor('root_border', primaryBorder);
         rootEl.setAttribute('fill', rFill);
-        rootEl.setAttribute('stroke', isSelRoot ? 'var(--selection-color)' : primaryBorder);
+        rootEl.setAttribute('stroke', isSelRoot ? 'var(--selection-color)' : rBorder);
         rootEl.setAttribute('stroke-width', isSelRoot ? '3.5' : '2.5');
         if (isSelRoot) rootEl.style.filter = selGlow;
         rootG.appendChild(rootEl);
@@ -1375,7 +1386,7 @@ class MultiDiagramVisualizer {
         rootTxt.setAttribute('y', `${rootNode.y}`);
         rootTxt.setAttribute('text-anchor', 'middle');
         rootTxt.setAttribute('dominant-baseline', 'central');
-        rootTxt.setAttribute('fill', primaryText);
+        rootTxt.setAttribute('fill', rFont);
         rootTxt.setAttribute('font-size', '13px');
         rootTxt.setAttribute('font-weight', 'bold');
         rootTxt.textContent = rootNode.text;
@@ -1397,11 +1408,17 @@ class MultiDiagramVisualizer {
                   { value: 'hexagon', label: 'Hexagon {{Root}}' },
                   { value: 'cloud', label: 'Cloud )Root(' }
                 ]},
-                { key: 'fill', label: 'Fill Color', type: 'color', value: rFill }
+                { key: 'font', label: '1. Font / Text Color', type: 'color', value: rFont },
+                { key: 'fill', label: '2. Node Fill Color', type: 'color', value: rFill },
+                { key: 'border', label: '3. Node Border / Stroke Color', type: 'color', value: rBorder }
               ],
               onSave: (vals) => {
                 MultiDiagramVisualizer.setColor('root', vals.fill);
+                MultiDiagramVisualizer.setColor('root_font', vals.font);
+                MultiDiagramVisualizer.setColor('root_border', vals.border);
                 MultiDiagramVisualizer.syncColorToCode('root', vals.fill);
+                MultiDiagramVisualizer.syncColorToCode('root_font', vals.font);
+                MultiDiagramVisualizer.syncColorToCode('root_border', vals.border);
                 MultiDiagramVisualizer.updateCodeLine((curCode) => {
                   const shapeBrackets = {
                     'circle': ['((', '))'],
@@ -1446,9 +1463,14 @@ class MultiDiagramVisualizer {
           rect.setAttribute('rx', node.level === 1 ? '6' : '4');
           const isSelMM = (node.text === selTitle);
           const defaultNodeFill = node.level === 1 ? cardBg : (isDark ? '#232527' : '#F8F9FA');
+          const defaultNodeFont = node.level === 1 ? primaryText : textColor;
+          const defaultNodeBorder = node.level === 1 ? primaryBorder : cardBorder;
           const nodeFill = MultiDiagramVisualizer.getColor(node.text, defaultNodeFill);
+          const nodeFont = MultiDiagramVisualizer.getColor(`${node.text}_font`, defaultNodeFont);
+          const nodeBorder = MultiDiagramVisualizer.getColor(`${node.text}_border`, defaultNodeBorder);
+
           rect.setAttribute('fill', nodeFill);
-          rect.setAttribute('stroke', isSelMM ? 'var(--selection-color)' : (node.level === 1 ? primaryBorder : cardBorder));
+          rect.setAttribute('stroke', isSelMM ? 'var(--selection-color)' : nodeBorder);
           rect.setAttribute('stroke-width', isSelMM ? '2.5' : (node.level === 1 ? '1.5' : '1'));
           if (isSelMM) rect.style.filter = selGlow;
           g.appendChild(rect);
@@ -1458,12 +1480,13 @@ class MultiDiagramVisualizer {
           txt.setAttribute('y', `${node.y}`);
           txt.setAttribute('text-anchor', 'middle');
           txt.setAttribute('dominant-baseline', 'central');
-          txt.setAttribute('fill', node.level === 1 ? primaryText : textColor);
+          txt.setAttribute('fill', nodeFont);
           txt.setAttribute('font-size', node.level === 1 ? '11.5px' : (node.level === 2 ? '11px' : '10px'));
           txt.setAttribute('font-weight', node.level <= 2 ? '600' : 'normal');
           txt.textContent = (node.icon ? '📌 ' : '') + node.text;
           g.appendChild(txt);
 
+          g.addEventListener('mousedown', (e) => e.stopPropagation());
           g.addEventListener('click', (e) => {
             e.stopPropagation();
             if (typeof AppController !== 'undefined' && AppController.instance) {
@@ -1472,11 +1495,17 @@ class MultiDiagramVisualizer {
                 title: node.text,
                 fields: [
                   { key: 'text', label: 'Branch Topic', type: 'text', value: node.text },
-                  { key: 'color', label: 'Branch Fill Color', type: 'color', value: nodeFill }
+                  { key: 'font', label: '1. Font / Text Color', type: 'color', value: nodeFont },
+                  { key: 'fill', label: '2. Node Fill Color', type: 'color', value: nodeFill },
+                  { key: 'border', label: '3. Node Border / Stroke Color', type: 'color', value: nodeBorder }
                 ],
                 onSave: (vals) => {
-                  MultiDiagramVisualizer.setColor(vals.text, vals.color);
-                  MultiDiagramVisualizer.syncColorToCode(vals.text, vals.color);
+                  MultiDiagramVisualizer.setColor(vals.text, vals.fill);
+                  MultiDiagramVisualizer.setColor(`${vals.text}_font`, vals.font);
+                  MultiDiagramVisualizer.setColor(`${vals.text}_border`, vals.border);
+                  MultiDiagramVisualizer.syncColorToCode(vals.text, vals.fill);
+                  MultiDiagramVisualizer.syncColorToCode(`${vals.text}_font`, vals.font);
+                  MultiDiagramVisualizer.syncColorToCode(`${vals.text}_border`, vals.border);
                   MultiDiagramVisualizer.updateCodeLine((curCode) => {
                     const lines = curCode.split('\n');
                     const esc = node.text.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
@@ -1520,18 +1549,21 @@ class MultiDiagramVisualizer {
           if (m) {
             const era = m[1].trim();
             const items = m[2].split(':').map(s => s.trim()).filter(Boolean);
+            const defaultCol = colors[events.length % colors.length];
             events.push({
               era,
               items: items.length > 0 ? items : ['Milestone Event'],
-              color: MultiDiagramVisualizer.getColor(era, colors[events.length % colors.length])
+              fillColor: MultiDiagramVisualizer.getColor(era, cardBg),
+              fontColor: MultiDiagramVisualizer.getColor(`${era}_font`, primaryText),
+              borderColor: MultiDiagramVisualizer.getColor(`${era}_border`, defaultCol)
             });
           }
         });
 
         if (events.length === 0) {
-          events.push({ era: '2024', items: ['Alpha Prototype'], color: '#2196F3' });
-          events.push({ era: '2025', items: ['Beta Release'], color: '#4CAF50' });
-          events.push({ era: '2026', items: ['Production Launch'], color: '#FF9800' });
+          events.push({ era: '2024', items: ['Alpha Prototype'], fillColor: cardBg, fontColor: primaryText, borderColor: '#2196F3' });
+          events.push({ era: '2025', items: ['Beta Release'], fillColor: cardBg, fontColor: primaryText, borderColor: '#4CAF50' });
+          events.push({ era: '2026', items: ['Production Launch'], fillColor: cardBg, fontColor: primaryText, borderColor: '#FF9800' });
         }
 
         // Title
@@ -1566,7 +1598,7 @@ class MultiDiagramVisualizer {
           nodeCircle.setAttribute('cx', `${ex}`);
           nodeCircle.setAttribute('cy', `${axisY}`);
           nodeCircle.setAttribute('r', '10');
-          nodeCircle.setAttribute('fill', ev.color);
+          nodeCircle.setAttribute('fill', ev.borderColor);
           nodeCircle.setAttribute('stroke', '#FFFFFF');
           nodeCircle.setAttribute('stroke-width', '3');
           nodesLayer.appendChild(nodeCircle);
@@ -1577,7 +1609,7 @@ class MultiDiagramVisualizer {
           eraTxt.setAttribute('y', `${axisY - 24}`);
           eraTxt.setAttribute('text-anchor', 'middle');
           eraTxt.setAttribute('dominant-baseline', 'central');
-          eraTxt.setAttribute('fill', primaryText);
+          eraTxt.setAttribute('fill', ev.fontColor);
           eraTxt.setAttribute('font-size', '11.5px');
           eraTxt.setAttribute('font-weight', 'bold');
           eraTxt.textContent = ev.era;
@@ -1595,24 +1627,23 @@ class MultiDiagramVisualizer {
           cardRect.setAttribute('height', `${cardH}`);
           cardRect.setAttribute('rx', '6');
           const isSelTime = (ev.era === selTitle);
-          cardRect.setAttribute('fill', cardBg);
-          cardRect.setAttribute('stroke', isSelTime ? 'var(--selection-color)' : (ev.color !== colors[eIdx % colors.length] ? ev.color : cardBorder));
-          if (isSelTime) {
-            cardRect.setAttribute('stroke-width', '2.5');
-            cardRect.style.filter = selGlow;
-          }
+          cardRect.setAttribute('fill', ev.fillColor);
+          cardRect.setAttribute('stroke', isSelTime ? 'var(--selection-color)' : ev.borderColor);
+          cardRect.setAttribute('stroke-width', isSelTime ? '2.5' : '1.5');
+          if (isSelTime) cardRect.style.filter = selGlow;
           cardG.appendChild(cardRect);
 
           ev.items.forEach((it, iIdx) => {
             const itemTxt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
             itemTxt.setAttribute('x', `${ex - cardW / 2 + 12}`);
             itemTxt.setAttribute('y', `${axisY + 52 + iIdx * 22}`);
-            itemTxt.setAttribute('fill', textColor);
+            itemTxt.setAttribute('fill', ev.fontColor);
             itemTxt.setAttribute('font-size', '11px');
             itemTxt.textContent = '✔ ' + it;
             cardG.appendChild(itemTxt);
           });
 
+          cardG.addEventListener('mousedown', (e) => e.stopPropagation());
           cardG.addEventListener('click', (e) => {
             e.stopPropagation();
             if (typeof AppController !== 'undefined' && AppController.instance) {
@@ -1622,11 +1653,17 @@ class MultiDiagramVisualizer {
                 fields: [
                   { key: 'era', label: 'Era / Year', type: 'text', value: ev.era },
                   { key: 'items', label: 'Milestone Events (Comma Separated)', type: 'textarea', rows: 2, value: ev.items.join(', ') },
-                  { key: 'color', label: 'Milestone Accent Color', type: 'color', value: ev.color }
+                  { key: 'font', label: '1. Font / Text Color', type: 'color', value: ev.fontColor },
+                  { key: 'fill', label: '2. Node / Card Fill Color', type: 'color', value: ev.fillColor },
+                  { key: 'border', label: '3. Node Border / Accent Color', type: 'color', value: ev.borderColor }
                 ],
                 onSave: (vals) => {
-                  MultiDiagramVisualizer.setColor(vals.era, vals.color);
-                  MultiDiagramVisualizer.syncColorToCode(vals.era, vals.color);
+                  MultiDiagramVisualizer.setColor(vals.era, vals.fill);
+                  MultiDiagramVisualizer.setColor(`${vals.era}_font`, vals.font);
+                  MultiDiagramVisualizer.setColor(`${vals.era}_border`, vals.border);
+                  MultiDiagramVisualizer.syncColorToCode(vals.era, vals.fill);
+                  MultiDiagramVisualizer.syncColorToCode(`${vals.era}_font`, vals.font);
+                  MultiDiagramVisualizer.syncColorToCode(`${vals.era}_border`, vals.border);
                   MultiDiagramVisualizer.updateCodeLine((curCode) => {
                     const lines = curCode.split('\n');
                     const esc = ev.era.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
@@ -1900,7 +1937,10 @@ class MultiDiagramVisualizer {
         const rightYMap = new Map();
 
         const drawBox = (name, x, y, defaultColor) => {
-          const color = MultiDiagramVisualizer.getColor(name, defaultColor);
+          const fillColor = MultiDiagramVisualizer.getColor(name, defaultColor);
+          const fontColor = MultiDiagramVisualizer.getColor(`${name}_font`, '#FFFFFF');
+          const borderColor = MultiDiagramVisualizer.getColor(`${name}_border`, cardBorder);
+
           const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
           g.style.cursor = 'pointer';
 
@@ -1911,13 +1951,11 @@ class MultiDiagramVisualizer {
           rect.setAttribute('height', '45');
           rect.setAttribute('rx', '4');
           const isSelSankey = (name === selTitle);
-          rect.setAttribute('fill', color);
-          rect.setAttribute('opacity', isSelSankey ? '1' : '0.85');
-          if (isSelSankey) {
-            rect.setAttribute('stroke', 'var(--selection-color)');
-            rect.setAttribute('stroke-width', '3');
-            rect.style.filter = selGlow;
-          }
+          rect.setAttribute('fill', fillColor);
+          rect.setAttribute('stroke', isSelSankey ? 'var(--selection-color)' : borderColor);
+          rect.setAttribute('stroke-width', isSelSankey ? '3' : '1.5');
+          rect.setAttribute('opacity', isSelSankey ? '1' : '0.9');
+          if (isSelSankey) rect.style.filter = selGlow;
           g.appendChild(rect);
 
           const txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
@@ -1925,12 +1963,13 @@ class MultiDiagramVisualizer {
           txt.setAttribute('y', `${y + 22}`);
           txt.setAttribute('text-anchor', 'middle');
           txt.setAttribute('dominant-baseline', 'central');
-          txt.setAttribute('fill', '#FFFFFF');
+          txt.setAttribute('fill', fontColor);
           txt.setAttribute('font-size', '11.5px');
           txt.setAttribute('font-weight', 'bold');
           txt.textContent = name;
           g.appendChild(txt);
 
+          g.addEventListener('mousedown', (e) => e.stopPropagation());
           g.addEventListener('click', (e) => {
             e.stopPropagation();
             if (typeof AppController !== 'undefined' && AppController.instance) {
@@ -1939,11 +1978,17 @@ class MultiDiagramVisualizer {
                 title: name,
                 fields: [
                   { key: 'name', label: 'Node Label', type: 'text', value: name },
-                  { key: 'color', label: 'Node Fill Color', type: 'color', value: color }
+                  { key: 'font', label: '1. Font / Text Color', type: 'color', value: fontColor },
+                  { key: 'fill', label: '2. Node Fill Color', type: 'color', value: fillColor },
+                  { key: 'border', label: '3. Node Border / Stroke Color', type: 'color', value: borderColor }
                 ],
                 onSave: (vals) => {
-                  MultiDiagramVisualizer.setColor(vals.name, vals.color);
-                  MultiDiagramVisualizer.syncColorToCode(vals.name, vals.color);
+                  MultiDiagramVisualizer.setColor(vals.name, vals.fill);
+                  MultiDiagramVisualizer.setColor(`${vals.name}_font`, vals.font);
+                  MultiDiagramVisualizer.setColor(`${vals.name}_border`, vals.border);
+                  MultiDiagramVisualizer.syncColorToCode(vals.name, vals.fill);
+                  MultiDiagramVisualizer.syncColorToCode(`${vals.name}_font`, vals.font);
+                  MultiDiagramVisualizer.syncColorToCode(`${vals.name}_border`, vals.border);
                   MultiDiagramVisualizer.updateCodeLine((curCode) => {
                     const lines = curCode.split('\n');
                     for (let i = 0; i < lines.length; i++) {
