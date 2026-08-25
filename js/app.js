@@ -79,7 +79,7 @@
         this.nodesLayer.innerHTML = '';
         this.edgesLayer.innerHTML = '';
 
-        const isVisualSpecial = ['sequence', 'gantt', 'pie', 'gitGraph', 'gitgraph', 'journey', 'mindmap', 'timeline', 'quadrant', 'sankey', 'erDiagram', 'erdiagram', 'c4context', 'stateDiagram', 'statediagram', 'stateDiagram-v2', 'statediagram-v2', 'classDiagram', 'classdiagram'].includes(this.graph.diagramType);
+        const isVisualSpecial = ['sequence', 'gantt', 'pie', 'gitGraph', 'gitgraph', 'journey', 'mindmap', 'timeline', 'quadrant', 'sankey', 'erDiagram', 'erdiagram', 'c4context', 'stateDiagram', 'statediagram', 'stateDiagram-v2', 'statediagram-v2', 'classDiagram', 'classdiagram', 'treemap', 'treemap-beta'].includes(this.graph.diagramType);
 
         if (isVisualSpecial) {
           const isDark = this.themeMgr.currentTheme === 'dark';

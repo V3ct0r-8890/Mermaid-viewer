@@ -297,5 +297,31 @@
   Landing Page, Dropoff, 3200
   Signup Form, Activated Users, 4200
   Signup Form, Abandoned, 1600`
-      }
+      },
+      {
+        id: 'treemap',
+        name: 'Treemap Chart',
+        badge: 'treemap-beta',
+        desc: 'Nested hierarchical categories, proportional budget allocations',
+        code: `---
+config:
+  treemap:
+    valueFormat: '$0,0'
+---
+treemap-beta
+"Monthly Budget"
+    "Housing"
+        "Rent": 1400
+        "Utilities": 220
+        "Internet": 60
+    "Food"
+        "Groceries": 480
+        "Dining out": 180
+    "Transport"
+        "Car payment": 320
+        "Fuel": 140
+    "Savings"
+        "Emergency fund": 300
+        "Retirement": 400`
+      },
     ];

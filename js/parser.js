@@ -17,6 +17,7 @@
         if (/^quadrantChart/i.test(firstLines)) return 'quadrant';
         if (/^C4Context/i.test(firstLines) || /^C4/i.test(firstLines)) return 'c4context';
         if (/^sankey/i.test(firstLines)) return 'sankey';
+        if (/^treemap/i.test(firstLines) || /treemap/i.test(firstLines)) return 'treemap';
         return 'flowchart_td';
       }
 
