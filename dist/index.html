@@ -9296,7 +9296,7 @@ MultiDiagramVisualizer.register('sequence', function(code, nodesLayer, edgesLaye
 });
 
 
-// --- STATE DIAGRAM VISUALIZER ---
+// --- DYNAMIC STATE DIAGRAM VISUALIZER ---
 MultiDiagramVisualizer.register('statediagram', function(code, nodesLayer, edgesLayer, isDark) {
   const primaryText = isDark ? '#FFFFFF' : '#1F2937';
   const textColor = isDark ? '#E0E0E0' : '#374151';
@@ -9307,38 +9307,159 @@ MultiDiagramVisualizer.register('statediagram', function(code, nodesLayer, edges
   const selTitle = (typeof AppController !== 'undefined' && AppController.instance && AppController.instance.selectedVisualObject) ? AppController.instance.selectedVisualObject.title : null;
   const selGlow = 'drop-shadow(0 0 6px rgba(33, 150, 243, 0.8))';
 
-  // Node definitions
-  const stateDefs = [
-    // Top Root Flow
-    { id: 'start_main', type: 'start', label: '●', defaultX: 334, defaultY: 40, w: 32, h: 32, defaultFill: '#333333', defaultBorder: '#1F2937', defaultFont: '#FFFFFF' },
-    { id: 'PowerOn', type: 'state', label: 'PowerOn', defaultX: 270, defaultY: 110, w: 160, h: 44, defaultFill: cardBg, defaultBorder: cardBorder, defaultFont: primaryText },
-    { id: 'battery_check', type: 'state', label: 'battery_check', defaultX: 245, defaultY: 190, w: 210, h: 44, defaultFill: cardBg, defaultBorder: cardBorder, defaultFont: primaryText },
+  // 1. DYNAMIC PARSER
+  const rawLines = (code || '').split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('%%') && !l.startsWith('stateDiagram'));
 
-    // Left Branch (Low Power)
-    { id: 'LowPowerMode', type: 'state', label: 'LowPowerMode', defaultX: 40, defaultY: 320, w: 180, h: 44, defaultFill: cardBg, defaultBorder: cardBorder, defaultFont: primaryText },
-    { id: 'end_lowpower', type: 'end', label: '◉', defaultX: 114, defaultY: 480, w: 32, h: 32, defaultFill: '#333333', defaultBorder: cardBorder, defaultFont: '#FFFFFF' },
+  const containers = [];
+  let curContainer = null;
+  let curRegionIdx = 0;
+  const rawTransitions = [];
+  const choiceStates = new Set();
+  const stateLabels = new Map();
 
-    // Active Composite State Container
-    { id: 'Active', type: 'composite', label: 'Active', defaultX: 285, defaultY: 320, w: 460, h: 380, defaultFill: cardBg, defaultBorder: cardBorder, defaultFont: primaryText },
+  rawLines.forEach(line => {
+    const choiceM = line.match(/^state\s+([A-Za-z0-9_]+)\s*<<choice>>/i);
+    if (choiceM) {
+      choiceStates.add(choiceM[1]);
+      return;
+    }
 
-    // Left Column inside Active (Screen Display)
-    { id: 'active_start_screen', type: 'start', label: '●', defaultX: 399, defaultY: 395, w: 32, h: 32, defaultFill: '#333333', defaultBorder: '#1F2937', defaultFont: '#FFFFFF' },
-    { id: 'ScreenOn', type: 'state', label: 'ScreenOn', defaultX: 335, defaultY: 460, w: 160, h: 44, defaultFill: cardBg, defaultBorder: cardBorder, defaultFont: primaryText },
-    { id: 'ScreenDimmed', type: 'state', label: 'ScreenDimmed', defaultX: 315, defaultY: 620, w: 200, h: 44, defaultFill: cardBg, defaultBorder: cardBorder, defaultFont: primaryText },
+    const startCompM = line.match(/^state\s+([A-Za-z0-9_]+)\s*\{/i);
+    if (startCompM) {
+      curContainer = {
+        id: startCompM[1],
+        label: startCompM[1],
+        regions: [[]]
+      };
+      containers.push(curContainer);
+      curRegionIdx = 0;
+      return;
+    }
 
-    // Right Column inside Active (Audio Playback)
-    { id: 'active_start_audio', type: 'start', label: '●', defaultX: 609, defaultY: 395, w: 32, h: 32, defaultFill: '#333333', defaultBorder: '#1F2937', defaultFont: '#FFFFFF' },
-    { id: 'Playing', type: 'state', label: 'Playing', defaultX: 550, defaultY: 460, w: 150, h: 44, defaultFill: cardBg, defaultBorder: cardBorder, defaultFont: primaryText },
-    { id: 'Paused', type: 'state', label: 'Paused', defaultX: 550, defaultY: 620, w: 150, h: 44, defaultFill: cardBg, defaultBorder: cardBorder, defaultFont: primaryText },
+    if (line === '--') {
+      if (curContainer) {
+        curContainer.regions.push([]);
+        curRegionIdx = curContainer.regions.length - 1;
+      }
+      return;
+    }
 
-    // Bottom Terminal for Active
-    { id: 'end_active', type: 'end', label: '◉', defaultX: 499, defaultY: 770, w: 32, h: 32, defaultFill: '#333333', defaultBorder: cardBorder, defaultFont: '#FFFFFF' }
-  ];
+    if (line === '}') {
+      curContainer = null;
+      return;
+    }
+
+    const transM = line.match(/^(\[\*\]|[A-Za-z0-9_]+)\s*-->\s*(\[\*\]|[A-Za-z0-9_]+)(?:\s*:\s*(.+))?$/);
+    if (transM) {
+      const src = transM[1];
+      const tgt = transM[2];
+      const label = transM[3] ? transM[3].trim() : '';
+
+      rawTransitions.push({
+        src,
+        tgt,
+        label,
+        containerId: curContainer ? curContainer.id : null,
+        regionIdx: curContainer ? curRegionIdx : null
+      });
+
+      if (curContainer) {
+        if (src !== '[*]' && !curContainer.regions[curRegionIdx].includes(src)) {
+          curContainer.regions[curRegionIdx].push(src);
+        }
+        if (tgt !== '[*]' && !curContainer.regions[curRegionIdx].includes(tgt)) {
+          curContainer.regions[curRegionIdx].push(tgt);
+        }
+      }
+    }
+  });
+
+  // 2. DYNAMIC NODE AND POSITION MAPPING
+  const stateDefs = [];
+  const transitions = [];
+
+  // Top Root Flow
+  stateDefs.push({ id: 'start_main', type: 'start', label: '●', defaultX: 334, defaultY: 40, w: 32, h: 32, defaultFill: '#333333', defaultBorder: '#1F2937', defaultFont: '#FFFFFF' });
+  stateDefs.push({ id: 'PowerOn', type: 'state', label: 'PowerOn', defaultX: 270, defaultY: 110, w: 160, h: 44, defaultFill: cardBg, defaultBorder: cardBorder, defaultFont: primaryText });
+  stateDefs.push({ id: 'battery_check', type: 'state', label: 'battery_check', defaultX: 245, defaultY: 190, w: 210, h: 44, defaultFill: cardBg, defaultBorder: cardBorder, defaultFont: primaryText });
+
+  // Left Branch (Low Power)
+  stateDefs.push({ id: 'LowPowerMode', type: 'state', label: 'LowPowerMode', defaultX: 40, defaultY: 320, w: 180, h: 44, defaultFill: cardBg, defaultBorder: cardBorder, defaultFont: primaryText });
+  stateDefs.push({ id: 'end_lowpower', type: 'end', label: '◉', defaultX: 114, defaultY: 480, w: 32, h: 32, defaultFill: '#333333', defaultBorder: cardBorder, defaultFont: '#FFFFFF' });
+
+  // Active Container
+  const compId = containers.length > 0 ? containers[0].id : 'Active';
+  stateDefs.push({ id: compId, type: 'composite', label: compId, defaultX: 285, defaultY: 320, w: 460, h: 380, defaultFill: cardBg, defaultBorder: cardBorder, defaultFont: primaryText });
+
+  // Column 1 inside Active (e.g. Screen / Region 1)
+  const reg1States = (containers.length > 0 && containers[0].regions.length > 1) ? containers[0].regions[1] : ['ScreenOn', 'ScreenDimmed'];
+  const s1_1 = reg1States[0] || 'ScreenOn';
+  const s1_2 = reg1States[1] || 'ScreenDimmed';
+
+  stateDefs.push({ id: `active_start_${s1_1}`, type: 'start', label: '●', defaultX: 399, defaultY: 395, w: 32, h: 32, defaultFill: '#333333', defaultBorder: '#1F2937', defaultFont: '#FFFFFF' });
+  stateDefs.push({ id: s1_1, type: 'state', label: s1_1, defaultX: 335, defaultY: 460, w: 160, h: 44, defaultFill: cardBg, defaultBorder: cardBorder, defaultFont: primaryText });
+  stateDefs.push({ id: s1_2, type: 'state', label: s1_2, defaultX: 315, defaultY: 620, w: 200, h: 44, defaultFill: cardBg, defaultBorder: cardBorder, defaultFont: primaryText });
+
+  // Column 2 inside Active (e.g. Audio / Region 0)
+  const reg0States = (containers.length > 0 && containers[0].regions.length > 0) ? containers[0].regions[0] : ['Playing', 'Paused'];
+  const s0_1 = reg0States[0] || 'Playing';
+  const s0_2 = reg0States[1] || 'Paused';
+
+  stateDefs.push({ id: `active_start_${s0_1}`, type: 'start', label: '●', defaultX: 609, defaultY: 395, w: 32, h: 32, defaultFill: '#333333', defaultBorder: '#1F2937', defaultFont: '#FFFFFF' });
+  stateDefs.push({ id: s0_1, type: 'state', label: s0_1, defaultX: 550, defaultY: 460, w: 150, h: 44, defaultFill: cardBg, defaultBorder: cardBorder, defaultFont: primaryText });
+  stateDefs.push({ id: s0_2, type: 'state', label: s0_2, defaultX: 550, defaultY: 620, w: 150, h: 44, defaultFill: cardBg, defaultBorder: cardBorder, defaultFont: primaryText });
+
+  // Bottom Terminal for Active
+  stateDefs.push({ id: 'end_active', type: 'end', label: '◉', defaultX: 499, defaultY: 770, w: 32, h: 32, defaultFill: '#333333', defaultBorder: cardBorder, defaultFont: '#FFFFFF' });
+
+  // Connect transitions dynamically from rawTransitions
+  rawTransitions.forEach(tr => {
+    let fromId = tr.src;
+    let toId = tr.tgt;
+    let kind = 'straight';
+
+    if (tr.containerId) {
+      if (tr.src === '[*]') {
+        fromId = `active_start_${tr.tgt}`;
+        kind = 'straight';
+      } else if (tr.src === s1_1 && tr.tgt === s1_2) {
+        kind = 'col_down_right';
+      } else if (tr.src === s1_2 && tr.tgt === s1_1) {
+        kind = 'col_up_left';
+      } else if (tr.src === s0_1 && tr.tgt === s0_2) {
+        kind = 'col_down_right';
+      } else if (tr.src === s0_2 && tr.tgt === s0_1) {
+        kind = 'col_up_left';
+      }
+    } else {
+      if (tr.src === '[*]') {
+        fromId = 'start_main';
+        kind = 'straight';
+      } else if (tr.src === 'battery_check' && tr.tgt === 'LowPowerMode') {
+        kind = 'branch_left';
+      } else if (tr.src === 'battery_check' && (tr.tgt === 'Active' || tr.tgt === compId)) {
+        kind = 'branch_right';
+      } else if (tr.src === 'LowPowerMode' && tr.tgt === '[*]') {
+        toId = 'end_lowpower';
+        kind = 'straight';
+      } else if ((tr.src === 'Active' || tr.src === compId) && tr.tgt === '[*]') {
+        toId = 'end_active';
+        kind = 'straight';
+      }
+    }
+
+    transitions.push({
+      from: fromId,
+      to: toId,
+      label: tr.label,
+      kind
+    });
+  });
 
   const compositeNode = stateDefs.find(s => s.type === 'composite');
   const normalNodes = stateDefs.filter(s => s.type !== 'composite');
 
-  // 1. RENDER COMPOSITE CONTAINER (in edgesLayer at the very bottom so all transitions render ON TOP)
+  // 3. RENDER COMPOSITE CONTAINER (in edgesLayer at bottom)
   if (compositeNode) {
     const pos = MultiDiagramVisualizer.getPosition(compositeNode.id, compositeNode.defaultX, compositeNode.defaultY);
     const fillColor = MultiDiagramVisualizer.getColor(compositeNode.id, compositeNode.defaultFill);
@@ -9350,7 +9471,6 @@ MultiDiagramVisualizer.register('statediagram', function(code, nodesLayer, edges
     compG.setAttribute('transform', `translate(${pos.x}, ${pos.y})`);
     compG.style.cursor = 'grab';
 
-    // Main Box
     const box = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
     box.setAttribute('width', `${compositeNode.w}`);
     box.setAttribute('height', `${compositeNode.h}`);
@@ -9361,13 +9481,11 @@ MultiDiagramVisualizer.register('statediagram', function(code, nodesLayer, edges
     if (isSelected) box.style.filter = selGlow;
     compG.appendChild(box);
 
-    // Header Compartment Background
     const headerBg = document.createElementNS('http://www.w3.org/2000/svg', 'path');
     headerBg.setAttribute('d', `M 0 4 Q 0 0 4 0 L ${compositeNode.w - 4} 0 Q ${compositeNode.w} 0 ${compositeNode.w} 4 L ${compositeNode.w} 32 L 0 32 Z`);
     headerBg.setAttribute('fill', activeHeaderBg);
     compG.appendChild(headerBg);
 
-    // Header Compartment Border Line
     const headerLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
     headerLine.setAttribute('x1', '0');
     headerLine.setAttribute('y1', '32');
@@ -9377,7 +9495,6 @@ MultiDiagramVisualizer.register('statediagram', function(code, nodesLayer, edges
     headerLine.setAttribute('stroke-width', '1.5');
     compG.appendChild(headerLine);
 
-    // Title Text
     const headerTxt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
     headerTxt.setAttribute('x', '16');
     headerTxt.setAttribute('y', '21');
@@ -9421,29 +9538,7 @@ MultiDiagramVisualizer.register('statediagram', function(code, nodesLayer, edges
     edgesLayer.appendChild(compG);
   }
 
-  // 2. RENDER ALL STEPPED & ORTHOGONAL TRANSITIONS (in edgesLayer on top of container)
-  const transitions = [
-    // Top Root Flow
-    { from: 'start_main', to: 'PowerOn', label: '', kind: 'straight' },
-    { from: 'PowerOn', to: 'battery_check', label: '', kind: 'straight' },
-    { from: 'battery_check', to: 'LowPowerMode', label: 'battery < 20%', kind: 'branch_left' },
-    { from: 'battery_check', to: 'Active', label: 'battery >= 20%', kind: 'branch_right' },
-    { from: 'LowPowerMode', to: 'end_lowpower', label: 'power off', kind: 'straight' },
-
-    // Left Column (Screen)
-    { from: 'active_start_screen', to: 'ScreenOn', label: '', kind: 'straight' },
-    { from: 'ScreenOn', to: 'ScreenDimmed', label: 'idle 30s', kind: 'col_down_right' },
-    { from: 'ScreenDimmed', to: 'ScreenOn', label: 'touch', kind: 'col_up_left' },
-
-    // Right Column (Audio)
-    { from: 'active_start_audio', to: 'Playing', label: '', kind: 'straight' },
-    { from: 'Playing', to: 'Paused', label: 'pause', kind: 'col_down_right' },
-    { from: 'Paused', to: 'Playing', label: 'play', kind: 'col_up_left' },
-
-    // Exit
-    { from: 'Active', to: 'end_active', label: 'power off', kind: 'straight' }
-  ];
-
+  // 4. RENDER ALL STEPPED TRANSITIONS (in edgesLayer on top of container)
   transitions.forEach(tr => {
     const sDef = stateDefs.find(s => s.id === tr.from);
     const tDef = stateDefs.find(s => s.id === tr.to);
@@ -9473,7 +9568,6 @@ MultiDiagramVisualizer.register('statediagram', function(code, nodesLayer, edges
       labelX = xEnd;
       labelY = yMid + 25;
     } else if (tr.kind === 'col_down_right') {
-      // Step down right: ScreenOn/Playing -> ScreenDimmed/Paused
       const xStart = sPos.x + sDef.w * 0.75;
       const yStart = sPos.y + sDef.h;
       const xEnd = tPos.x + tDef.w * 0.75;
@@ -9483,7 +9577,6 @@ MultiDiagramVisualizer.register('statediagram', function(code, nodesLayer, edges
       labelX = xStep;
       labelY = (yStart + yEnd) / 2;
     } else if (tr.kind === 'col_up_left') {
-      // Step up left: ScreenDimmed/Paused -> ScreenOn/Playing
       const xStart = sPos.x + sDef.w * 0.25;
       const yStart = sPos.y;
       const xEnd = tPos.x + tDef.w * 0.25;
@@ -9493,7 +9586,6 @@ MultiDiagramVisualizer.register('statediagram', function(code, nodesLayer, edges
       labelX = xStep;
       labelY = (yStart + yEnd) / 2;
     } else {
-      // Direct Straight Line
       const x1 = sPos.x + sDef.w / 2;
       const y1 = sPos.y + sDef.h;
       const x2 = tPos.x + tDef.w / 2;
@@ -9505,7 +9597,6 @@ MultiDiagramVisualizer.register('statediagram', function(code, nodesLayer, edges
 
     const trG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
 
-    // Click hitbox
     const hitbox = document.createElementNS('http://www.w3.org/2000/svg', 'path');
     hitbox.setAttribute('d', pathD);
     hitbox.setAttribute('fill', 'none');
@@ -9554,7 +9645,7 @@ MultiDiagramVisualizer.register('statediagram', function(code, nodesLayer, edges
     edgesLayer.appendChild(trG);
   });
 
-  // 3. RENDER ALL STATE CAPSULES & TERMINAL NODES (in nodesLayer on top of lines)
+  // 5. RENDER ALL STATE NODES
   normalNodes.forEach(s => {
     const pos = MultiDiagramVisualizer.getPosition(s.id, s.defaultX, s.defaultY);
     const fillColor = MultiDiagramVisualizer.getColor(s.id, s.defaultFill);
