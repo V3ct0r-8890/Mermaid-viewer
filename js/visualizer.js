@@ -1,6 +1,63 @@
 // --- DEDICATED MULTI-DIAGRAM VISUAL SUITE ---
 class MultiDiagramVisualizer {
   static customColors = new Map();
+  static nodePositions = new Map();
+
+  static getPosition(key, defaultX, defaultY) {
+    if (!key) return { x: defaultX, y: defaultY };
+    const cleanKey = String(key).replace(/^["']|["']$/g, '').trim();
+    if (MultiDiagramVisualizer.nodePositions.has(cleanKey)) {
+      return MultiDiagramVisualizer.nodePositions.get(cleanKey);
+    }
+    return { x: defaultX, y: defaultY };
+  }
+
+  static setPosition(key, x, y) {
+    if (key) {
+      const cleanKey = String(key).replace(/^["']|["']$/g, '').trim();
+      MultiDiagramVisualizer.nodePositions.set(cleanKey, { x, y });
+    }
+  }
+
+  static makeDraggable(element, alias, getPos, setPos, onDragEnd) {
+    element.addEventListener('mousedown', (e) => {
+      if (e.button !== 0) return;
+      e.stopPropagation();
+
+      const app = (typeof AppController !== 'undefined' && AppController.instance) ? AppController.instance : null;
+      const zoom = app ? app.zoom : 1;
+      const startMouseX = e.clientX;
+      const startMouseY = e.clientY;
+      const initPos = getPos();
+      const startX = initPos.x;
+      const startY = initPos.y;
+      let hasDragged = false;
+
+      const onMouseMove = (moveEvent) => {
+        const dx = (moveEvent.clientX - startMouseX) / zoom;
+        const dy = (moveEvent.clientY - startMouseY) / zoom;
+        if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
+          hasDragged = true;
+          const newX = Math.round(startX + dx);
+          const newY = Math.round(startY + dy);
+          setPos(newX, newY);
+          if (app) app.renderAll();
+        }
+      };
+
+      const onMouseUp = () => {
+        window.removeEventListener('mousemove', onMouseMove);
+        window.removeEventListener('mouseup', onMouseUp);
+        if (hasDragged && onDragEnd) {
+          onDragEnd();
+        }
+      };
+
+      window.addEventListener('mousemove', onMouseMove);
+      window.addEventListener('mouseup', onMouseUp);
+    });
+  }
+
 
   static getColor(key, fallback) {
     if (!key) return fallback;
@@ -572,111 +629,119 @@ class MultiDiagramVisualizer {
         titleEl.textContent = title;
         nodesLayer.appendChild(titleEl);
 
-        // Explicit 3-Column 4-Tier Topology with 0 Overlap
-        const colX = [50, 400, 750]; // 3 Columns
-        const cardW = 240;
+        // 3-Column 4-Tier Topology with Draggable Node Positions
+        const colX = [50, 410, 780];
+        const cardW = 230;
         const cardH = 96;
 
-        // Positioning map for known standard roles or structured fallback
-        const nodePositions = {
+        const defaultNodePositions = {
           'customer': { x: colX[0], y: 70 },
           'support_agent': { x: colX[1], y: 70 },
           'auditor': { x: colX[2], y: 70 },
 
-          'api_gateway': { x: colX[1], y: 270 },
+          'api_gateway': { x: colX[1], y: 280 },
 
-          'primary_db': { x: colX[0], y: 470 },
-          'banking_core': { x: colX[1], y: 470 },
-          'event_bus': { x: colX[2], y: 470 },
+          'primary_db': { x: colX[0], y: 500 },
+          'banking_core': { x: colX[1], y: 500 },
+          'event_bus': { x: colX[2], y: 500 },
 
-          'payment_rail': { x: colX[0], y: 680 },
-          'fraud_ai': { x: colX[1], y: 680 },
-          'notification_hub': { x: colX[2], y: 680 }
+          'payment_rail': { x: colX[0], y: 720 },
+          'fraud_ai': { x: colX[1], y: 720 },
+          'notification_hub': { x: colX[2], y: 720 }
         };
 
         let customIdx = 0;
         nodes.forEach(n => {
-          if (nodePositions[n.alias]) {
-            n.x = nodePositions[n.alias].x;
-            n.y = nodePositions[n.alias].y;
-          } else {
-            const col = customIdx % 3;
-            const row = Math.floor(customIdx / 3);
-            n.x = colX[col];
-            n.y = 70 + row * 200;
-            customIdx++;
-          }
+          const defPos = defaultNodePositions[n.alias] || {
+            x: colX[customIdx % 3],
+            y: 70 + Math.floor(customIdx / 3) * 210
+          };
+          if (!defaultNodePositions[n.alias]) customIdx++;
+
+          const savedPos = MultiDiagramVisualizer.getPosition(n.alias, defPos.x, defPos.y);
+          n.x = savedPos.x;
+          n.y = savedPos.y;
           n.width = cardW;
           n.height = cardH;
         });
 
-        // Draw Relationships with Staggered Bezier Curves and 2-Line Badges
+        // Draw Relationships with 28px Invisible Hitbox & Staggered 2-Line Badges
         relationships.forEach((rel, rIdx) => {
           const sNode = nodes.get(rel.from);
           const tNode = nodes.get(rel.to);
           if (!sNode || !tNode) return;
 
           const relKey = `${rel.from}->${rel.to}:${rel.label}`;
+          const isSelRel = (rel.label === selTitle || `${rel.from} → ${rel.to}` === selTitle);
           const lineColor = MultiDiagramVisualizer.getColor(relKey, MultiDiagramVisualizer.getColor(`${rel.from}->${rel.to}`, linkColor));
           const labelFont = MultiDiagramVisualizer.getColor(`${relKey}_font`, textColor);
 
           let sx, sy, tx, ty;
+          let cx1, cy1, cx2, cy2;
           let isHorizontal = false;
 
-          // Detect direct horizontal neighbors (e.g. Core -> DB on left, Core -> EventMesh on right)
-          if (Math.abs(sNode.y - tNode.y) < 30) {
+          // Special case: Auditor (top right) to Core Banking (center) routes cleanly around right side
+          if (rel.from === 'auditor' && rel.to === 'banking_core') {
+            sx = sNode.x + sNode.width / 2;
+            sy = sNode.y + sNode.height;
+            tx = tNode.x + tNode.width;
+            ty = tNode.y + tNode.height / 2;
+            cx1 = sx + 50;
+            cy1 = sy + 140;
+            cx2 = tx + 120;
+            cy2 = ty;
+          } else if (Math.abs(sNode.y - tNode.y) < 40) {
+            // Direct horizontal neighbors
             isHorizontal = true;
             if (sNode.x > tNode.x) {
-              // Target is on left (Core -> DB)
+              // Target is on left (e.g. Core -> DB)
               sx = sNode.x;
               sy = sNode.y + sNode.height / 2;
               tx = tNode.x + tNode.width;
               ty = tNode.y + tNode.height / 2;
             } else {
-              // Target is on right (Core -> EventMesh)
+              // Target is on right (e.g. Core -> EventMesh)
               sx = sNode.x + sNode.width;
               sy = sNode.y + sNode.height / 2;
               tx = tNode.x;
               ty = tNode.y + tNode.height / 2;
             }
+            cx1 = (sx + tx) / 2;
+            cy1 = sy;
+            cx2 = (sx + tx) / 2;
+            cy2 = ty;
           } else if (sNode.y < tNode.y) {
             // Downward flow
             sx = sNode.x + sNode.width / 2;
             sy = sNode.y + sNode.height;
             tx = tNode.x + tNode.width / 2;
             ty = tNode.y;
+            const dy = Math.abs(ty - sy) * 0.45;
+            cx1 = sx;
+            cy1 = sy + dy;
+            cx2 = tx;
+            cy2 = ty - dy;
           } else {
             // Upward flow
             sx = sNode.x + sNode.width / 2;
             sy = sNode.y;
             tx = tNode.x + tNode.width / 2;
             ty = tNode.y + tNode.height;
-          }
-
-          // Calculate Curve Control Points
-          let cx1, cy1, cx2, cy2;
-          if (isHorizontal) {
-            cx1 = (sx + tx) / 2;
-            cy1 = sy;
-            cx2 = (sx + tx) / 2;
-            cy2 = ty;
-          } else {
             const dy = Math.abs(ty - sy) * 0.45;
             cx1 = sx;
-            cy1 = sy + (ty > sy ? dy : -dy);
+            cy1 = sy - dy;
             cx2 = tx;
-            cy2 = ty + (ty > sy ? -dy : dy);
+            cy2 = ty + dy;
           }
 
-          // Stagger badge position along the curve (t: 0.32 to 0.68) so crossing badges never collide
+          // Stagger badge along curve to prevent badge collision
           let t = 0.5;
           if (!isHorizontal) {
-            if (sx < tx - 50) t = 0.35; // Coming from left: badge sits higher on left
-            else if (sx > tx + 50) t = 0.65; // Coming from right: badge sits lower on right
-            else t = 0.50; // Direct vertical: center
+            if (sx < tx - 60) t = 0.35; // Left diagonal
+            else if (sx > tx + 60) t = 0.65; // Right diagonal
+            else t = 0.50; // Center vertical
           }
 
-          // Compute exact (bx, by) along cubic Bezier curve at t
           const omt = 1 - t;
           const bx = omt*omt*omt*sx + 3*omt*omt*t*cx1 + 3*omt*t*t*cx2 + t*t*t*tx;
           const by = omt*omt*omt*sy + 3*omt*omt*t*cy1 + 3*omt*t*t*cy2 + t*t*t*ty;
@@ -684,35 +749,44 @@ class MultiDiagramVisualizer {
           const relG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
           relG.style.cursor = 'pointer';
 
+          const pathD = `M ${sx} ${sy} C ${cx1} ${cy1}, ${cx2} ${cy2}, ${tx} ${ty}`;
+
+          // Safari & Chrome 28px wide invisible click hitbox
+          const hitPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+          hitPath.setAttribute('d', pathD);
+          hitPath.setAttribute('fill', 'none');
+          hitPath.setAttribute('stroke', '#000000');
+          hitPath.setAttribute('stroke-width', '28');
+          hitPath.setAttribute('opacity', '0.001');
+          hitPath.style.cursor = 'pointer';
+          hitPath.style.pointerEvents = 'stroke';
+          relG.appendChild(hitPath);
+
+          // Visual line path
           const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-          path.setAttribute('d', `M ${sx} ${sy} C ${cx1} ${cy1}, ${cx2} ${cy2}, ${tx} ${ty}`);
+          path.setAttribute('d', pathD);
           path.setAttribute('fill', 'none');
-          path.setAttribute('stroke', lineColor);
-          path.setAttribute('stroke-width', '2');
+          path.setAttribute('stroke', isSelRel ? 'var(--selection-color)' : lineColor);
+          path.setAttribute('stroke-width', isSelRel ? '3.5' : '2');
           path.setAttribute('stroke-dasharray', '5,4');
+          if (isSelRel) path.style.filter = selGlow;
           relG.appendChild(path);
 
-          // Directional Arrowhead
+          // Arrowhead
           const arrow = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
           if (isHorizontal) {
-            if (tx < sx) {
-              arrow.setAttribute('points', `${tx + 7},${ty - 5} ${tx},${ty} ${tx + 7},${ty + 5}`);
-            } else {
-              arrow.setAttribute('points', `${tx - 7},${ty - 5} ${tx},${ty} ${tx - 7},${ty + 5}`);
-            }
+            if (tx < sx) arrow.setAttribute('points', `${tx + 7},${ty - 5} ${tx},${ty} ${tx + 7},${ty + 5}`);
+            else arrow.setAttribute('points', `${tx - 7},${ty - 5} ${tx},${ty} ${tx - 7},${ty + 5}`);
           } else {
-            if (ty > sy) {
-              arrow.setAttribute('points', `${tx - 5},${ty - 7} ${tx},${ty} ${tx + 5},${ty - 7}`);
-            } else {
-              arrow.setAttribute('points', `${tx - 5},${ty + 7} ${tx},${ty} ${tx + 5},${ty + 7}`);
-            }
+            if (ty > sy) arrow.setAttribute('points', `${tx - 5},${ty - 7} ${tx},${ty} ${tx + 5},${ty - 7}`);
+            else arrow.setAttribute('points', `${tx - 5},${ty + 7} ${tx},${ty} ${tx + 5},${ty + 7}`);
           }
-          arrow.setAttribute('fill', lineColor);
+          arrow.setAttribute('fill', isSelRel ? 'var(--selection-color)' : lineColor);
           relG.appendChild(arrow);
 
-          // Compact 2-Line Badge (Line 1: Action, Line 2: Tech Tag)
-          const cleanLabel = rel.label.length > 32 ? rel.label.substring(0, 29) + '...' : rel.label;
-          const badgeW = Math.max(130, Math.min(190, Math.max(cleanLabel.length * 6.2 + 20, (rel.tech ? rel.tech.length * 6.5 + 24 : 0))));
+          // Compact 2-Line Badge
+          const cleanLabel = rel.label.length > 28 ? rel.label.substring(0, 25) + '...' : rel.label;
+          const badgeW = Math.max(125, Math.min(185, Math.max(cleanLabel.length * 6.2 + 20, (rel.tech ? rel.tech.length * 6.5 + 24 : 0))));
           const badgeH = rel.tech ? 34 : 22;
 
           const badgeRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
@@ -721,7 +795,6 @@ class MultiDiagramVisualizer {
           badgeRect.setAttribute('width', `${badgeW}`);
           badgeRect.setAttribute('height', `${badgeH}`);
           badgeRect.setAttribute('rx', '5');
-          const isSelRel = (rel.label === selTitle || `${rel.from} → ${rel.to}` === selTitle);
           badgeRect.setAttribute('fill', cardBg);
           badgeRect.setAttribute('stroke', isSelRel ? 'var(--selection-color)' : cardBorder);
           badgeRect.setAttribute('stroke-width', isSelRel ? '2.5' : '1');
@@ -760,9 +833,7 @@ class MultiDiagramVisualizer {
             relG.appendChild(l1Txt);
           }
 
-          relG.addEventListener('mousedown', (e) => e.stopPropagation());
-          relG.addEventListener('click', (e) => {
-            e.stopPropagation();
+          const selectThisRel = () => {
             if (typeof AppController !== 'undefined' && AppController.instance) {
               AppController.instance.selectVisualObject({
                 type: 'C4 Relationship',
@@ -792,15 +863,26 @@ class MultiDiagramVisualizer {
                 }
               });
             }
+          };
+
+          [relG, hitPath, path, badgeRect].forEach(el => {
+            el.addEventListener('mousedown', (e) => {
+              e.stopPropagation();
+              selectThisRel();
+            });
+            el.addEventListener('click', (e) => {
+              e.stopPropagation();
+              selectThisRel();
+            });
           });
 
           edgesLayer.appendChild(relG);
         });
 
-        // Draw C4 Elements
+        // Draw Draggable C4 Nodes
         nodes.forEach(n => {
           const cardG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-          cardG.style.cursor = 'pointer';
+          cardG.style.cursor = 'move';
 
           const card = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
           card.setAttribute('x', `${n.x}`);
@@ -854,7 +936,21 @@ class MultiDiagramVisualizer {
             cardG.appendChild(descTxt);
           }
 
-          cardG.addEventListener('mousedown', (e) => e.stopPropagation());
+          // Attach Draggable mover
+          MultiDiagramVisualizer.makeDraggable(
+            cardG,
+            n.alias,
+            () => ({ x: n.x, y: n.y }),
+            (newX, newY) => {
+              MultiDiagramVisualizer.setPosition(n.alias, newX, newY);
+            },
+            () => {
+              if (typeof AppController !== 'undefined' && AppController.instance) {
+                AppController.instance.recordHistory();
+              }
+            }
+          );
+
           cardG.addEventListener('click', (e) => {
             e.stopPropagation();
             if (typeof AppController !== 'undefined' && AppController.instance) {
