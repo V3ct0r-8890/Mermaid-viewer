@@ -355,13 +355,31 @@ MultiDiagramVisualizer.register('sequence', function(code, nodesLayer, edgesLaye
       e.stopPropagation();
       if (typeof AppController !== 'undefined' && AppController.instance) {
         AppController.instance.selectVisualObject({
-          type: 'Sequence Message',
-          title: msg.label,
+          type: 'Sequence Message Link',
+          title: msg.label || `${msg.src} -> ${msg.tgt}`,
           fields: [
-            { key: 'label', label: 'Message Text', type: 'text', value: msg.label }
+            { key: 'label', label: 'Message Label', type: 'text', value: msg.label },
+            { key: 'arrow', label: 'Arrowhead Style', type: 'select', value: msg.isDashed ? '-->>' : '->>', options: [
+                { value: '->>', label: 'Solid Synchronous (->>)' },
+                { value: '-->>', label: 'Dashed Return (-->>)' },
+                { value: '->', label: 'Open Asynchronous (->)' },
+                { value: '-->', label: 'Dashed Open (-->)' }
+            ]},
+            { key: 'color', label: 'Line / Arrow Color', type: 'color', value: linkColor }
           ],
           onSave: (vals) => {
-            MultiDiagramVisualizer.updateCodeLine(new RegExp(`:${msg.label}`), `: ${vals.label}`);
+            MultiDiagramVisualizer.updateCodeLine((curCode) => {
+              const lines = curCode.split('\n');
+              for (let i = 0; i < lines.length; i++) {
+                const m = lines[i].match(new RegExp(`(${msg.src})\\s*(-->>|->>|-->|->)\\s*(${msg.tgt})\\s*:\\s*(.+)`));
+                if (m) {
+                  const lead = lines[i].match(/^\s*/)[0] || '    ';
+                  lines[i] = `${lead}${msg.src}${vals.arrow || msg.arrow}${msg.tgt}: ${vals.label}`;
+                  break;
+                }
+              }
+              return lines.join('\n');
+            });
           }
         });
       }

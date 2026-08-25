@@ -5269,6 +5269,38 @@ MultiDiagramVisualizer.register('classdiagram', function(code, nodesLayer, edges
     tri.setAttribute('stroke-width', '1.4');
     relG.appendChild(tri);
 
+        relG.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (typeof AppController !== 'undefined' && AppController.instance) {
+        AppController.instance.selectVisualObject({
+          type: 'Inheritance Relation Link',
+          title: `${r.superCls} <|-- ${r.subCls}`,
+          fields: [
+            { key: 'type', label: 'Relationship Type', type: 'select', value: '<|--', options: [
+                { value: '<|--', label: 'Inheritance / Generalization (<|--)' },
+                { value: '*--', label: 'Composition (*--)' },
+                { value: 'o--', label: 'Aggregation (o--)' },
+                { value: '-->', label: 'Association (-->)' }
+            ]},
+            { key: 'color', label: 'Line / Triangle Color', type: 'color', value: linkColor }
+          ],
+          onSave: (vals) => {
+            MultiDiagramVisualizer.updateCodeLine((curCode) => {
+              const lines = curCode.split('\n');
+              for (let i = 0; i < lines.length; i++) {
+                if (lines[i].includes(r.superCls) && lines[i].includes(r.subCls)) {
+                  const lead = lines[i].match(/^\s*/)[0] || '    ';
+                  lines[i] = `${lead}${r.superCls} ${vals.type || '<|--'} ${r.subCls}`;
+                  break;
+                }
+              }
+              return lines.join('\n');
+            });
+          }
+        });
+      }
+    });
+
     edgesLayer.appendChild(relG);
   });
 
@@ -9777,13 +9809,31 @@ MultiDiagramVisualizer.register('sequence', function(code, nodesLayer, edgesLaye
       e.stopPropagation();
       if (typeof AppController !== 'undefined' && AppController.instance) {
         AppController.instance.selectVisualObject({
-          type: 'Sequence Message',
-          title: msg.label,
+          type: 'Sequence Message Link',
+          title: msg.label || `${msg.src} -> ${msg.tgt}`,
           fields: [
-            { key: 'label', label: 'Message Text', type: 'text', value: msg.label }
+            { key: 'label', label: 'Message Label', type: 'text', value: msg.label },
+            { key: 'arrow', label: 'Arrowhead Style', type: 'select', value: msg.isDashed ? '-->>' : '->>', options: [
+                { value: '->>', label: 'Solid Synchronous (->>)' },
+                { value: '-->>', label: 'Dashed Return (-->>)' },
+                { value: '->', label: 'Open Asynchronous (->)' },
+                { value: '-->', label: 'Dashed Open (-->)' }
+            ]},
+            { key: 'color', label: 'Line / Arrow Color', type: 'color', value: linkColor }
           ],
           onSave: (vals) => {
-            MultiDiagramVisualizer.updateCodeLine(new RegExp(`:${msg.label}`), `: ${vals.label}`);
+            MultiDiagramVisualizer.updateCodeLine((curCode) => {
+              const lines = curCode.split('\n');
+              for (let i = 0; i < lines.length; i++) {
+                const m = lines[i].match(new RegExp(`(${msg.src})\\s*(-->>|->>|-->|->)\\s*(${msg.tgt})\\s*:\\s*(.+)`));
+                if (m) {
+                  const lead = lines[i].match(/^\s*/)[0] || '    ';
+                  lines[i] = `${lead}${msg.src}${vals.arrow || msg.arrow}${msg.tgt}: ${vals.label}`;
+                  break;
+                }
+              }
+              return lines.join('\n');
+            });
           }
         });
       }
@@ -10274,6 +10324,35 @@ MultiDiagramVisualizer.register('statediagram', function(code, nodesLayer, edges
 
       trG.appendChild(lblG);
     }
+
+        trG.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (typeof AppController !== 'undefined' && AppController.instance) {
+        AppController.instance.selectVisualObject({
+          type: 'State Transition Link',
+          title: tr.label ? `${tr.from} -> ${tr.to} (${tr.label})` : `${tr.from} -> ${tr.to}`,
+          fields: [
+            { key: 'label', label: 'Transition Condition / Label', type: 'text', value: tr.label || '' },
+            { key: 'color', label: 'Line / Arrow Color', type: 'color', value: linkColor }
+          ],
+          onSave: (vals) => {
+            MultiDiagramVisualizer.updateCodeLine((curCode) => {
+              const lines = curCode.split('\n');
+              for (let i = 0; i < lines.length; i++) {
+                const sName = tr.from.replace('active_start_', '[*]').replace('start_main', '[*]');
+                const tName = tr.to.replace('end_lowpower', '[*]').replace('end_active', '[*]');
+                if (lines[i].includes(sName) && lines[i].includes(tName) && lines[i].includes('-->')) {
+                  const lead = lines[i].match(/^\s*/)[0] || '    ';
+                  lines[i] = vals.label ? `${lead}${sName} --> ${tName} : ${vals.label}` : `${lead}${sName} --> ${tName}`;
+                  break;
+                }
+              }
+              return lines.join('\n');
+            });
+          }
+        });
+      }
+    });
 
     edgesLayer.appendChild(trG);
   });

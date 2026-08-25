@@ -230,6 +230,38 @@ MultiDiagramVisualizer.register('classdiagram', function(code, nodesLayer, edges
     tri.setAttribute('stroke-width', '1.4');
     relG.appendChild(tri);
 
+        relG.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (typeof AppController !== 'undefined' && AppController.instance) {
+        AppController.instance.selectVisualObject({
+          type: 'Inheritance Relation Link',
+          title: `${r.superCls} <|-- ${r.subCls}`,
+          fields: [
+            { key: 'type', label: 'Relationship Type', type: 'select', value: '<|--', options: [
+                { value: '<|--', label: 'Inheritance / Generalization (<|--)' },
+                { value: '*--', label: 'Composition (*--)' },
+                { value: 'o--', label: 'Aggregation (o--)' },
+                { value: '-->', label: 'Association (-->)' }
+            ]},
+            { key: 'color', label: 'Line / Triangle Color', type: 'color', value: linkColor }
+          ],
+          onSave: (vals) => {
+            MultiDiagramVisualizer.updateCodeLine((curCode) => {
+              const lines = curCode.split('\n');
+              for (let i = 0; i < lines.length; i++) {
+                if (lines[i].includes(r.superCls) && lines[i].includes(r.subCls)) {
+                  const lead = lines[i].match(/^\s*/)[0] || '    ';
+                  lines[i] = `${lead}${r.superCls} ${vals.type || '<|--'} ${r.subCls}`;
+                  break;
+                }
+              }
+              return lines.join('\n');
+            });
+          }
+        });
+      }
+    });
+
     edgesLayer.appendChild(relG);
   });
 

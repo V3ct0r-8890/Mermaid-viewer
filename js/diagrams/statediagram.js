@@ -344,6 +344,35 @@ MultiDiagramVisualizer.register('statediagram', function(code, nodesLayer, edges
       trG.appendChild(lblG);
     }
 
+        trG.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (typeof AppController !== 'undefined' && AppController.instance) {
+        AppController.instance.selectVisualObject({
+          type: 'State Transition Link',
+          title: tr.label ? `${tr.from} -> ${tr.to} (${tr.label})` : `${tr.from} -> ${tr.to}`,
+          fields: [
+            { key: 'label', label: 'Transition Condition / Label', type: 'text', value: tr.label || '' },
+            { key: 'color', label: 'Line / Arrow Color', type: 'color', value: linkColor }
+          ],
+          onSave: (vals) => {
+            MultiDiagramVisualizer.updateCodeLine((curCode) => {
+              const lines = curCode.split('\n');
+              for (let i = 0; i < lines.length; i++) {
+                const sName = tr.from.replace('active_start_', '[*]').replace('start_main', '[*]');
+                const tName = tr.to.replace('end_lowpower', '[*]').replace('end_active', '[*]');
+                if (lines[i].includes(sName) && lines[i].includes(tName) && lines[i].includes('-->')) {
+                  const lead = lines[i].match(/^\s*/)[0] || '    ';
+                  lines[i] = vals.label ? `${lead}${sName} --> ${tName} : ${vals.label}` : `${lead}${sName} --> ${tName}`;
+                  break;
+                }
+              }
+              return lines.join('\n');
+            });
+          }
+        });
+      }
+    });
+
     edgesLayer.appendChild(trG);
   });
 
