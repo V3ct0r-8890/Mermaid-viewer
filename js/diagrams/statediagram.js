@@ -6,11 +6,10 @@ MultiDiagramVisualizer.register('statediagram', function(code, nodesLayer, edges
   const cardBorder = isDark ? '#757575' : '#333333';
   const activeHeaderBg = isDark ? '#2D2D2D' : '#F3F4F6';
   const linkColor = isDark ? '#90CAF9' : '#333333';
-  const arrowColor = isDark ? '#90CAF9' : '#1E88E5';
   const selTitle = (typeof AppController !== 'undefined' && AppController.instance && AppController.instance.selectedVisualObject) ? AppController.instance.selectedVisualObject.title : null;
   const selGlow = 'drop-shadow(0 0 6px rgba(33, 150, 243, 0.8))';
 
-  // State nodes definitions matching the exact layout
+  // Node definitions
   const stateDefs = [
     // Top Root Flow
     { id: 'start_main', type: 'start', label: '●', defaultX: 334, defaultY: 40, w: 32, h: 32, defaultFill: '#333333', defaultBorder: '#1F2937', defaultFont: '#FFFFFF' },
@@ -21,7 +20,7 @@ MultiDiagramVisualizer.register('statediagram', function(code, nodesLayer, edges
     { id: 'LowPowerMode', type: 'state', label: 'LowPowerMode', defaultX: 40, defaultY: 320, w: 180, h: 44, defaultFill: cardBg, defaultBorder: cardBorder, defaultFont: primaryText },
     { id: 'end_lowpower', type: 'end', label: '◉', defaultX: 114, defaultY: 480, w: 32, h: 32, defaultFill: '#333333', defaultBorder: cardBorder, defaultFont: '#FFFFFF' },
 
-    // Active Composite State Container (Right Branch)
+    // Active Composite State Container
     { id: 'Active', type: 'composite', label: 'Active', defaultX: 285, defaultY: 320, w: 460, h: 380, defaultFill: cardBg, defaultBorder: cardBorder, defaultFont: primaryText },
 
     // Left Column inside Active (Screen Display)
@@ -41,7 +40,7 @@ MultiDiagramVisualizer.register('statediagram', function(code, nodesLayer, edges
   const compositeNode = stateDefs.find(s => s.type === 'composite');
   const normalNodes = stateDefs.filter(s => s.type !== 'composite');
 
-  // 1. RENDER COMPOSITE CONTAINER (in nodesLayer at the very bottom)
+  // 1. RENDER COMPOSITE CONTAINER (in edgesLayer at the very bottom so all transitions render ON TOP)
   if (compositeNode) {
     const pos = MultiDiagramVisualizer.getPosition(compositeNode.id, compositeNode.defaultX, compositeNode.defaultY);
     const fillColor = MultiDiagramVisualizer.getColor(compositeNode.id, compositeNode.defaultFill);
@@ -121,10 +120,10 @@ MultiDiagramVisualizer.register('statediagram', function(code, nodesLayer, edges
       }
     });
 
-    nodesLayer.appendChild(compG);
+    edgesLayer.appendChild(compG);
   }
 
-  // 2. RENDER ORTHOGONAL STEPPED TRANSITIONS
+  // 2. RENDER ALL STEPPED & ORTHOGONAL TRANSITIONS (in edgesLayer on top of container)
   const transitions = [
     // Top Root Flow
     { from: 'start_main', to: 'PowerOn', label: '', kind: 'straight' },
@@ -181,9 +180,9 @@ MultiDiagramVisualizer.register('statediagram', function(code, nodesLayer, edges
       const yStart = sPos.y + sDef.h;
       const xEnd = tPos.x + tDef.w * 0.75;
       const yEnd = tPos.y;
-      const xStep = xStart + 18;
-      pathD = `M ${xStart} ${yStart} L ${xStart} ${yStart + 12} L ${xStep} ${yStart + 12} L ${xStep} ${yEnd - 12} L ${xEnd} ${yEnd - 12} L ${xEnd} ${yEnd}`;
-      labelX = xStep + 10;
+      const xStep = xStart + 22;
+      pathD = `M ${xStart} ${yStart} L ${xStart} ${yStart + 20} L ${xStep} ${yStart + 20} L ${xStep} ${yEnd - 20} L ${xEnd} ${yEnd - 20} L ${xEnd} ${yEnd}`;
+      labelX = xStep;
       labelY = (yStart + yEnd) / 2;
     } else if (tr.kind === 'col_up_left') {
       // Step up left: ScreenDimmed/Paused -> ScreenOn/Playing
@@ -191,9 +190,9 @@ MultiDiagramVisualizer.register('statediagram', function(code, nodesLayer, edges
       const yStart = sPos.y;
       const xEnd = tPos.x + tDef.w * 0.25;
       const yEnd = tPos.y + tDef.h;
-      const xStep = xStart - 18;
-      pathD = `M ${xStart} ${yStart} L ${xStart} ${yStart - 12} L ${xStep} ${yStart - 12} L ${xStep} ${yEnd + 12} L ${xEnd} ${yEnd + 12} L ${xEnd} ${yEnd}`;
-      labelX = xStep - 10;
+      const xStep = xStart - 22;
+      pathD = `M ${xStart} ${yStart} L ${xStart} ${yStart - 20} L ${xStep} ${yStart - 20} L ${xStep} ${yEnd + 20} L ${xEnd} ${yEnd + 20} L ${xEnd} ${yEnd}`;
+      labelX = xStep;
       labelY = (yStart + yEnd) / 2;
     } else {
       // Direct Straight Line
@@ -257,7 +256,7 @@ MultiDiagramVisualizer.register('statediagram', function(code, nodesLayer, edges
     edgesLayer.appendChild(trG);
   });
 
-  // 3. RENDER ALL STATE NODES
+  // 3. RENDER ALL STATE CAPSULES & TERMINAL NODES (in nodesLayer on top of lines)
   normalNodes.forEach(s => {
     const pos = MultiDiagramVisualizer.getPosition(s.id, s.defaultX, s.defaultY);
     const fillColor = MultiDiagramVisualizer.getColor(s.id, s.defaultFill);
@@ -280,7 +279,6 @@ MultiDiagramVisualizer.register('statediagram', function(code, nodesLayer, edges
       if (isSelected) circle.style.filter = selGlow;
       nodeG.appendChild(circle);
     } else if (s.type === 'end') {
-      // Outer ring
       const outerRing = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
       outerRing.setAttribute('cx', `${s.w / 2}`);
       outerRing.setAttribute('cy', `${s.h / 2}`);
@@ -291,7 +289,6 @@ MultiDiagramVisualizer.register('statediagram', function(code, nodesLayer, edges
       if (isSelected) outerRing.style.filter = selGlow;
       nodeG.appendChild(outerRing);
 
-      // Inner filled core
       const innerCore = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
       innerCore.setAttribute('cx', `${s.w / 2}`);
       innerCore.setAttribute('cy', `${s.h / 2}`);
@@ -299,7 +296,6 @@ MultiDiagramVisualizer.register('statediagram', function(code, nodesLayer, edges
       innerCore.setAttribute('fill', fillColor);
       nodeG.appendChild(innerCore);
     } else {
-      // Standard rounded state capsule
       const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
       rect.setAttribute('width', `${s.w}`);
       rect.setAttribute('height', `${s.h}`);
