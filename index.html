@@ -250,14 +250,24 @@
             <input type="text" id="prop-edge-label" class="prop-input" placeholder="e.g. Yes / Action">
           </div>
           <div class="prop-group">
-            <label>Arrow Type</label>
+            <label>Arrow Head / End Style</label>
             <select id="prop-edge-type" class="prop-input">
               <option value="-->">Solid Arrow (--&gt;)</option>
               <option value="--->">Long / Solid (---&gt;)</option>
               <option value="==>">Thick Arrow (==&gt;)</option>
               <option value="-.->">Dotted Arrow (-.-&gt;)</option>
-              <option value="<-->">Bidirectional (&lt;--&gt;)</option>
+              <option value="---">Open Line (---)</option>
+              <option value="<-->">Bidirectional Arrow (&lt;--&gt;)</option>
               <option value="<==>">Bidirectional Thick (&lt;==&gt;)</option>
+            </select>
+          </div>
+
+          <div class="prop-group">
+            <label>Connector Curve / Routing Style</label>
+            <select id="prop-edge-curve" class="prop-input">
+              <option value="basis">Smooth Curve (Bezier / basis)</option>
+              <option value="linear">Straight Line (linear)</option>
+              <option value="step">Orthogonal Step (90° Corners / step)</option>
             </select>
           </div>
 

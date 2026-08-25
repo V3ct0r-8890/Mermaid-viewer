@@ -377,28 +377,44 @@
 
           const dx = tx - sx;
           const dy = ty - sy;
+          const curveStyle = edge.curve || 'basis';
           let d = '';
 
-          if (Math.abs(dx) < 2 && (srcDir === 'top' || srcDir === 'bottom') && (tgtDir === 'top' || tgtDir === 'bottom')) {
+          if (curveStyle === 'linear') {
+            // 1. Direct straight line
             d = `M ${sx} ${sy} L ${tx} ${ty}`;
-          } else if (Math.abs(dy) < 2 && (srcDir === 'left' || srcDir === 'right') && (tgtDir === 'left' || tgtDir === 'right')) {
-            d = `M ${sx} ${sy} L ${tx} ${ty}`;
+          } else if (curveStyle === 'step') {
+            // 2. Orthogonal Step (90° right angles)
+            if (srcDir === 'bottom' || srcDir === 'top') {
+              const midY = (sy + ty) / 2;
+              d = `M ${sx} ${sy} L ${sx} ${midY} L ${tx} ${midY} L ${tx} ${ty}`;
+            } else {
+              const midX = (sx + tx) / 2;
+              d = `M ${sx} ${sy} L ${midX} ${sy} L ${midX} ${ty} L ${tx} ${ty}`;
+            }
           } else {
-            const dist = Math.max(35, Math.min(100, Math.sqrt(dx * dx + dy * dy) * 0.4));
-            let cx1 = sx, cy1 = sy;
-            let cx2 = tx, cy2 = ty;
+            // 3. Smooth Bezier Curve (basis)
+            if (Math.abs(dx) < 2 && (srcDir === 'top' || srcDir === 'bottom') && (tgtDir === 'top' || tgtDir === 'bottom')) {
+              d = `M ${sx} ${sy} L ${tx} ${ty}`;
+            } else if (Math.abs(dy) < 2 && (srcDir === 'left' || srcDir === 'right') && (tgtDir === 'left' || tgtDir === 'right')) {
+              d = `M ${sx} ${sy} L ${tx} ${ty}`;
+            } else {
+              const dist = Math.max(35, Math.min(100, Math.sqrt(dx * dx + dy * dy) * 0.4));
+              let cx1 = sx, cy1 = sy;
+              let cx2 = tx, cy2 = ty;
 
-            if (srcDir === 'bottom') cy1 = sy + dist;
-            else if (srcDir === 'top') cy1 = sy - dist;
-            else if (srcDir === 'right') cx1 = sx + dist;
-            else if (srcDir === 'left') cx1 = sx - dist;
+              if (srcDir === 'bottom') cy1 = sy + dist;
+              else if (srcDir === 'top') cy1 = sy - dist;
+              else if (srcDir === 'right') cx1 = sx + dist;
+              else if (srcDir === 'left') cx1 = sx - dist;
 
-            if (tgtDir === 'top') cy2 = ty - dist;
-            else if (tgtDir === 'bottom') cy2 = ty + dist;
-            else if (tgtDir === 'left') cx2 = tx - dist;
-            else if (tgtDir === 'right') cx2 = tx + dist;
+              if (tgtDir === 'top') cy2 = ty - dist;
+              else if (tgtDir === 'bottom') cy2 = ty + dist;
+              else if (tgtDir === 'left') cx2 = tx - dist;
+              else if (tgtDir === 'right') cx2 = tx + dist;
 
-            d = `M ${sx} ${sy} C ${cx1} ${cy1}, ${cx2} ${cy2}, ${tx} ${ty}`;
+              d = `M ${sx} ${sy} C ${cx1} ${cy1}, ${cx2} ${cy2}, ${tx} ${ty}`;
+            }
           }
 
           // Safari & Chrome compatible invisible 28px wide hitbox
@@ -911,6 +927,7 @@
             this.edgeInitialValues = {
               label: edge.label || '',
               type: edge.type || '-->',
+              curve: edge.curve || 'basis',
               color: edge.color || (this.themeMgr.currentTheme === 'dark' ? '#BBBBBB' : '#616161'),
               strokeWidth: String(edge.strokeWidth || 2),
               textColor: edge.textColor || (this.themeMgr.currentTheme === 'dark' ? '#D4D4D4' : '#212121')
@@ -918,6 +935,8 @@
 
             document.getElementById('prop-edge-label').value = this.edgeInitialValues.label;
             document.getElementById('prop-edge-type').value = this.edgeInitialValues.type;
+            const curveSel = document.getElementById('prop-edge-curve');
+            if (curveSel) curveSel.value = this.edgeInitialValues.curve;
             const edgeColorInp = document.getElementById('prop-edge-color');
             if (edgeColorInp) edgeColorInp.value = this.edgeInitialValues.color;
             const edgeColorVal = document.getElementById('prop-edge-color-val');
@@ -1101,6 +1120,8 @@
 
           edge.label = document.getElementById('prop-edge-label').value.trim() || undefined;
           edge.type = document.getElementById('prop-edge-type').value;
+          const curveVal = document.getElementById('prop-edge-curve')?.value;
+          if (curveVal) edge.curve = curveVal;
           const col = document.getElementById('prop-edge-color')?.value;
           if (col) edge.color = col;
           const wid = parseFloat(document.getElementById('prop-edge-width')?.value);
@@ -1119,6 +1140,8 @@
           if (!this.edgeInitialValues) return;
           document.getElementById('prop-edge-label').value = this.edgeInitialValues.label;
           document.getElementById('prop-edge-type').value = this.edgeInitialValues.type;
+          const curveReset = document.getElementById('prop-edge-curve');
+          if (curveReset) curveReset.value = this.edgeInitialValues.curve || 'basis';
           const edgeColorInp = document.getElementById('prop-edge-color');
           if (edgeColorInp) edgeColorInp.value = this.edgeInitialValues.color;
           const edgeColorVal = document.getElementById('prop-edge-color-val');
