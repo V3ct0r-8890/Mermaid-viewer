@@ -4426,14 +4426,18 @@ class MultiDiagramVisualizer {
           messages.push({ from: 'Alice', to: 'Bob', text: 'Hello Bob!', type: 'solid', arrow: '->>' });
         }
 
-        const startX = 70;
-        const gapX = 170;
+        const startX = 80;
+        const gapX = 180;
         const topY = 50;
         const totalHeight = Math.max(380, topY + 90 + messages.length * 60);
 
         // Draw participants
         participants.forEach((p, idx) => {
           p.x = startX + idx * gapX;
+
+          const pFill = MultiDiagramVisualizer.getColor(p.id, primaryFill);
+          const pFont = MultiDiagramVisualizer.getColor(`${p.id}_font`, primaryText);
+          const pBorder = MultiDiagramVisualizer.getColor(`${p.id}_border`, primaryBorder);
 
           // Lifeline
           const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
@@ -4446,30 +4450,29 @@ class MultiDiagramVisualizer {
           line.setAttribute('stroke-dasharray', '4,4');
           edgesLayer.appendChild(line);
 
-          // Box
+          // Box / Actor Capsule
           const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
           g.style.cursor = 'pointer';
 
           const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-          rect.setAttribute('x', `${p.x - 55}`);
+          rect.setAttribute('x', `${p.x - 60}`);
           rect.setAttribute('y', `${topY}`);
-          rect.setAttribute('width', '110');
-          rect.setAttribute('height', '36');
-          rect.setAttribute('rx', p.isActor ? '18' : '6');
+          rect.setAttribute('width', '120');
+          rect.setAttribute('height', '38');
+          rect.setAttribute('rx', p.isActor ? '19' : '6');
           const isSelP = (p.name === selTitle || p.id === selTitle);
-          const pFill = MultiDiagramVisualizer.getColor(p.id, primaryFill);
           rect.setAttribute('fill', pFill);
-          rect.setAttribute('stroke', isSelP ? 'var(--selection-color)' : primaryBorder);
+          rect.setAttribute('stroke', isSelP ? 'var(--selection-color)' : pBorder);
           rect.setAttribute('stroke-width', isSelP ? '3' : '1.8');
           if (isSelP) rect.style.filter = selGlow;
           g.appendChild(rect);
 
           const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
           text.setAttribute('x', `${p.x}`);
-          text.setAttribute('y', `${topY + 18}`);
+          text.setAttribute('y', `${topY + 19}`);
           text.setAttribute('text-anchor', 'middle');
           text.setAttribute('dominant-baseline', 'central');
-          text.setAttribute('fill', primaryText);
+          text.setAttribute('fill', pFont);
           text.setAttribute('font-size', '12px');
           text.setAttribute('font-weight', '600');
           text.textContent = p.name;
@@ -4480,19 +4483,25 @@ class MultiDiagramVisualizer {
             e.stopPropagation();
             if (typeof AppController !== 'undefined' && AppController.instance) {
               AppController.instance.selectVisualObject({
-                type: p.isActor ? 'Actor' : 'Participant',
+                type: p.isActor ? 'Sequence Actor' : 'Sequence Participant',
                 title: p.name,
                 fields: [
                   { key: 'name', label: 'Display Name', type: 'text', value: p.name },
                   { key: 'type', label: 'Actor Shape', type: 'select', value: p.isActor ? 'actor' : 'participant', options: [
                     { value: 'participant', label: 'Participant (Box)' },
-                    { value: 'actor', label: 'Actor (Stick Figure / Pill)' }
+                    { value: 'actor', label: 'Actor (Pill / Capsule)' }
                   ]},
-                  { key: 'fill', label: 'Fill Color', type: 'color', value: pFill }
+                  { key: 'font', label: '1. Font / Text Color', type: 'color', value: pFont },
+                  { key: 'fill', label: '2. Node Fill Color', type: 'color', value: pFill },
+                  { key: 'border', label: '3. Node Border / Stroke Color', type: 'color', value: pBorder }
                 ],
                 onSave: (vals) => {
                   MultiDiagramVisualizer.setColor(p.id, vals.fill);
+                  MultiDiagramVisualizer.setColor(`${p.id}_font`, vals.font);
+                  MultiDiagramVisualizer.setColor(`${p.id}_border`, vals.border);
                   MultiDiagramVisualizer.syncColorToCode(p.id, vals.fill);
+                  MultiDiagramVisualizer.syncColorToCode(`${p.id}_font`, vals.font);
+                  MultiDiagramVisualizer.syncColorToCode(`${p.id}_border`, vals.border);
                   MultiDiagramVisualizer.updateCodeLine((curCode) => {
                     const lines = curCode.split('\n');
                     const idx = lines.findIndex(l => new RegExp(`^(actor|participant)\\s+${p.id}\\b`, 'i').test(l.trim()));
@@ -4512,7 +4521,7 @@ class MultiDiagramVisualizer {
 
         // Draw sequence message arrows
         messages.forEach((m, idx) => {
-          const y = topY + 70 + idx * 55;
+          const y = topY + 75 + idx * 55;
           const pFrom = participantMap.get(m.from);
           const pTo = participantMap.get(m.to);
           if (!pFrom || !pTo) return;
@@ -4521,6 +4530,9 @@ class MultiDiagramVisualizer {
           const x2 = pTo.x;
           const msgKey = `${m.from}->${m.to}:${m.text}`;
           const msgColor = MultiDiagramVisualizer.getColor(msgKey, MultiDiagramVisualizer.getColor(`${m.from}->${m.to}`, linkColor));
+          const msgFont = MultiDiagramVisualizer.getColor(`${msgKey}_font`, textColor);
+          const msgBadgeFill = MultiDiagramVisualizer.getColor(`${msgKey}_bg`, cardBg);
+          const msgBadgeBorder = MultiDiagramVisualizer.getColor(`${msgKey}_border`, (msgColor !== linkColor ? msgColor : cardBorder));
 
           const lineG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
           const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
@@ -4557,8 +4569,8 @@ class MultiDiagramVisualizer {
           badgeBg.setAttribute('height', '18');
           badgeBg.setAttribute('rx', '4');
           const isSelM = (m.text === selTitle || `${m.from} → ${m.to}` === selTitle);
-          badgeBg.setAttribute('fill', cardBg);
-          badgeBg.setAttribute('stroke', isSelM ? 'var(--selection-color)' : (msgColor !== linkColor ? msgColor : cardBorder));
+          badgeBg.setAttribute('fill', msgBadgeFill);
+          badgeBg.setAttribute('stroke', isSelM ? 'var(--selection-color)' : msgBadgeBorder);
           badgeBg.setAttribute('stroke-width', isSelM ? '2' : '1');
           if (isSelM) badgeBg.style.filter = selGlow;
           badgeG.appendChild(badgeBg);
@@ -4568,7 +4580,7 @@ class MultiDiagramVisualizer {
           badgeText.setAttribute('y', `${y - 9}`);
           badgeText.setAttribute('text-anchor', 'middle');
           badgeText.setAttribute('dominant-baseline', 'central');
-          badgeText.setAttribute('fill', msgColor !== linkColor ? msgColor : textColor);
+          badgeText.setAttribute('fill', msgFont);
           badgeText.setAttribute('font-size', '10.5px');
           badgeText.setAttribute('font-weight', '500');
           badgeText.textContent = badgeTextStr;
@@ -4591,12 +4603,21 @@ class MultiDiagramVisualizer {
                     { value: '-x', label: 'Cross End (-x)' },
                     { value: '--x', label: 'Dotted Cross (--x)' }
                   ]},
-                  { key: 'color', label: 'Line / Arrow Color', type: 'color', value: msgColor }
+                  { key: 'font', label: '1. Label Font Color', type: 'color', value: msgFont },
+                  { key: 'color', label: '2. Line / Arrow Color', type: 'color', value: msgColor },
+                  { key: 'badgeFill', label: '3. Label Badge Fill Color', type: 'color', value: msgBadgeFill },
+                  { key: 'badgeBorder', label: '4. Label Badge Border Color', type: 'color', value: msgBadgeBorder }
                 ],
                 onSave: (vals) => {
                   const newKey = `${m.from}->${m.to}:${vals.text}`;
                   MultiDiagramVisualizer.setColor(newKey, vals.color);
+                  MultiDiagramVisualizer.setColor(`${newKey}_font`, vals.font);
+                  MultiDiagramVisualizer.setColor(`${newKey}_bg`, vals.badgeFill);
+                  MultiDiagramVisualizer.setColor(`${newKey}_border`, vals.badgeBorder);
                   MultiDiagramVisualizer.syncColorToCode(newKey, vals.color);
+                  MultiDiagramVisualizer.syncColorToCode(`${newKey}_font`, vals.font);
+                  MultiDiagramVisualizer.syncColorToCode(`${newKey}_bg`, vals.badgeFill);
+                  MultiDiagramVisualizer.syncColorToCode(`${newKey}_border`, vals.badgeBorder);
                   MultiDiagramVisualizer.updateCodeLine((curCode) => {
                     const lines = curCode.split('\n');
                     const idx = lines.findIndex(l => new RegExp(`^\\s*${m.from}\\s*(?:-->>|->>|-->|->|-x|--x)\\s*${m.to}\\s*:`, 'i').test(l.trim()));
