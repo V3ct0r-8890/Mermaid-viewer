@@ -4,6 +4,37 @@
      */
 
     // --- VERIFIED OFFICIAL MERMAID DIAGRAM TEMPLATES ---
+        function generateCurrentDateGantt() {
+      const now = new Date();
+      const fmt = (d) => {
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+      };
+      const addDays = (d, n) => {
+        const res = new Date(d);
+        res.setDate(res.getDate() + n);
+        return res;
+      };
+
+      const p1_start = fmt(addDays(now, -14));
+      const p1_end = fmt(addDays(now, -7));
+      const p2_start = fmt(addDays(now, -10));
+      const p2_end = fmt(addDays(now, -3));
+
+      const d1_start = fmt(addDays(now, -4));
+      const d1_end = fmt(addDays(now, 10));
+      const d2_start = fmt(addDays(now, -1));
+      const d2_end = fmt(addDays(now, 15));
+
+      const q1_start = fmt(addDays(now, 12));
+      const q1_end = fmt(addDays(now, 22));
+      const m1 = fmt(addDays(now, 23));
+
+      return `gantt\n  title Project Sprint Roadmap\n  dateFormat YYYY-MM-DD\n  todayMarker stroke-width:2px,stroke:#FF5722,opacity:0.8\n  section Planning\n    Architecture Design  :done, p1, ${p1_start}, ${p1_end}\n    UX Specifications    :done, p2, ${p2_start}, ${p2_end}\n  section Development\n    Backend Services     :active, d1, ${d1_start}, ${d1_end}\n    Frontend Application :active, d2, ${d2_start}, ${d2_end}\n  section QA & Release\n    Integration Testing  :crit, q1, ${q1_start}, ${q1_end}\n    Production Launch    :milestone, m1, ${m1}, 0d`;
+    }
+
     const DIAGRAM_TEMPLATES = [
       {
         id: 'flowchart_td',
@@ -142,19 +173,10 @@
         id: 'gantt',
         name: 'Gantt Roadmap',
         badge: 'gantt',
-        desc: 'Sprint schedules, task timelines, and milestones',
-        code: `gantt
-  title Project Sprint Roadmap
-  dateFormat YYYY-MM-DD
-  section Planning
-    Architecture Design  :done, p1, 2026-08-01, 2026-08-07
-    UX Specifications    :done, p2, 2026-08-05, 2026-08-12
-  section Development
-    Backend Services     :active, d1, 2026-08-10, 2026-08-25
-    Frontend Application :active, d2, 2026-08-14, 2026-08-30
-  section QA & Release
-    Integration Testing  :crit, q1, 2026-08-26, 2026-09-05
-    Production Launch    :milestone, m1, 2026-09-06, 0d`
+        desc: 'Sprint schedules, task timelines, and milestones (with Today highlight)',
+        get code() {
+          return generateCurrentDateGantt();
+        }
       },
       {
         id: 'pie',
