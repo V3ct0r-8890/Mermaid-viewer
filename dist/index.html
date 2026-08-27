@@ -14211,193 +14211,704 @@ MultiDiagramVisualizer.register('treemap-beta', MultiDiagramVisualizer.renderers
         Utils.showToast(`Added ${node.id}`, 'success');
       }
 
+      getDiagramCategory() {
+        const type = String(this.graph.diagramType || '').toLowerCase();
+        if (type.startsWith('flowchart')) return 'flowchart';
+        if (type.startsWith('sequence')) return 'sequence';
+        if (type.startsWith('class')) return 'class';
+        if (type.startsWith('state')) return 'state';
+        if (type.startsWith('er')) return 'er';
+        if (type.startsWith('gantt')) return 'gantt';
+        if (type.startsWith('pie')) return 'pie';
+        if (type.startsWith('git')) return 'git';
+        if (type.startsWith('mindmap')) return 'mindmap';
+        if (type.startsWith('timeline')) return 'timeline';
+        if (type.startsWith('quadrant')) return 'quadrant';
+        if (type.startsWith('c4')) return 'c4';
+        if (type.startsWith('sankey')) return 'sankey';
+        if (type.startsWith('treemap')) return 'treemap';
+        return 'flowchart';
+      }
+
+      updateToolbarLabels() {
+        const cat = this.getDiagramCategory();
+        const btnNode = document.getElementById('btn-add-node');
+        const btnLink = document.getElementById('btn-add-link');
+        
+        const nodeLabels = {
+          flowchart: 'Node',
+          sequence: 'Actor',
+          class: 'Class',
+          state: 'State',
+          er: 'Entity',
+          gantt: 'Task',
+          pie: 'Slice',
+          git: 'Commit',
+          mindmap: 'Topic',
+          timeline: 'Event',
+          quadrant: 'Item',
+          c4: 'System',
+          sankey: 'Flow',
+          treemap: 'Category'
+        };
+
+        const linkLabels = {
+          flowchart: 'Link',
+          sequence: 'Message',
+          class: 'Relation',
+          state: 'Transition',
+          er: 'Relation',
+          gantt: 'Dependency',
+          pie: '—',
+          git: 'Merge',
+          mindmap: 'Branch',
+          timeline: '—',
+          quadrant: '—',
+          c4: 'Relation',
+          sankey: 'Flow Link',
+          treemap: '—'
+        };
+
+        if (btnNode && btnNode.querySelector('span')) {
+          btnNode.querySelector('span').textContent = nodeLabels[cat] || 'Node';
+        }
+        if (btnLink && btnLink.querySelector('span')) {
+          btnLink.querySelector('span').textContent = linkLabels[cat] || 'Link';
+          btnLink.style.display = (linkLabels[cat] === '—') ? 'none' : 'flex';
+        }
+      }
+
       openNodeDialog(node) {
+        const cat = this.getDiagramCategory();
         const modal = document.getElementById('node-modal');
         const title = document.getElementById('node-modal-title');
-        const idInput = document.getElementById('nm-id');
-        const textInput = document.getElementById('nm-text');
-        const shapeSelect = document.getElementById('nm-shape');
-        const fillInput = document.getElementById('nm-fill');
-        const borderInput = document.getElementById('nm-border');
-        const fontInput = document.getElementById('nm-font');
+        const body = modal.querySelector('.modal-body');
+        const btnSave = document.getElementById('node-modal-save');
 
-        if (node) {
-          title.textContent = 'Edit Node: ' + node.id;
-          idInput.value = node.id;
-          idInput.disabled = true;
-          textInput.value = node.text || node.id;
-          shapeSelect.value = node.shape || 'rectangle';
-          fillInput.value = node.fillColor || '#E3F2FD';
-          borderInput.value = node.borderColor || '#90CAF9';
-          fontInput.value = node.fontColor || '#0D47A1';
+        body.innerHTML = '';
+        this.currentCreateCategory = cat;
+        this.currentCreateCallback = null;
+
+        const addField = (lblText, inputEl) => {
+          const grp = document.createElement('div');
+          grp.className = 'form-group';
+          const lbl = document.createElement('label');
+          lbl.textContent = lblText;
+          grp.appendChild(lbl);
+          grp.appendChild(inputEl);
+          body.appendChild(grp);
+          return inputEl;
+        };
+
+        const code = this.codeEditor.value;
+
+        if (cat === 'flowchart') {
+          title.textContent = node ? 'Edit Node: ' + node.id : 'Add Flowchart Node';
+          btnSave.textContent = node ? 'Save Node' : 'Create Node';
+
+          const idInp = addField('Node ID', document.createElement('input'));
+          idInp.className = 'form-control';
+          idInp.value = node ? node.id : `node_${this.graph.nodes.length + 1}`;
+          if (node) idInp.disabled = true;
+
+          const textInp = addField('Display Text', document.createElement('input'));
+          textInp.className = 'form-control';
+          textInp.value = node ? (node.text || node.id) : 'New Step';
+
+          const shapeSel = addField('Shape', document.createElement('select'));
+          shapeSel.className = 'form-control';
+          [
+            { v: 'rectangle', l: 'Rectangle [Process]' },
+            { v: 'rounded', l: 'Rounded Rectangle (Item)' },
+            { v: 'stadium', l: 'Stadium / Pill ([Start / End])' },
+            { v: 'subroutine', l: 'Subroutine [[Subprocess]]' },
+            { v: 'cylinder', l: 'Cylinder [(Database)]' },
+            { v: 'circle', l: 'Circle ((Point))' },
+            { v: 'diamond', l: 'Diamond {Decision}' },
+            { v: 'hexagon', l: 'Hexagon {{Prep}}' }
+          ].forEach(s => {
+            const o = document.createElement('option');
+            o.value = s.v; o.textContent = s.l;
+            if (node && node.shape === s.v) o.selected = true;
+            shapeSel.appendChild(o);
+          });
+
+          this.currentCreateCallback = () => {
+            const id = idInp.value.trim().replace(/\s+/g, '_');
+            const text = textInp.value.trim() || id;
+            const shape = shapeSel.value;
+            if (!id) return Utils.showToast('ID cannot be empty', 'error');
+
+            if (node) {
+              node.text = text;
+              node.shape = shape;
+            } else {
+              const rect = this.svg.getBoundingClientRect();
+              const center = this.getCanvasPoint({ clientX: rect.left + rect.width / 2, clientY: rect.top + rect.height / 2 });
+              this.graph.addNode({
+                id,
+                text,
+                shape,
+                x: Utils.snap(center.x - 70),
+                y: Utils.snap(center.y - 25),
+                width: 140,
+                height: 50,
+                fillColor: '#E3F2FD',
+                borderColor: '#90CAF9',
+                fontColor: '#0D47A1'
+              });
+            }
+            this.updateMermaidCode();
+          };
+        } else if (cat === 'sequence') {
+          title.textContent = 'Add Sequence Participant / Actor';
+          btnSave.textContent = 'Add Participant';
+
+          const kindSel = addField('Type', document.createElement('select'));
+          kindSel.className = 'form-control';
+          kindSel.innerHTML = '<option value="participant">Participant (Box)</option><option value="actor">Actor (Stick Figure)</option>';
+
+          const aliasInp = addField('Alias / ID', document.createElement('input'));
+          aliasInp.className = 'form-control';
+          aliasInp.placeholder = 'e.g. Auth';
+
+          const labelInp = addField('Display Label (Optional)', document.createElement('input'));
+          labelInp.className = 'form-control';
+          labelInp.placeholder = 'e.g. Authentication Service';
+
+          this.currentCreateCallback = () => {
+            const alias = aliasInp.value.trim().replace(/\s+/g, '_');
+            const label = labelInp.value.trim();
+            const kind = kindSel.value;
+            if (!alias) return Utils.showToast('Alias ID is required', 'error');
+
+            const stmt = label ? `    ${kind} ${alias} as ${label}` : `    ${kind} ${alias}`;
+            MultiDiagramVisualizer.updateCodeLine((curCode) => {
+              const lines = curCode.split('\n');
+              const seqIdx = lines.findIndex(l => l.trim().toLowerCase().startsWith('sequencediagram'));
+              const insertIdx = seqIdx !== -1 ? seqIdx + 1 : 0;
+              lines.splice(insertIdx, 0, stmt);
+              return lines.join('\n');
+            });
+            Utils.showToast(`Added ${kind}: ${alias}`, 'success');
+          };
+        } else if (cat === 'class') {
+          title.textContent = 'Add Class (UML Card)';
+          btnSave.textContent = 'Add Class';
+
+          const nameInp = addField('Class Name', document.createElement('input'));
+          nameInp.className = 'form-control';
+          nameInp.placeholder = 'e.g. Vehicle / OrderManager';
+
+          const attrInp = addField('Attributes (one per line)', document.createElement('textarea'));
+          attrInp.className = 'form-control';
+          attrInp.rows = 3;
+          attrInp.style.fontFamily = 'monospace';
+          attrInp.placeholder = '+String brand\n+int maxSpeed';
+
+          const methInp = addField('Methods (one per line)', document.createElement('textarea'));
+          methInp.className = 'form-control';
+          methInp.rows = 3;
+          methInp.style.fontFamily = 'monospace';
+          methInp.placeholder = '+start()\n+stop()';
+
+          this.currentCreateCallback = () => {
+            const cName = nameInp.value.trim().replace(/\s+/g, '');
+            if (!cName) return Utils.showToast('Class name is required', 'error');
+
+            const attrs = attrInp.value.split('\n').map(s => s.trim()).filter(Boolean).map(a => `      ${a}`).join('\n');
+            const meths = methInp.value.split('\n').map(s => s.trim()).filter(Boolean).map(m => `      ${m}`).join('\n');
+
+            let bodyStr = '';
+            if (attrs) bodyStr += attrs + '\n';
+            if (meths) bodyStr += meths + '\n';
+
+            const stmt = `    class ${cName}{\n${bodyStr}    }`;
+            MultiDiagramVisualizer.updateCodeLine((curCode) => `${curCode.trimEnd()}\n${stmt}`);
+            Utils.showToast(`Added Class: ${cName}`, 'success');
+          };
+        } else if (cat === 'state') {
+          title.textContent = 'Add State';
+          btnSave.textContent = 'Add State';
+
+          const idInp = addField('State Name / ID', document.createElement('input'));
+          idInp.className = 'form-control';
+          idInp.placeholder = 'e.g. Processing / Verified';
+
+          const descInp = addField('State Description (Optional)', document.createElement('input'));
+          descInp.className = 'form-control';
+          descInp.placeholder = 'e.g. Verifying user credentials';
+
+          this.currentCreateCallback = () => {
+            const sId = idInp.value.trim().replace(/\s+/g, '_');
+            const desc = descInp.value.trim();
+            if (!sId) return Utils.showToast('State name is required', 'error');
+
+            const stmt = desc ? `    ${sId} : ${desc}` : `    state ${sId}`;
+            MultiDiagramVisualizer.updateCodeLine((curCode) => `${curCode.trimEnd()}\n${stmt}`);
+            Utils.showToast(`Added State: ${sId}`, 'success');
+          };
+        } else if (cat === 'er') {
+          title.textContent = 'Add Entity (Database Table)';
+          btnSave.textContent = 'Add Entity';
+
+          const nameInp = addField('Entity Table Name', document.createElement('input'));
+          nameInp.className = 'form-control';
+          nameInp.placeholder = 'e.g. INVOICE / PAYMENT';
+
+          const attrInp = addField('Attributes (type name [PK/FK/UK] ["comment"])', document.createElement('textarea'));
+          attrInp.className = 'form-control';
+          attrInp.rows = 4;
+          attrInp.style.fontFamily = 'monospace';
+          attrInp.placeholder = 'string id PK\nstring userId FK\ndecimal total\ndate createdAt';
+
+          this.currentCreateCallback = () => {
+            const eName = nameInp.value.trim().toUpperCase().replace(/\s+/g, '_');
+            if (!eName) return Utils.showToast('Entity name is required', 'error');
+
+            const formatted = attrInp.value.split('\n').map(s => s.trim()).filter(Boolean).map(a => `        ${a}`).join('\n');
+            const stmt = `    ${eName} {\n${formatted || '        string id PK'}\n    }`;
+            MultiDiagramVisualizer.updateCodeLine((curCode) => `${curCode.trimEnd()}\n${stmt}`);
+            Utils.showToast(`Added Entity: ${eName}`, 'success');
+          };
+        } else if (cat === 'mindmap') {
+          title.textContent = 'Add Mindmap Topic';
+          btnSave.textContent = 'Add Topic';
+
+          const textInp = addField('Topic Name', document.createElement('input'));
+          textInp.className = 'form-control';
+          textInp.placeholder = 'e.g. Innovation / Cloud Infrastructure';
+
+          const shapeSel = addField('Topic Shape', document.createElement('select'));
+          shapeSel.className = 'form-control';
+          shapeSel.innerHTML = '<option value="rounded">Rounded (Topic)</option><option value="rectangle">Rectangle [Topic]</option><option value="circle">Circle ((Topic))</option><option value="hexagon">Hexagon {{Topic}}</option><option value="cloud">Cloud )Topic(</option>';
+
+          this.currentCreateCallback = () => {
+            const txt = textInp.value.trim();
+            if (!txt) return Utils.showToast('Topic name is required', 'error');
+
+            const shapeBrackets = { 'rounded': ['(', ')'], 'rectangle': ['[', ']'], 'circle': ['((', '))'], 'hexagon': ['{{', '}}'], 'cloud': [')', '('] };
+            const br = shapeBrackets[shapeSel.value] || ['(', ')'];
+            const stmt = `    ${br[0]}${txt}${br[1]}`;
+            MultiDiagramVisualizer.updateCodeLine((curCode) => `${curCode.trimEnd()}\n${stmt}`);
+            Utils.showToast(`Added Topic: ${txt}`, 'success');
+          };
+        } else if (cat === 'gantt') {
+          title.textContent = 'Add Gantt Task';
+          btnSave.textContent = 'Add Task';
+
+          const secInp = addField('Section Name', document.createElement('input'));
+          secInp.className = 'form-control';
+          secInp.placeholder = 'e.g. Sprint Execution';
+          secInp.value = 'Sprint Tasks';
+
+          const nameInp = addField('Task Name', document.createElement('input'));
+          nameInp.className = 'form-control';
+          nameInp.placeholder = 'e.g. API Security Audit';
+
+          const stSel = addField('Task Status', document.createElement('select'));
+          stSel.className = 'form-control';
+          stSel.innerHTML = '<option value="active">Active (In Progress)</option><option value="done">Done (Completed)</option><option value="crit">Critical (Red)</option><option value="milestone">Milestone (Diamond)</option>';
+
+          const durInp = addField('Duration (Days)', document.createElement('input'));
+          durInp.className = 'form-control';
+          durInp.type = 'number';
+          durInp.value = '5';
+
+          this.currentCreateCallback = () => {
+            const sec = secInp.value.trim() || 'Sprint Tasks';
+            const name = nameInp.value.trim();
+            if (!name) return Utils.showToast('Task name is required', 'error');
+
+            const st = stSel.value;
+            const dur = durInp.value || '5';
+            const stmt = `    ${name.padEnd(20, ' ')} :${st}, ${dur}d`;
+
+            MultiDiagramVisualizer.updateCodeLine((curCode) => {
+              if (curCode.includes(`section ${sec}`)) {
+                const lines = curCode.split('\n');
+                const idx = lines.findIndex(l => l.trim().toLowerCase() === `section ${sec}`.toLowerCase());
+                lines.splice(idx + 1, 0, stmt);
+                return lines.join('\n');
+              } else {
+                return `${curCode.trimEnd()}\n  section ${sec}\n${stmt}`;
+              }
+            });
+            Utils.showToast(`Added Task: ${name}`, 'success');
+          };
+        } else if (cat === 'pie') {
+          title.textContent = 'Add Pie Slice';
+          btnSave.textContent = 'Add Slice';
+
+          const lblInp = addField('Category Label', document.createElement('input'));
+          lblInp.className = 'form-control';
+          lblInp.placeholder = 'e.g. Serverless Functions';
+
+          const valInp = addField('Numeric Value', document.createElement('input'));
+          valInp.className = 'form-control';
+          valInp.type = 'number';
+          valInp.value = '25';
+
+          this.currentCreateCallback = () => {
+            const lbl = lblInp.value.trim();
+            const val = valInp.value || '10';
+            if (!lbl) return Utils.showToast('Category label is required', 'error');
+
+            const stmt = `  "${lbl}" : ${val}`;
+            MultiDiagramVisualizer.updateCodeLine((curCode) => `${curCode.trimEnd()}\n${stmt}`);
+            Utils.showToast(`Added Slice: ${lbl}`, 'success');
+          };
+        } else if (cat === 'c4') {
+          title.textContent = 'Add C4 Architecture System / Component';
+          btnSave.textContent = 'Add System';
+
+          const kindSel = addField('Element Type', document.createElement('select'));
+          kindSel.className = 'form-control';
+          kindSel.innerHTML = '<option value="Person">Person (User / Actor)</option><option value="System">System (Software System)</option><option value="SystemDb">SystemDb (Database / Storage)</option><option value="Container">Container (Microservice / API)</option><option value="System_Ext">System_Ext (External System)</option>';
+
+          const aliasInp = addField('Alias ID', document.createElement('input'));
+          aliasInp.className = 'form-control';
+          aliasInp.placeholder = 'e.g. auth_service';
+
+          const labelInp = addField('Display Label', document.createElement('input'));
+          labelInp.className = 'form-control';
+          labelInp.placeholder = 'e.g. Authentication Service';
+
+          const techInp = addField('Technology (Optional)', document.createElement('input'));
+          techInp.className = 'form-control';
+          techInp.placeholder = 'e.g. Node.js / OAuth2';
+
+          const descInp = addField('Description (Optional)', document.createElement('input'));
+          descInp.className = 'form-control';
+          descInp.placeholder = 'e.g. Handles JWT sessions and MFA';
+
+          this.currentCreateCallback = () => {
+            const alias = aliasInp.value.trim().replace(/\s+/g, '_');
+            const label = labelInp.value.trim();
+            if (!alias || !label) return Utils.showToast('Alias and Label are required', 'error');
+
+            const tech = techInp.value.trim();
+            const desc = descInp.value.trim();
+            const kind = kindSel.value;
+
+            let stmt = `    ${kind}(${alias}, "${label}"`;
+            if (tech && desc) stmt += `, "${tech}", "${desc}")`;
+            else if (desc) stmt += `, "${desc}")`;
+            else stmt += `)`;
+
+            MultiDiagramVisualizer.updateCodeLine((curCode) => `${curCode.trimEnd()}\n${stmt}`);
+            Utils.showToast(`Added C4 Element: ${label}`, 'success');
+          };
         } else {
-          title.textContent = 'Create New Node';
-          let newId = 'node_' + (this.graph.nodes.length + 1);
-          idInput.value = newId;
-          idInput.disabled = false;
-          textInput.value = 'New Step';
-          shapeSelect.value = 'rectangle';
-          fillInput.value = '#E3F2FD';
-          borderInput.value = '#90CAF9';
-          fontInput.value = '#0D47A1';
+          title.textContent = 'Add Item';
+          btnSave.textContent = 'Add Item';
+
+          const itemInp = addField('Item Name / Statement', document.createElement('input'));
+          itemInp.className = 'form-control';
+          itemInp.placeholder = 'e.g. New Item Entry';
+
+          this.currentCreateCallback = () => {
+            const txt = itemInp.value.trim();
+            if (txt) {
+              MultiDiagramVisualizer.updateCodeLine((curCode) => `${curCode.trimEnd()}\n    ${txt}`);
+              Utils.showToast(`Added item`, 'success');
+            }
+          };
         }
 
         modal.classList.add('open');
-        textInput.focus();
+        const firstInp = body.querySelector('input, select');
+        if (firstInp) firstInp.focus();
       }
 
       saveNodeFromModal() {
-        const idInput = document.getElementById('nm-id');
-        const textInput = document.getElementById('nm-text');
-        const shapeSelect = document.getElementById('nm-shape');
-        const fillInput = document.getElementById('nm-fill');
-        const borderInput = document.getElementById('nm-border');
-        const fontInput = document.getElementById('nm-font');
-
-        const id = idInput.value.trim().replace(/\s+/g, '_');
-        if (!id) {
-          Utils.showToast('Node ID cannot be empty', 'error');
-          return;
+        if (this.currentCreateCallback) {
+          this.currentCreateCallback();
         }
-
-        const existing = this.graph.getNode(id);
-        if (idInput.disabled && existing) {
-          existing.text = textInput.value.trim();
-          existing.shape = shapeSelect.value;
-          existing.fillColor = fillInput.value;
-          existing.borderColor = borderInput.value;
-          existing.fontColor = fontInput.value;
-        } else {
-          if (existing) {
-            Utils.showToast(`Node ID "${id}" already exists`, 'error');
-            return;
-          }
-          const rect = this.svg.getBoundingClientRect();
-          const center = this.getCanvasPoint({ clientX: rect.left + rect.width / 2, clientY: rect.top + rect.height / 2 });
-
-          this.graph.addNode({
-            id,
-            text: textInput.value.trim() || id,
-            shape: shapeSelect.value,
-            x: Utils.snap(center.x - 70),
-            y: Utils.snap(center.y - 25),
-            width: 140,
-            height: 50,
-            fillColor: fillInput.value,
-            borderColor: borderInput.value,
-            fontColor: fontInput.value
-          });
-        }
-
         this.closeModal('node-modal');
         this.renderAll();
         this.recordHistory();
       }
 
       openLinkDialog(edge, defaultSource, defaultTarget) {
-        if (this.graph.nodes.length < 2 && !edge) {
-          Utils.showToast('Add at least 2 nodes before creating a link', 'error');
-          return;
-        }
-
+        const cat = this.getDiagramCategory();
         const modal = document.getElementById('link-modal');
-        const srcSelect = document.getElementById('lm-source');
-        const tgtSelect = document.getElementById('lm-target');
-        const labelInput = document.getElementById('lm-label');
-        const typeSelect = document.getElementById('lm-type');
-        const ruleStatus = document.getElementById('lm-rule-status');
+        const title = document.getElementById('link-modal-title');
+        const body = modal.querySelector('.modal-body');
+        const btnSave = document.getElementById('link-modal-create');
 
-        srcSelect.innerHTML = '';
-        tgtSelect.innerHTML = '';
+        body.innerHTML = '';
+        this.currentLinkCallback = null;
 
-        this.graph.nodes.forEach(n => {
-          if (n.id === 'visual_chart_bounds') return;
-          const opt1 = document.createElement('option');
-          opt1.value = n.id;
-          opt1.textContent = `${n.id} (${n.text || n.id})`;
-          srcSelect.appendChild(opt1);
-
-          const opt2 = document.createElement('option');
-          opt2.value = n.id;
-          opt2.textContent = `${n.id} (${n.text || n.id})`;
-          tgtSelect.appendChild(opt2);
-        });
-
-        if (edge) {
-          srcSelect.value = edge.source;
-          tgtSelect.value = edge.target;
-          labelInput.value = edge.label || '';
-          typeSelect.value = edge.type || '-->';
-          modal._editEdgeId = edge.id;
-        } else {
-          const availableNodes = this.graph.nodes.filter(n => n.id !== 'visual_chart_bounds');
-          srcSelect.value = defaultSource || availableNodes[0]?.id;
-          tgtSelect.value = defaultTarget || availableNodes[1]?.id || availableNodes[0]?.id;
-          labelInput.value = '';
-          typeSelect.value = '-->';
-          modal._editEdgeId = null;
-        }
-
-        const checkRule = () => {
-          const vRes = ValidationEngine.validateConnection(srcSelect.value, tgtSelect.value, this.graph.rules);
-          if (!vRes.allowed) {
-            ruleStatus.style.display = 'block';
-            ruleStatus.style.background = '#FFEBEE';
-            ruleStatus.style.color = '#C62828';
-            ruleStatus.textContent = '⚠️ ' + vRes.reason;
-          } else {
-            ruleStatus.style.display = 'none';
-          }
+        const addField = (lblText, inputEl) => {
+          const grp = document.createElement('div');
+          grp.className = 'form-group';
+          const lbl = document.createElement('label');
+          lbl.textContent = lblText;
+          grp.appendChild(lbl);
+          grp.appendChild(inputEl);
+          body.appendChild(grp);
+          return inputEl;
         };
 
-        srcSelect.onchange = checkRule;
-        tgtSelect.onchange = checkRule;
-        checkRule();
+        const code = this.codeEditor.value;
+
+        if (cat === 'flowchart') {
+          title.textContent = 'Add Connection Link';
+          btnSave.textContent = 'Create Link';
+
+          const srcSel = addField('Source Node', document.createElement('select'));
+          srcSel.className = 'form-control';
+          const tgtSel = addField('Target Node', document.createElement('select'));
+          tgtSel.className = 'form-control';
+
+          this.graph.nodes.forEach(n => {
+            if (n.id === 'visual_chart_bounds') return;
+            const o1 = document.createElement('option'); o1.value = n.id; o1.textContent = `${n.id} (${n.text || n.id})`;
+            const o2 = document.createElement('option'); o2.value = n.id; o2.textContent = `${n.id} (${n.text || n.id})`;
+            srcSel.appendChild(o1);
+            tgtSel.appendChild(o2);
+          });
+          if (tgtSel.options.length > 1) tgtSel.selectedIndex = 1;
+
+          const typeSel = addField('Arrowhead Style', document.createElement('select'));
+          typeSel.className = 'form-control';
+          typeSel.innerHTML = '<option value="-->">Solid Arrow (--&gt;)</option><option value="==>">Thick Arrow (==&gt;)</option><option value="-.->">Dotted Arrow (-.-&gt;)</option><option value="---">Open Line (---)</option>';
+
+          const labelInp = addField('Edge Label (Optional)', document.createElement('input'));
+          labelInp.className = 'form-control';
+          labelInp.placeholder = 'e.g. Yes / Verified';
+
+          this.currentLinkCallback = () => {
+            const s = srcSel.value;
+            const t = tgtSel.value;
+            const tp = typeSel.value;
+            const lbl = labelInp.value.trim();
+            if (!s || !t) return Utils.showToast('Source and Target required', 'error');
+
+            this.graph.addEdge({
+              id: `e_${s}_${t}_${Date.now()}`,
+              source: s,
+              target: t,
+              type: tp,
+              label: lbl,
+              color: '#616161',
+              width: '2',
+              curve: 'basis'
+            });
+            this.updateMermaidCode();
+          };
+        } else if (cat === 'sequence') {
+          title.textContent = 'Add Sequence Message';
+          btnSave.textContent = 'Add Message';
+
+          const pMatches = Array.from(code.matchAll(/(?:participant|actor)\s+([A-Za-z0-9_]+)(?:\s+as\s+([A-Za-z0-9_\s]+))?/gi));
+          const participants = pMatches.map(m => m[1]);
+
+          const srcSel = addField('From (Sender)', document.createElement('select'));
+          srcSel.className = 'form-control';
+          const tgtSel = addField('To (Receiver)', document.createElement('select'));
+          tgtSel.className = 'form-control';
+
+          participants.forEach(p => {
+            const o1 = document.createElement('option'); o1.value = p; o1.textContent = p;
+            const o2 = document.createElement('option'); o2.value = p; o2.textContent = p;
+            srcSel.appendChild(o1);
+            tgtSel.appendChild(o2);
+          });
+          if (tgtSel.options.length > 1) tgtSel.selectedIndex = 1;
+
+          const arrowSel = addField('Message Arrow Style', document.createElement('select'));
+          arrowSel.className = 'form-control';
+          arrowSel.innerHTML = '<option value="->>">Solid Synchronous (-&gt;&gt;)</option><option value="-->>">Dashed Return (--&gt;&gt;)</option><option value="->">Open Async (-&gt;)</option><option value="-->">Dashed Open (--&gt;)</option>';
+
+          const msgInp = addField('Message Label', document.createElement('input'));
+          msgInp.className = 'form-control';
+          msgInp.placeholder = 'e.g. Process Order / Return Token';
+
+          this.currentLinkCallback = () => {
+            const s = srcSel.value || 'Client';
+            const t = tgtSel.value || 'Server';
+            const arr = arrowSel.value;
+            const msg = msgInp.value.trim() || 'Request';
+
+            const stmt = `    ${s}${arr}${t}: ${msg}`;
+            MultiDiagramVisualizer.updateCodeLine((curCode) => `${curCode.trimEnd()}\n${stmt}`);
+            Utils.showToast(`Added Message: ${s} -> ${t}`, 'success');
+          };
+        } else if (cat === 'class') {
+          title.textContent = 'Add Class Relationship';
+          btnSave.textContent = 'Add Relationship';
+
+          const cMatches = Array.from(code.matchAll(/class\s+([A-Za-z0-9_]+)/gi));
+          const classes = Array.from(new Set(cMatches.map(m => m[1])));
+
+          const srcSel = addField('Super / Source Class', document.createElement('select'));
+          srcSel.className = 'form-control';
+          const tgtSel = addField('Sub / Target Class', document.createElement('select'));
+          tgtSel.className = 'form-control';
+
+          classes.forEach(c => {
+            const o1 = document.createElement('option'); o1.value = c; o1.textContent = c;
+            const o2 = document.createElement('option'); o2.value = c; o2.textContent = c;
+            srcSel.appendChild(o1);
+            tgtSel.appendChild(o2);
+          });
+          if (tgtSel.options.length > 1) tgtSel.selectedIndex = 1;
+
+          const typeSel = addField('Relationship Type', document.createElement('select'));
+          typeSel.className = 'form-control';
+          typeSel.innerHTML = '<option value="<|--">Inheritance / Generalization (&lt;|--)</option><option value="*--">Composition (*--)</option><option value="o--">Aggregation (o--)</option><option value="-->">Association (--&gt;)</option><option value="..|>">Realization (..|&gt;)</option>';
+
+          this.currentLinkCallback = () => {
+            const s = srcSel.value;
+            const t = tgtSel.value;
+            const tp = typeSel.value;
+            if (!s || !t) return Utils.showToast('Select both classes', 'error');
+
+            const stmt = `    ${s} ${tp} ${t}`;
+            MultiDiagramVisualizer.updateCodeLine((curCode) => {
+              const lines = curCode.split('\n');
+              const idx = lines.findIndex(l => l.trim().toLowerCase().startsWith('classdiagram'));
+              lines.splice(idx !== -1 ? idx + 1 : 0, 0, stmt);
+              return lines.join('\n');
+            });
+            Utils.showToast(`Added Relation: ${s} ${tp} ${t}`, 'success');
+          };
+        } else if (cat === 'state') {
+          title.textContent = 'Add State Transition';
+          btnSave.textContent = 'Add Transition';
+
+          const sMatches = Array.from(code.matchAll(/([A-Za-z0-9_]+)\s*-->/g));
+          const states = Array.from(new Set(['[*]', ...sMatches.map(m => m[1])]));
+
+          const srcSel = addField('From State', document.createElement('select'));
+          srcSel.className = 'form-control';
+          const tgtSel = addField('To State', document.createElement('select'));
+          tgtSel.className = 'form-control';
+
+          states.forEach(s => {
+            const o1 = document.createElement('option'); o1.value = s; o1.textContent = s;
+            const o2 = document.createElement('option'); o2.value = s; o2.textContent = s;
+            srcSel.appendChild(o1);
+            tgtSel.appendChild(o2);
+          });
+          if (tgtSel.options.length > 1) tgtSel.selectedIndex = 1;
+
+          const condInp = addField('Transition Condition / Label (Optional)', document.createElement('input'));
+          condInp.className = 'form-control';
+          condInp.placeholder = 'e.g. timeout / battery < 20%';
+
+          this.currentLinkCallback = () => {
+            const s = srcSel.value;
+            const t = tgtSel.value;
+            const cond = condInp.value.trim();
+            if (!s || !t) return Utils.showToast('Select both states', 'error');
+
+            const stmt = cond ? `    ${s} --> ${t} : ${cond}` : `    ${s} --> ${t}`;
+            MultiDiagramVisualizer.updateCodeLine((curCode) => `${curCode.trimEnd()}\n${stmt}`);
+            Utils.showToast(`Added Transition: ${s} -> ${t}`, 'success');
+          };
+        } else if (cat === 'er') {
+          title.textContent = 'Add ER Relationship';
+          btnSave.textContent = 'Add Relationship';
+
+          const eMatches = Array.from(code.matchAll(/([A-Za-z0-9_]+)\s*\{/g));
+          const entities = Array.from(new Set(eMatches.map(m => m[1])));
+
+          const srcSel = addField('Entity 1', document.createElement('select'));
+          srcSel.className = 'form-control';
+          const tgtSel = addField('Entity 2', document.createElement('select'));
+          tgtSel.className = 'form-control';
+
+          entities.forEach(e => {
+            const o1 = document.createElement('option'); o1.value = e; o1.textContent = e;
+            const o2 = document.createElement('option'); o2.value = e; o2.textContent = e;
+            srcSel.appendChild(o1);
+            tgtSel.appendChild(o2);
+          });
+          if (tgtSel.options.length > 1) tgtSel.selectedIndex = 1;
+
+          const cardSel = addField('Cardinality', document.createElement('select'));
+          cardSel.className = 'form-control';
+          cardSel.innerHTML = '<option value="||--o{">One to Zero-or-More (||--o{)</option><option value="||--|{">One to One-or-More (||--|{)</option><option value="||--||">One to One (||--||)</option><option value="}|--|{">Many to Many (}|--|{)</option><option value="}|--o{">Many to Zero-or-More (}|--o{)</option>';
+
+          const verbInp = addField('Relationship Verb / Label', document.createElement('input'));
+          verbInp.className = 'form-control';
+          verbInp.placeholder = 'e.g. contains / logs / places';
+
+          this.currentLinkCallback = () => {
+            const s = srcSel.value;
+            const t = tgtSel.value;
+            const card = cardSel.value;
+            const verb = verbInp.value.trim() || 'relates';
+            if (!s || !t) return Utils.showToast('Select both entities', 'error');
+
+            const stmt = `    ${s} ${card} ${t} : ${verb.includes(' ') ? `"${verb}"` : verb}`;
+            MultiDiagramVisualizer.updateCodeLine((curCode) => {
+              const lines = curCode.split('\n');
+              const idx = lines.findIndex(l => l.trim().toLowerCase().startsWith('erdiagram'));
+              lines.splice(idx !== -1 ? idx + 1 : 0, 0, stmt);
+              return lines.join('\n');
+            });
+            Utils.showToast(`Added ER Relation: ${s} -> ${t}`, 'success');
+          };
+        } else if (cat === 'c4') {
+          title.textContent = 'Add C4 Relationship';
+          btnSave.textContent = 'Add Relation';
+
+          const sMatches = Array.from(code.matchAll(/(?:Person|System|Container|Component|SystemDb)[A-Za-z0-9_]*\s*\(\s*([A-Za-z0-9_]+)/g));
+          const elements = Array.from(new Set(sMatches.map(m => m[1])));
+
+          const srcSel = addField('From Element', document.createElement('select'));
+          srcSel.className = 'form-control';
+          const tgtSel = addField('To Element', document.createElement('select'));
+          tgtSel.className = 'form-control';
+
+          elements.forEach(e => {
+            const o1 = document.createElement('option'); o1.value = e; o1.textContent = e;
+            const o2 = document.createElement('option'); o2.value = e; o2.textContent = e;
+            srcSel.appendChild(o1);
+            tgtSel.appendChild(o2);
+          });
+          if (tgtSel.options.length > 1) tgtSel.selectedIndex = 1;
+
+          const actInp = addField('Action / Call Label', document.createElement('input'));
+          actInp.className = 'form-control';
+          actInp.placeholder = 'e.g. Uses / Queries data';
+
+          const techInp = addField('Protocol / Tech (Optional)', document.createElement('input'));
+          techInp.className = 'form-control';
+          techInp.placeholder = 'e.g. HTTPS / REST / gRPC';
+
+          this.currentLinkCallback = () => {
+            const s = srcSel.value;
+            const t = tgtSel.value;
+            const act = actInp.value.trim() || 'Uses';
+            const tech = techInp.value.trim();
+            if (!s || !t) return Utils.showToast('Select source and target', 'error');
+
+            const stmt = tech ? `    Rel(${s}, ${t}, "${act}", "${tech}")` : `    Rel(${s}, ${t}, "${act}")`;
+            MultiDiagramVisualizer.updateCodeLine((curCode) => `${curCode.trimEnd()}\n${stmt}`);
+            Utils.showToast(`Added C4 Relation: ${s} -> ${t}`, 'success');
+          };
+        } else {
+          title.textContent = 'Add Connection Link';
+          btnSave.textContent = 'Create Link';
+        }
 
         modal.classList.add('open');
+        const firstInp = body.querySelector('input, select');
+        if (firstInp) firstInp.focus();
       }
 
       saveLinkFromModal() {
-        const modal = document.getElementById('link-modal');
-        const srcSelect = document.getElementById('lm-source');
-        const tgtSelect = document.getElementById('lm-target');
-        const labelInput = document.getElementById('lm-label');
-        const typeSelect = document.getElementById('lm-type');
-
-        const source = srcSelect.value;
-        const target = tgtSelect.value;
-        const label = labelInput.value.trim() || undefined;
-        const type = typeSelect.value;
-
-        const valRes = ValidationEngine.validateConnection(source, target, this.graph.rules);
-        if (!valRes.allowed) {
-          Utils.showToast(valRes.reason || 'Connection not allowed by rules', 'error');
-          return;
+        if (this.currentLinkCallback) {
+          this.currentLinkCallback();
         }
-
-        const editId = modal._editEdgeId;
-        if (editId) {
-          const edge = this.graph.getEdge(editId);
-          if (edge) {
-            edge.source = source;
-            edge.target = target;
-            edge.label = label;
-            edge.type = type;
-          }
-        } else {
-          this.graph.addEdge({
-            id: Utils.uid('edge'),
-            source,
-            target,
-            label,
-            type
-          });
-        }
-
         this.closeModal('link-modal');
         this.renderAll();
         this.recordHistory();
-        Utils.showToast('Connection created', 'success');
       }
 
       deleteSelected() {
