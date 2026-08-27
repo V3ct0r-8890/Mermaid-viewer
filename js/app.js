@@ -38,6 +38,7 @@
         this.setupTemplatesModal();
         this.setupInitialDiagram();
         this.renderAll();
+        this.updateToolbarLabels();
         this.recordHistory();
         setTimeout(() => this.zoomToFit(), 60);
       }
