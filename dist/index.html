@@ -4634,9 +4634,9 @@ MultiDiagramVisualizer.register('c4context', function(code, nodesLayer, edgesLay
             const isExt = kind.toLowerCase().includes('_ext') || kind.toLowerCase().endsWith('_ext');
             const isDb = kind.toLowerCase().includes('db');
 
-            let defaultFill = isPerson ? (kind.includes('_Ext') ? '#08427B' : '#0288D1') : (isExt ? '#546E7A' : (isDb ? '#00838F' : '#1565C0'));
+            let defaultFill = isPerson ? (kind.includes('_Ext') ? '#B3E5FC' : '#E1F5FE') : (isExt ? '#ECEFF1' : (isDb ? '#E0F2F1' : '#E8EAF6'));
             let defaultBorder = isPerson ? '#01579B' : (isExt ? '#37474F' : (isDb ? '#006064' : '#0D47A1'));
-            let defaultFont = '#FFFFFF';
+            let defaultFont = isPerson ? '#01579B' : (isExt ? '#263238' : (isDb ? '#004D40' : '#1A237E'));
 
             nodes.set(alias, {
               alias,
@@ -4666,8 +4666,8 @@ MultiDiagramVisualizer.register('c4context', function(code, nodesLayer, edgesLay
         });
 
         if (nodes.size === 0) {
-          nodes.set('customer', { alias: 'customer', kind: 'Person', label: 'Banking Customer', desc: 'Retail client managing accounts & cards', isPerson: true, isExt: false, isDb: false, fillColor: '#0288D1', fontColor: '#FFFFFF', borderColor: '#01579B' });
-          nodes.set('banking_core', { alias: 'banking_core', kind: 'System', label: 'Core Banking Services', desc: 'Microservices processing accounts & ledgers', isPerson: false, isExt: false, isDb: false, fillColor: '#1565C0', fontColor: '#FFFFFF', borderColor: '#0D47A1' });
+          nodes.set('customer', { alias: 'customer', kind: 'Person', label: 'Banking Customer', desc: 'Retail client managing accounts & cards', isPerson: true, isExt: false, isDb: false, fillColor: '#E1F5FE', fontColor: '#01579B', borderColor: '#01579B' });
+          nodes.set('banking_core', { alias: 'banking_core', kind: 'System', label: 'Core Banking Services', desc: 'Microservices processing accounts & ledgers', isPerson: false, isExt: false, isDb: false, fillColor: '#E8EAF6', fontColor: '#1A237E', borderColor: '#0D47A1' });
         }
 
         // Title
@@ -5959,7 +5959,7 @@ MultiDiagramVisualizer.register('gantt', function(code, nodesLayer, edgesLayer, 
       else if (isCrit) status = 'crit';
       else if (isMile) status = 'milestone';
 
-      const defaultBarColor = isCrit ? '#F44336' : (isDone ? '#4CAF50' : (isActive ? '#FF9800' : '#2196F3'));
+      const defaultBarColor = isCrit ? '#FFCDD2' : (isDone ? '#C8E6C9' : (isActive ? '#FFE082' : '#BBDEFB'));
       const defaultBorderColor = isCrit ? '#B71C1C' : (isDone ? '#1B5E20' : (isActive ? '#E65100' : '#0D47A1'));
 
       const taskObj = {
@@ -9004,7 +9004,7 @@ MultiDiagramVisualizer.register('pie', function(code, nodesLayer, edgesLayer, is
         const rawLines = (code || '').split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('%%'));
         let title = 'Cloud Infrastructure Resource Distribution';
         const data = [];
-        const colors = ['#2196F3', '#4CAF50', '#FF9800', '#E91E63', '#9C27B0', '#00BCD4', '#009688', '#673AB7', '#FF5722'];
+        const colors = ['#BBDEFB', '#C8E6C9', '#FFE082', '#F8BBD0', '#E1BEE7', '#B2EBF2', '#B2DFDB', '#D1C4E9', '#FFCCBC'];
 
         rawLines.forEach(line => {
           if (line.toLowerCase().startsWith('pie')) {
@@ -9027,9 +9027,9 @@ MultiDiagramVisualizer.register('pie', function(code, nodesLayer, edgesLayer, is
         });
 
         if (data.length === 0) {
-          data.push({ label: 'Category A', val: 40, fillColor: '#2196F3', fontColor: textColor, borderColor: cardBg });
-          data.push({ label: 'Category B', val: 35, fillColor: '#4CAF50', fontColor: textColor, borderColor: cardBg });
-          data.push({ label: 'Category C', val: 25, fillColor: '#FF9800', fontColor: textColor, borderColor: cardBg });
+          data.push({ label: 'Category A', val: 40, fillColor: '#BBDEFB', fontColor: textColor, borderColor: cardBg });
+          data.push({ label: 'Category B', val: 35, fillColor: '#C8E6C9', fontColor: textColor, borderColor: cardBg });
+          data.push({ label: 'Category C', val: 25, fillColor: '#FFE082', fontColor: textColor, borderColor: cardBg });
         }
 
         const total = data.reduce((acc, d) => acc + d.val, 0) || 1;
@@ -10129,7 +10129,7 @@ MultiDiagramVisualizer.register('sequenceDiagram', MultiDiagramVisualizer.render
 MultiDiagramVisualizer.register('statediagram', function(code, nodesLayer, edgesLayer, isDark) {
   const primaryText = isDark ? '#FFFFFF' : '#1F2937';
   const textColor = isDark ? '#E0E0E0' : '#374151';
-  const cardBg = isDark ? '#252526' : '#FFFFFF';
+  const cardBg = isDark ? '#262A36' : '#EEF2FF';
   const cardBorder = isDark ? '#757575' : '#333333';
   const activeHeaderBg = isDark ? '#2D2D2D' : '#F3F4F6';
   const linkColor = isDark ? '#90CAF9' : '#333333';
@@ -12490,7 +12490,10 @@ MultiDiagramVisualizer.register('treemap-beta', MultiDiagramVisualizer.renderers
                   swatchRow.style.gap = '5px';
                   swatchRow.style.flexWrap = 'wrap';
 
-                  const palette = ['#2196F3', '#4CAF50', '#FF9800', '#F44336', '#9C27B0', '#00BCD4', '#009688', '#673AB7', '#212121', '#FFFFFF'];
+                  const isFillProp = f.key === 'fill' || (f.label && f.label.toLowerCase().includes('fill'));
+                  const palette = isFillProp
+                    ? ['#E3F2FD', '#E8F5E9', '#FFF3E0', '#FFEBEE', '#F3E5F5', '#E0F7FA', '#FFF9C4', '#FCE4EC', '#ECEFF1', '#FFFFFF']
+                    : ['#0D47A1', '#1B5E20', '#E65100', '#B71C1C', '#4A148C', '#006064', '#212121', '#616161', '#90CAF9', '#FFFFFF'];
                   palette.forEach(c => {
                     const sw = document.createElement('div');
                     sw.style.width = '18px';

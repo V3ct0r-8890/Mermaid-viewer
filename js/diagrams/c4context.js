@@ -41,9 +41,9 @@ MultiDiagramVisualizer.register('c4context', function(code, nodesLayer, edgesLay
             const isExt = kind.toLowerCase().includes('_ext') || kind.toLowerCase().endsWith('_ext');
             const isDb = kind.toLowerCase().includes('db');
 
-            let defaultFill = isPerson ? (kind.includes('_Ext') ? '#08427B' : '#0288D1') : (isExt ? '#546E7A' : (isDb ? '#00838F' : '#1565C0'));
+            let defaultFill = isPerson ? (kind.includes('_Ext') ? '#B3E5FC' : '#E1F5FE') : (isExt ? '#ECEFF1' : (isDb ? '#E0F2F1' : '#E8EAF6'));
             let defaultBorder = isPerson ? '#01579B' : (isExt ? '#37474F' : (isDb ? '#006064' : '#0D47A1'));
-            let defaultFont = '#FFFFFF';
+            let defaultFont = isPerson ? '#01579B' : (isExt ? '#263238' : (isDb ? '#004D40' : '#1A237E'));
 
             nodes.set(alias, {
               alias,
@@ -73,8 +73,8 @@ MultiDiagramVisualizer.register('c4context', function(code, nodesLayer, edgesLay
         });
 
         if (nodes.size === 0) {
-          nodes.set('customer', { alias: 'customer', kind: 'Person', label: 'Banking Customer', desc: 'Retail client managing accounts & cards', isPerson: true, isExt: false, isDb: false, fillColor: '#0288D1', fontColor: '#FFFFFF', borderColor: '#01579B' });
-          nodes.set('banking_core', { alias: 'banking_core', kind: 'System', label: 'Core Banking Services', desc: 'Microservices processing accounts & ledgers', isPerson: false, isExt: false, isDb: false, fillColor: '#1565C0', fontColor: '#FFFFFF', borderColor: '#0D47A1' });
+          nodes.set('customer', { alias: 'customer', kind: 'Person', label: 'Banking Customer', desc: 'Retail client managing accounts & cards', isPerson: true, isExt: false, isDb: false, fillColor: '#E1F5FE', fontColor: '#01579B', borderColor: '#01579B' });
+          nodes.set('banking_core', { alias: 'banking_core', kind: 'System', label: 'Core Banking Services', desc: 'Microservices processing accounts & ledgers', isPerson: false, isExt: false, isDb: false, fillColor: '#E8EAF6', fontColor: '#1A237E', borderColor: '#0D47A1' });
         }
 
         // Title

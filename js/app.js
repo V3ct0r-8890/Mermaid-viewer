@@ -767,7 +767,10 @@
                   swatchRow.style.gap = '5px';
                   swatchRow.style.flexWrap = 'wrap';
 
-                  const palette = ['#2196F3', '#4CAF50', '#FF9800', '#F44336', '#9C27B0', '#00BCD4', '#009688', '#673AB7', '#212121', '#FFFFFF'];
+                  const isFillProp = f.key === 'fill' || (f.label && f.label.toLowerCase().includes('fill'));
+                  const palette = isFillProp
+                    ? ['#E3F2FD', '#E8F5E9', '#FFF3E0', '#FFEBEE', '#F3E5F5', '#E0F7FA', '#FFF9C4', '#FCE4EC', '#ECEFF1', '#FFFFFF']
+                    : ['#0D47A1', '#1B5E20', '#E65100', '#B71C1C', '#4A148C', '#006064', '#212121', '#616161', '#90CAF9', '#FFFFFF'];
                   palette.forEach(c => {
                     const sw = document.createElement('div');
                     sw.style.width = '18px';

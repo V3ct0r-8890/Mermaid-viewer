@@ -2,7 +2,7 @@
 MultiDiagramVisualizer.register('statediagram', function(code, nodesLayer, edgesLayer, isDark) {
   const primaryText = isDark ? '#FFFFFF' : '#1F2937';
   const textColor = isDark ? '#E0E0E0' : '#374151';
-  const cardBg = isDark ? '#252526' : '#FFFFFF';
+  const cardBg = isDark ? '#262A36' : '#EEF2FF';
   const cardBorder = isDark ? '#757575' : '#333333';
   const activeHeaderBg = isDark ? '#2D2D2D' : '#F3F4F6';
   const linkColor = isDark ? '#90CAF9' : '#333333';

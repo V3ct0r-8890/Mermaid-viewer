@@ -13,7 +13,7 @@ MultiDiagramVisualizer.register('pie', function(code, nodesLayer, edgesLayer, is
         const rawLines = (code || '').split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('%%'));
         let title = 'Cloud Infrastructure Resource Distribution';
         const data = [];
-        const colors = ['#2196F3', '#4CAF50', '#FF9800', '#E91E63', '#9C27B0', '#00BCD4', '#009688', '#673AB7', '#FF5722'];
+        const colors = ['#BBDEFB', '#C8E6C9', '#FFE082', '#F8BBD0', '#E1BEE7', '#B2EBF2', '#B2DFDB', '#D1C4E9', '#FFCCBC'];
 
         rawLines.forEach(line => {
           if (line.toLowerCase().startsWith('pie')) {
@@ -36,9 +36,9 @@ MultiDiagramVisualizer.register('pie', function(code, nodesLayer, edgesLayer, is
         });
 
         if (data.length === 0) {
-          data.push({ label: 'Category A', val: 40, fillColor: '#2196F3', fontColor: textColor, borderColor: cardBg });
-          data.push({ label: 'Category B', val: 35, fillColor: '#4CAF50', fontColor: textColor, borderColor: cardBg });
-          data.push({ label: 'Category C', val: 25, fillColor: '#FF9800', fontColor: textColor, borderColor: cardBg });
+          data.push({ label: 'Category A', val: 40, fillColor: '#BBDEFB', fontColor: textColor, borderColor: cardBg });
+          data.push({ label: 'Category B', val: 35, fillColor: '#C8E6C9', fontColor: textColor, borderColor: cardBg });
+          data.push({ label: 'Category C', val: 25, fillColor: '#FFE082', fontColor: textColor, borderColor: cardBg });
         }
 
         const total = data.reduce((acc, d) => acc + d.val, 0) || 1;

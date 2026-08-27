@@ -89,7 +89,7 @@ MultiDiagramVisualizer.register('gantt', function(code, nodesLayer, edgesLayer, 
       else if (isCrit) status = 'crit';
       else if (isMile) status = 'milestone';
 
-      const defaultBarColor = isCrit ? '#F44336' : (isDone ? '#4CAF50' : (isActive ? '#FF9800' : '#2196F3'));
+      const defaultBarColor = isCrit ? '#FFCDD2' : (isDone ? '#C8E6C9' : (isActive ? '#FFE082' : '#BBDEFB'));
       const defaultBorderColor = isCrit ? '#B71C1C' : (isDone ? '#1B5E20' : (isActive ? '#E65100' : '#0D47A1'));
 
       const taskObj = {
