@@ -7265,13 +7265,95 @@ MultiDiagramVisualizer.register('mindmap', function(code, nodesLayer, edgesLayer
             const cx = isLeft ? node.x + node.width / 2 : node.x - node.width / 2;
             const cy = node.y;
 
-            const curve = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            const linkKey = `link_${parentNode.text}_to_${node.text}`;
+            const linkTitle = `Branch: ${parentNode.text} → ${node.text}`;
+
+            const defaultWidth = node.level === 1 ? '2.2' : (node.level === 2 ? '1.6' : '1.2');
+            const defaultColor = node.level === 1 ? primaryBorder : linkColor;
+
+            const lColor = MultiDiagramVisualizer.getColor(linkKey, defaultColor);
+            const lWidth = MultiDiagramVisualizer.getColor(`${linkKey}_width`, defaultWidth);
+            const lRouting = MultiDiagramVisualizer.getColor(`${linkKey}_routing`, 'bezier');
+            const lStyle = MultiDiagramVisualizer.getColor(`${linkKey}_style`, 'solid');
+
+            const isLinkSel = (selTitle === linkTitle || selTitle === linkKey);
+
+            let pathD;
             const midX = (px + cx) / 2;
-            curve.setAttribute('d', `M ${px} ${py} C ${midX} ${py}, ${midX} ${cy}, ${cx} ${cy}`);
+
+            if (lRouting === 'step') {
+              pathD = `M ${px} ${py} L ${midX} ${py} L ${midX} ${cy} L ${cx} ${cy}`;
+            } else if (lRouting === 'linear') {
+              pathD = `M ${px} ${py} L ${cx} ${cy}`;
+            } else {
+              pathD = `M ${px} ${py} C ${midX} ${py}, ${midX} ${cy}, ${cx} ${cy}`;
+            }
+
+            const linkG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+
+            // Click Hitbox
+            const hitPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            hitPath.setAttribute('d', pathD);
+            hitPath.setAttribute('fill', 'none');
+            hitPath.setAttribute('stroke', 'transparent');
+            hitPath.setAttribute('stroke-width', '20');
+            hitPath.style.cursor = 'pointer';
+            linkG.appendChild(hitPath);
+
+            // Visible Curve / Line
+            const curve = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            curve.setAttribute('d', pathD);
             curve.setAttribute('fill', 'none');
-            curve.setAttribute('stroke', node.level === 1 ? primaryBorder : linkColor);
-            curve.setAttribute('stroke-width', node.level === 1 ? '2.2' : (node.level === 2 ? '1.6' : '1.2'));
-            edgesLayer.appendChild(curve);
+            curve.setAttribute('stroke', isLinkSel ? 'var(--selection-color)' : lColor);
+            curve.setAttribute('stroke-width', isLinkSel ? `${parseFloat(lWidth) + 1.5}` : lWidth);
+            if (isLinkSel) curve.style.filter = selGlow;
+
+            if (lStyle === 'dashed') {
+              curve.setAttribute('stroke-dasharray', '5 4');
+            } else if (lStyle === 'dotted') {
+              curve.setAttribute('stroke-dasharray', '2 3');
+            }
+
+            linkG.appendChild(curve);
+
+            // Click handler for Inspector
+            linkG.addEventListener('click', (e) => {
+              e.stopPropagation();
+              if (typeof AppController !== 'undefined' && AppController.instance) {
+                AppController.instance.selectVisualObject({
+                  type: 'Mindmap Branch Link',
+                  title: linkTitle,
+                  fields: [
+                    { key: 'color', label: '1. Branch Line Color', type: 'color', value: lColor },
+                    { key: 'width', label: '2. Line Thickness', type: 'select', value: lWidth, options: [
+                        { value: '1.2', label: 'Thin (1.2px)' },
+                        { value: '1.6', label: 'Medium (1.6px)' },
+                        { value: '2.2', label: 'Thick (2.2px - Default)' },
+                        { value: '3.2', label: 'Heavy (3.2px)' }
+                    ]},
+                    { key: 'routing', label: '3. Connector Routing / Curve Style', type: 'select', value: lRouting, options: [
+                        { value: 'bezier', label: 'Smooth S-Curve (Bezier)' },
+                        { value: 'step', label: 'Orthogonal Step (90° Corners)' },
+                        { value: 'linear', label: 'Straight Line (Linear)' }
+                    ]},
+                    { key: 'style', label: '4. Line Dash Style', type: 'select', value: lStyle, options: [
+                        { value: 'solid', label: 'Solid (──────)' },
+                        { value: 'dashed', label: 'Dashed (– – – –)' },
+                        { value: 'dotted', label: 'Dotted (········)' }
+                    ]}
+                  ],
+                  onSave: (vals) => {
+                    MultiDiagramVisualizer.setColor(linkKey, vals.color);
+                    MultiDiagramVisualizer.setColor(`${linkKey}_width`, vals.width);
+                    MultiDiagramVisualizer.setColor(`${linkKey}_routing`, vals.routing);
+                    MultiDiagramVisualizer.setColor(`${linkKey}_style`, vals.style);
+                    MultiDiagramVisualizer.syncColorToCode(linkKey, vals.color);
+                  }
+                });
+              }
+            });
+
+            edgesLayer.appendChild(linkG);
           }
 
           const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
@@ -9178,7 +9260,7 @@ MultiDiagramVisualizer.register('mindmap', function(code, nodesLayer, edgesLayer
           });
         };
 
-        leftBranches.forEach((b) => renderNodeRecursive(b, rootNode, true));
+                leftBranches.forEach((b) => renderNodeRecursive(b, rootNode, true));
         rightBranches.forEach((b) => renderNodeRecursive(b, rootNode, false));
 });
 
