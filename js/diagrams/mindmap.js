@@ -145,10 +145,24 @@ MultiDiagramVisualizer.register('mindmap', function(code, nodesLayer, edgesLayer
         const rFont = MultiDiagramVisualizer.getColor('root_font', primaryText);
         const rBorder = MultiDiagramVisualizer.getColor('root_border', primaryBorder);
         rootEl.setAttribute('fill', rFill);
-        rootEl.setAttribute('stroke', isSelRoot ? 'var(--selection-color)' : rBorder);
-        rootEl.setAttribute('stroke-width', isSelRoot ? '3.5' : '2.5');
-        if (isSelRoot) rootEl.style.filter = selGlow;
+        rootEl.setAttribute('stroke', rBorder);
+        rootEl.setAttribute('stroke-width', '2.5');
         rootG.appendChild(rootEl);
+
+        if (isSelRoot) {
+          const selRootBox = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+          selRootBox.setAttribute('x', `${rootNode.x - rootNode.width / 2 - 4}`);
+          selRootBox.setAttribute('y', `${rootNode.y - rootNode.height / 2 - 4}`);
+          selRootBox.setAttribute('width', `${rootNode.width + 8}`);
+          selRootBox.setAttribute('height', `${rootNode.height + 8}`);
+          selRootBox.setAttribute('rx', rootNode.shape === 'circle' ? `${rootNode.height / 2 + 4}` : '10');
+          selRootBox.setAttribute('fill', 'none');
+          selRootBox.setAttribute('stroke', 'var(--selection-color)');
+          selRootBox.setAttribute('stroke-width', '1.8');
+          selRootBox.setAttribute('stroke-dasharray', '4 3');
+          selRootBox.style.pointerEvents = 'none';
+          rootG.appendChild(selRootBox);
+        }
 
         const rootTxt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
         rootTxt.setAttribute('x', `${rootNode.x}`);
@@ -321,10 +335,24 @@ MultiDiagramVisualizer.register('mindmap', function(code, nodesLayer, edgesLayer
           const nodeBorder = MultiDiagramVisualizer.getColor(`${node.text}_border`, defaultNodeBorder);
 
           rect.setAttribute('fill', nodeFill);
-          rect.setAttribute('stroke', isSelMM ? 'var(--selection-color)' : nodeBorder);
-          rect.setAttribute('stroke-width', isSelMM ? '2.5' : (node.level === 1 ? '1.5' : '1'));
-          if (isSelMM) rect.style.filter = selGlow;
+          rect.setAttribute('stroke', nodeBorder);
+          rect.setAttribute('stroke-width', node.level === 1 ? '1.8' : '1.2');
           g.appendChild(rect);
+
+          if (isSelMM) {
+            const selBox = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+            selBox.setAttribute('x', `${node.x - node.width / 2 - 3.5}`);
+            selBox.setAttribute('y', `${node.y - node.height / 2 - 3.5}`);
+            selBox.setAttribute('width', `${node.width + 7}`);
+            selBox.setAttribute('height', `${node.height + 7}`);
+            selBox.setAttribute('rx', node.level === 1 ? '8' : '6');
+            selBox.setAttribute('fill', 'none');
+            selBox.setAttribute('stroke', 'var(--selection-color)');
+            selBox.setAttribute('stroke-width', '1.5');
+            selBox.setAttribute('stroke-dasharray', '4 3');
+            selBox.style.pointerEvents = 'none';
+            g.appendChild(selBox);
+          }
 
           const txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
           txt.setAttribute('x', `${node.x}`);
