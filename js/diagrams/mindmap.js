@@ -441,29 +441,31 @@ MultiDiagramVisualizer.register('mindmap', function(code, nodesLayer, edgesLayer
             MultiDiagramVisualizer.syncColorToCode(`${vals.text}_font`, vals.font);
             MultiDiagramVisualizer.syncColorToCode(`${vals.text}_border`, vals.border);
 
-            if (AppController.instance.selectedVisualObject) {
+            if (typeof AppController !== 'undefined' && AppController.instance && AppController.instance.selectedVisualObject) {
               AppController.instance.selectedVisualObject.title = vals.text;
             }
 
-            MultiDiagramVisualizer.updateCodeLine((curCode) => {
-              const lines = curCode.split('\n');
-              const esc = node.text.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
-              const idx = lines.findIndex(l => !l.trim().startsWith('%%') && new RegExp(`^\\s*[\[\(\{]*${esc}[\]\)\}\s]*(?:\\s*|::.*)$`, 'i').test(l.trim()));
-              if (idx !== -1) {
-                const lead = lines[idx].match(/^(\s*)/)[1] || '      ';
-                const shapeBrackets = {
-                  'circle': ['((', '))'],
-                  'rounded': ['(', ')'],
-                  'rectangle': ['[', ']'],
-                  'hexagon': ['{{', '}}'],
-                  'cloud': [')', '(']
-                };
-                const br = shapeBrackets[vals.shape] || ['(', ')'];
-                const iconPart = node.icon ? `::icon(${node.icon})` : '';
-                lines[idx] = `${lead}${br[0]}${vals.text}${br[1]}${iconPart}`;
-              }
-              return lines.join('\n');
-            });
+            if (vals.text !== node.text || (vals.shape && vals.shape !== node.shape)) {
+              MultiDiagramVisualizer.updateCodeLine((curCode) => {
+                const lines = curCode.split('\n');
+                const esc = node.text.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+                const idx = lines.findIndex(l => !l.trim().startsWith('%%') && new RegExp(`^\\s*[\[\(\{]*${esc}[\]\)\}\s]*(?:\\s*|::.*)$`, 'i').test(l.trim()));
+                if (idx !== -1) {
+                  const lead = lines[idx].match(/^(\s*)/)[1] || '      ';
+                  const shapeBrackets = {
+                    'rounded': ['(', ')'],
+                    'rectangle': ['[', ']'],
+                    'circle': ['((', '))'],
+                    'hexagon': ['{{', '}}'],
+                    'cloud': [')', '(']
+                  };
+                  const br = shapeBrackets[vals.shape] || ['', ''];
+                  const iconPart = node.icon ? `::icon(${node.icon})` : '';
+                  lines[idx] = `${lead}${br[0]}${vals.text}${br[1]}${iconPart}`;
+                }
+                return lines.join('\n');
+              });
+            }
           }
         });
       }

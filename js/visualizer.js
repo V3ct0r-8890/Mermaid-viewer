@@ -41,7 +41,7 @@ class MultiDiagramVisualizer {
 
   static parseColorDirectives(code) {
     if (!code) return;
-    const matches = code.matchAll(/%%\s*@color:\s*([^=\n]+)\s*=\s*(#[A-Fa-f0-9]{3,8})/g);
+    const matches = code.matchAll(/%%\s*@color:\s*([^=\n]+?)\s*=\s*(#[A-Fa-f0-9]{3,8})/g);
     for (const m of matches) {
       const key = m[1].trim();
       const color = m[2].trim();
