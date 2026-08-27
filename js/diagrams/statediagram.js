@@ -297,8 +297,22 @@ MultiDiagramVisualizer.register('statediagram', function(code, nodesLayer, edges
       labelY = (y1 + y2) / 2;
     }
 
+    const sName = tr.from.replace('active_start_', '[*]').replace('start_main', '[*]');
+    const tName = tr.to.replace('end_lowpower', '[*]').replace('end_active', '[*]');
+    const trKey = `trans_${tr.from}_to_${tr.to}`;
+    const trTitle = tr.label ? `${sName} → ${tName} (${tr.label})` : `${sName} → ${tName}`;
+
+    const trColor = MultiDiagramVisualizer.getColor(trKey, linkColor);
+    const trWidth = MultiDiagramVisualizer.getColor(`${trKey}_width`, '1.4');
+    const trStyle = MultiDiagramVisualizer.getColor(`${trKey}_style`, 'solid');
+    const trFont = MultiDiagramVisualizer.getColor(`${trKey}_font`, textColor);
+    const trBg = MultiDiagramVisualizer.getColor(`${trKey}_bg`, cardBg);
+
+    const isSelected = (selTitle === trTitle || selTitle === trKey || (tr.label && selTitle === tr.label));
+
     const trG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
 
+    // Click hitbox
     const hitbox = document.createElementNS('http://www.w3.org/2000/svg', 'path');
     hitbox.setAttribute('d', pathD);
     hitbox.setAttribute('fill', 'none');
@@ -307,14 +321,29 @@ MultiDiagramVisualizer.register('statediagram', function(code, nodesLayer, edges
     hitbox.style.cursor = 'pointer';
     trG.appendChild(hitbox);
 
+    // Visible path
     const pathEl = document.createElementNS('http://www.w3.org/2000/svg', 'path');
     pathEl.setAttribute('d', pathD);
     pathEl.setAttribute('fill', 'none');
-    pathEl.setAttribute('stroke', linkColor);
-    pathEl.setAttribute('stroke-width', '1.4');
-    pathEl.setAttribute('marker-end', 'url(#marker-arrow)');
+    pathEl.setAttribute('stroke', isSelected ? 'var(--selection-color)' : trColor);
+    pathEl.setAttribute('stroke-width', isSelected ? `${parseFloat(trWidth) + 1.2}` : trWidth);
+    if (isSelected) pathEl.style.filter = selGlow;
+
+    if (trStyle === 'dashed') {
+      pathEl.setAttribute('stroke-dasharray', '5 4');
+    } else if (trStyle === 'dotted') {
+      pathEl.setAttribute('stroke-dasharray', '2 3');
+    }
+
+    if (typeof AppController !== 'undefined' && AppController.instance && AppController.instance.getOrCreateMarker) {
+      const markerId = AppController.instance.getOrCreateMarker(trColor, false, false, isSelected);
+      pathEl.setAttribute('marker-end', `url(#${markerId})`);
+    } else {
+      pathEl.setAttribute('marker-end', 'url(#marker-arrow)');
+    }
     trG.appendChild(pathEl);
 
+    // Label badge
     if (tr.label) {
       const lblG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
       lblG.setAttribute('transform', `translate(${labelX}, ${labelY})`);
@@ -326,16 +355,17 @@ MultiDiagramVisualizer.register('statediagram', function(code, nodesLayer, edges
       lblBg.setAttribute('width', `${textLen}`);
       lblBg.setAttribute('height', '20');
       lblBg.setAttribute('rx', '3');
-      lblBg.setAttribute('fill', cardBg);
-      lblBg.setAttribute('stroke', isDark ? '#555555' : '#D1D5DB');
-      lblBg.setAttribute('stroke-width', '1');
+      lblBg.setAttribute('fill', trBg);
+      lblBg.setAttribute('stroke', isSelected ? 'var(--selection-color)' : (isDark ? '#555555' : '#D1D5DB'));
+      lblBg.setAttribute('stroke-width', isSelected ? '2' : '1');
+      if (isSelected) lblBg.style.filter = selGlow;
       lblG.appendChild(lblBg);
 
       const lblTxt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
       lblTxt.setAttribute('x', '0');
       lblTxt.setAttribute('y', '3.5');
       lblTxt.setAttribute('text-anchor', 'middle');
-      lblTxt.setAttribute('fill', textColor);
+      lblTxt.setAttribute('fill', trFont);
       lblTxt.setAttribute('font-size', '11px');
       lblTxt.setAttribute('font-weight', '500');
       lblTxt.textContent = tr.label;
@@ -344,22 +374,42 @@ MultiDiagramVisualizer.register('statediagram', function(code, nodesLayer, edges
       trG.appendChild(lblG);
     }
 
-        trG.addEventListener('click', (e) => {
+    // Interactive Inspector selection for Transition Link
+    trG.addEventListener('click', (e) => {
       e.stopPropagation();
       if (typeof AppController !== 'undefined' && AppController.instance) {
         AppController.instance.selectVisualObject({
           type: 'State Transition Link',
-          title: tr.label ? `${tr.from} -> ${tr.to} (${tr.label})` : `${tr.from} -> ${tr.to}`,
+          title: trTitle,
           fields: [
-            { key: 'label', label: 'Transition Condition / Label', type: 'text', value: tr.label || '' },
-            { key: 'color', label: 'Line / Arrow Color', type: 'color', value: linkColor }
+            { key: 'label', label: 'Condition / Action Label', type: 'text', value: tr.label || '' },
+            { key: 'color', label: '1. Line & Arrow Color', type: 'color', value: trColor },
+            { key: 'width', label: '2. Line Thickness', type: 'select', value: trWidth, options: [
+                { value: '1.2', label: 'Thin (1.2px)' },
+                { value: '1.8', label: 'Medium (1.8px - Default)' },
+                { value: '2.5', label: 'Thick (2.5px)' },
+                { value: '3.5', label: 'Heavy (3.5px)' }
+            ]},
+            { key: 'style', label: '3. Line Dash Style', type: 'select', value: trStyle, options: [
+                { value: 'solid', label: 'Solid (──────)' },
+                { value: 'dashed', label: 'Dashed (– – – –)' },
+                { value: 'dotted', label: 'Dotted (········)' }
+            ]},
+            { key: 'font', label: '4. Label Text Color', type: 'color', value: trFont },
+            { key: 'bg', label: '5. Label Badge Background', type: 'color', value: trBg }
           ],
           onSave: (vals) => {
+            MultiDiagramVisualizer.setColor(trKey, vals.color);
+            MultiDiagramVisualizer.setColor(`${trKey}_width`, vals.width);
+            MultiDiagramVisualizer.setColor(`${trKey}_style`, vals.style);
+            MultiDiagramVisualizer.setColor(`${trKey}_font`, vals.font);
+            MultiDiagramVisualizer.setColor(`${trKey}_bg`, vals.bg);
+            MultiDiagramVisualizer.syncColorToCode(trKey, vals.color);
+            MultiDiagramVisualizer.syncColorToCode(`${trKey}_font`, vals.font);
+            MultiDiagramVisualizer.syncColorToCode(`${trKey}_bg`, vals.bg);
             MultiDiagramVisualizer.updateCodeLine((curCode) => {
               const lines = curCode.split('\n');
               for (let i = 0; i < lines.length; i++) {
-                const sName = tr.from.replace('active_start_', '[*]').replace('start_main', '[*]');
-                const tName = tr.to.replace('end_lowpower', '[*]').replace('end_active', '[*]');
                 if (lines[i].includes(sName) && lines[i].includes(tName) && lines[i].includes('-->')) {
                   const lead = lines[i].match(/^\s*/)[0] || '    ';
                   lines[i] = vals.label ? `${lead}${sName} --> ${tName} : ${vals.label}` : `${lead}${sName} --> ${tName}`;
@@ -376,7 +426,7 @@ MultiDiagramVisualizer.register('statediagram', function(code, nodesLayer, edges
     edgesLayer.appendChild(trG);
   });
 
-  // 5. RENDER ALL STATE NODES
+    // 5. RENDER ALL STATE NODES
   normalNodes.forEach(s => {
     const pos = MultiDiagramVisualizer.getPosition(s.id, s.defaultX, s.defaultY);
     const fillColor = MultiDiagramVisualizer.getColor(s.id, s.defaultFill);
