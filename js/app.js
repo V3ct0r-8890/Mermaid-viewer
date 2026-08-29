@@ -2234,6 +2234,40 @@
             shapeSel.appendChild(o);
           });
 
+          let fromSel = null, toSel = null, typeSel = null, labelInp = null;
+
+          if (!node) {
+            const availableNodes = this.graph.nodes.filter(n => n.id !== 'visual_chart_bounds');
+
+            fromSel = addField('Connect Link From (Predecessor Node)', document.createElement('select'));
+            fromSel.className = 'form-control';
+            fromSel.innerHTML = '<option value="">-- None (Standalone Node) --</option>';
+            availableNodes.forEach(n => {
+              const opt = document.createElement('option');
+              opt.value = n.id;
+              opt.textContent = `${n.id} (${n.text || n.id})`;
+              fromSel.appendChild(opt);
+            });
+
+            toSel = addField('Connect Link To (Successor Node)', document.createElement('select'));
+            toSel.className = 'form-control';
+            toSel.innerHTML = '<option value="">-- None --</option>';
+            availableNodes.forEach(n => {
+              const opt = document.createElement('option');
+              opt.value = n.id;
+              opt.textContent = `${n.id} (${n.text || n.id})`;
+              toSel.appendChild(opt);
+            });
+
+            typeSel = addField('Arrow Style', document.createElement('select'));
+            typeSel.className = 'form-control';
+            typeSel.innerHTML = '<option value="-->">Solid Arrow (--&gt;)</option><option value="==>">Thick Arrow (==&gt;)</option><option value="-.->">Dotted Arrow (-.-&gt;)</option><option value="---">Open Line (---)</option>';
+
+            labelInp = addField('Link Label (Optional)', document.createElement('input'));
+            labelInp.className = 'form-control';
+            labelInp.placeholder = 'e.g. Yes / No / Action';
+          }
+
           this.currentCreateCallback = () => {
             const id = idInp.value.trim().replace(/\s+/g, '_');
             const text = textInp.value.trim() || id;
@@ -2246,18 +2280,56 @@
             } else {
               const rect = this.svg.getBoundingClientRect();
               const center = this.getCanvasPoint({ clientX: rect.left + rect.width / 2, clientY: rect.top + rect.height / 2 });
+
+              let posX = Utils.snap(center.x - 70);
+              let posY = Utils.snap(center.y - 25);
+
+              const fromId = fromSel ? fromSel.value : '';
+              const toId = toSel ? toSel.value : '';
+              const edgeType = typeSel ? typeSel.value : '-->';
+              const edgeLabel = labelInp ? labelInp.value.trim() : '';
+
+              if (fromId) {
+                const parentNode = this.graph.getNode(fromId);
+                if (parentNode) {
+                  const isLR = String(this.graph.diagramType).toLowerCase().includes('lr');
+                  posX = isLR ? parentNode.x + parentNode.width + 80 : parentNode.x;
+                  posY = isLR ? parentNode.y : parentNode.y + parentNode.height + 70;
+                }
+              }
+
               this.graph.addNode({
                 id,
                 text,
                 shape,
-                x: Utils.snap(center.x - 70),
-                y: Utils.snap(center.y - 25),
+                x: posX,
+                y: posY,
                 width: 140,
                 height: 50,
                 fillColor: '#E3F2FD',
                 borderColor: '#90CAF9',
                 fontColor: '#0D47A1'
               });
+
+              if (fromId) {
+                this.graph.addEdge({
+                  id: Utils.uid('edge'),
+                  source: fromId,
+                  target: id,
+                  type: edgeType,
+                  label: edgeLabel || undefined
+                });
+              }
+
+              if (toId) {
+                this.graph.addEdge({
+                  id: Utils.uid('edge'),
+                  source: id,
+                  target: toId,
+                  type: edgeType,
+                  label: undefined
+                });
+              }
             }
             this.updateMermaidCode();
           };
