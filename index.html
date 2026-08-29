@@ -246,20 +246,36 @@
         <!-- Edge Properties Form -->
         <div id="edge-props-form" style="display:none;">
           <h4 style="font-size:11px; text-transform:uppercase; color:var(--text-muted); margin-bottom:12px;">Link Properties</h4>
+          
+          <div style="display:flex; gap:8px;">
+            <div class="prop-group" style="flex:1;">
+              <label>From (Source)</label>
+              <select id="prop-edge-source" class="prop-input"></select>
+            </div>
+            <div class="prop-group" style="flex:1;">
+              <label>To (Target)</label>
+              <select id="prop-edge-target" class="prop-input"></select>
+            </div>
+          </div>
+
           <div class="prop-group">
             <label>Edge Label</label>
             <input type="text" id="prop-edge-label" class="prop-input" placeholder="e.g. Yes / Action">
           </div>
           <div class="prop-group">
-            <label>Arrow Head / End Style</label>
+            <label>Arrow Head / End Style (Includes Bi-directional)</label>
             <select id="prop-edge-type" class="prop-input">
-              <option value="-->">Solid Arrow (--&gt;)</option>
-              <option value="--->">Long / Solid (---&gt;)</option>
-              <option value="==>">Thick Arrow (==&gt;)</option>
-              <option value="-.->">Dotted Arrow (-.-&gt;)</option>
-              <option value="---">Open Line (---)</option>
-              <option value="<-->">Bidirectional Arrow (&lt;--&gt;)</option>
-              <option value="<==>">Bidirectional Thick (&lt;==&gt;)</option>
+              <option value="-->">Forward Solid Arrow (--&gt;)</option>
+              <option value="<--">Reverse Solid Arrow (&lt;--)</option>
+              <option value="<-->">Bidirectional Solid Arrow (&lt;--&gt;)</option>
+              <option value="==>">Forward Thick Arrow (==&gt;)</option>
+              <option value="<==">Reverse Thick Arrow (&lt;==)</option>
+              <option value="<==>">Bidirectional Thick Arrow (&lt;==&gt;)</option>
+              <option value="-.->">Forward Dotted Arrow (-.-&gt;)</option>
+              <option value="<-.->">Bidirectional Dotted Arrow (&lt;-.-&gt;)</option>
+              <option value="---">Open Solid Line (---)</option>
+              <option value="-.-">Open Dotted Line (-.-)</option>
+              <option value="===">Open Thick Line (===)</option>
             </select>
           </div>
 

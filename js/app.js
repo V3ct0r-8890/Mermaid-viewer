@@ -934,6 +934,8 @@
             if (edgeForm) edgeForm.style.display = 'block';
 
             this.edgeInitialValues = {
+              source: edge.source,
+              target: edge.target,
               label: edge.label || '',
               type: edge.type || '-->',
               curve: edge.curve || 'basis',
@@ -941,6 +943,27 @@
               strokeWidth: String(edge.strokeWidth || 2),
               textColor: edge.textColor || (this.themeMgr.currentTheme === 'dark' ? '#D4D4D4' : '#212121')
             };
+
+            const srcSel = document.getElementById('prop-edge-source');
+            const tgtSel = document.getElementById('prop-edge-target');
+            if (srcSel && tgtSel) {
+              srcSel.innerHTML = '';
+              tgtSel.innerHTML = '';
+              const availableNodes = this.graph.nodes.filter(n => n.id !== 'visual_chart_bounds');
+              availableNodes.forEach(n => {
+                const opt1 = document.createElement('option');
+                opt1.value = n.id;
+                opt1.textContent = `${n.id} (${n.text || n.id})`;
+                srcSel.appendChild(opt1);
+
+                const opt2 = document.createElement('option');
+                opt2.value = n.id;
+                opt2.textContent = `${n.id} (${n.text || n.id})`;
+                tgtSel.appendChild(opt2);
+              });
+              srcSel.value = edge.source;
+              tgtSel.value = edge.target;
+            }
 
             document.getElementById('prop-edge-label').value = this.edgeInitialValues.label;
             document.getElementById('prop-edge-type').value = this.edgeInitialValues.type;
@@ -1127,6 +1150,11 @@
           const edge = this.graph.getEdge(this.selectedEdgeId);
           if (!edge) return;
 
+          const newSrc = document.getElementById('prop-edge-source')?.value;
+          const newTgt = document.getElementById('prop-edge-target')?.value;
+          if (newSrc) edge.source = newSrc;
+          if (newTgt) edge.target = newTgt;
+
           edge.label = document.getElementById('prop-edge-label').value.trim() || undefined;
           edge.type = document.getElementById('prop-edge-type').value;
           const curveVal = document.getElementById('prop-edge-curve')?.value;
@@ -1150,6 +1178,8 @@
 
         document.getElementById('btn-edge-prop-reset')?.addEventListener('click', () => {
           if (!this.edgeInitialValues) return;
+          if (document.getElementById('prop-edge-source')) document.getElementById('prop-edge-source').value = this.edgeInitialValues.source;
+          if (document.getElementById('prop-edge-target')) document.getElementById('prop-edge-target').value = this.edgeInitialValues.target;
           document.getElementById('prop-edge-label').value = this.edgeInitialValues.label;
           document.getElementById('prop-edge-type').value = this.edgeInitialValues.type;
           const curveReset = document.getElementById('prop-edge-curve');
