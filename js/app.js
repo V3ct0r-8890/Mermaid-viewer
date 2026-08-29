@@ -2558,32 +2558,191 @@
           title.textContent = 'Add Gantt Task';
           btnSave.textContent = 'Add Task';
 
-          const secInp = addField('Section Name', document.createElement('input'));
-          secInp.className = 'form-control';
-          secInp.placeholder = 'e.g. Sprint Execution';
-          secInp.value = 'Sprint Tasks';
+          // Extract existing sections and tasks from code
+          const existingSections = [];
+          const existingTasks = [];
+          (code || '').split('\n').forEach(l => {
+            const trimmed = l.trim();
+            const secM = trimmed.match(/^section\s+(.+)$/i);
+            if (secM) existingSections.push(secM[1].trim());
+
+            const taskM = trimmed.match(/^([^:]+):(.*)$/);
+            if (taskM && !trimmed.toLowerCase().startsWith('gantt') && !trimmed.toLowerCase().startsWith('dateformat')) {
+              const tName = taskM[1].trim();
+              const details = taskM[2].trim();
+              let id = null;
+              details.split(',').forEach(p => {
+                const cleanP = p.trim();
+                if (cleanP.match(/^[A-Za-z0-9_]+$/) && !['done', 'active', 'crit', 'milestone'].includes(cleanP.toLowerCase()) && !cleanP.match(/^[0-9]+d$/i)) {
+                  id = cleanP;
+                }
+              });
+              existingTasks.push({ name: tName, id: id || tName });
+            }
+          });
+
+          const secSel = addField('Section', document.createElement('select'));
+          secSel.className = 'form-control';
+          if (existingSections.length > 0) {
+            existingSections.forEach(s => {
+              const opt = document.createElement('option');
+              opt.value = s;
+              opt.textContent = s;
+              secSel.appendChild(opt);
+            });
+          }
+          const newSecOpt = document.createElement('option');
+          newSecOpt.value = '__NEW__';
+          newSecOpt.textContent = '+ Create New Section...';
+          secSel.appendChild(newSecOpt);
+
+          const newSecInp = addField('New Section Name', document.createElement('input'));
+          newSecInp.className = 'form-control';
+          newSecInp.placeholder = 'e.g. Sprint Execution';
+          newSecInp.value = 'Sprint Tasks';
+          newSecInp.style.display = (existingSections.length === 0 || secSel.value === '__NEW__') ? 'block' : 'none';
+
+          secSel.addEventListener('change', () => {
+            newSecInp.style.display = secSel.value === '__NEW__' ? 'block' : 'none';
+          });
 
           const nameInp = addField('Task Name', document.createElement('input'));
           nameInp.className = 'form-control';
           nameInp.placeholder = 'e.g. API Security Audit';
 
-          const stSel = addField('Task Status', document.createElement('select'));
+          const stSel = addField('Task Status / Type', document.createElement('select'));
           stSel.className = 'form-control';
-          stSel.innerHTML = '<option value="active">Active (In Progress)</option><option value="done">Done (Completed)</option><option value="crit">Critical (Red)</option><option value="milestone">Milestone (Diamond)</option>';
+          stSel.innerHTML = '<option value="active">Active (In Progress)</option><option value="normal">Standard (Normal)</option><option value="done">Done (Completed)</option><option value="crit">Critical (Red)</option><option value="milestone">Milestone (Diamond)</option>';
 
-          const durInp = addField('Duration (Days)', document.createElement('input'));
-          durInp.className = 'form-control';
-          durInp.type = 'number';
-          durInp.value = '5';
+          const modeSel = addField('Schedule Mode', document.createElement('select'));
+          modeSel.className = 'form-control';
+          modeSel.innerHTML = '<option value="start_dur">Start Date & Duration (# Days)</option><option value="start_end">Start Date & End Date</option><option value="after_task">After Predecessor Task & Duration</option>';
+
+          // Determine default start date (today or first found date in code)
+          let defaultStartDate = new Date().toISOString().split('T')[0];
+          const dateMatch = (code || '').match(/([0-9]{4}-[0-9]{2}-[0-9]{2})/);
+          if (dateMatch) {
+            defaultStartDate = dateMatch[1];
+          }
+
+          const startInp = addField('Start Date (YYYY-MM-DD)', document.createElement('input'));
+          startInp.className = 'form-control';
+          startInp.type = 'date';
+          startInp.value = defaultStartDate;
+
+          const daysInp = addField('Duration (# of Days)', document.createElement('input'));
+          daysInp.className = 'form-control';
+          daysInp.type = 'number';
+          daysInp.min = '1';
+          daysInp.value = '5';
+
+          // Helper to calculate end date from start date + days
+          const calcEndDate = (startDateStr, daysCount) => {
+            try {
+              const d = new Date(startDateStr);
+              if (isNaN(d.getTime())) return '';
+              d.setDate(d.getDate() + parseInt(daysCount || 1));
+              return d.toISOString().split('T')[0];
+            } catch (e) {
+              return '';
+            }
+          };
+
+          const endInp = addField('End Date (YYYY-MM-DD)', document.createElement('input'));
+          endInp.className = 'form-control';
+          endInp.type = 'date';
+          endInp.value = calcEndDate(defaultStartDate, 5);
+
+          const afterSel = addField('Predecessor Task (After)', document.createElement('select'));
+          afterSel.className = 'form-control';
+          afterSel.innerHTML = '<option value="">-- None --</option>';
+          existingTasks.forEach(t => {
+            const opt = document.createElement('option');
+            opt.value = t.id;
+            opt.textContent = `${t.name} (${t.id})`;
+            afterSel.appendChild(opt);
+          });
+          afterSel.parentElement.style.display = 'none';
+
+          // Dynamic sync between Start Date, End Date, and # Days
+          startInp.addEventListener('input', () => {
+            if (modeSel.value === 'start_dur' || modeSel.value === 'after_task') {
+              endInp.value = calcEndDate(startInp.value, daysInp.value);
+            } else if (modeSel.value === 'start_end') {
+              if (startInp.value && endInp.value) {
+                const t1 = Date.parse(startInp.value);
+                const t2 = Date.parse(endInp.value);
+                if (!isNaN(t1) && !isNaN(t2) && t2 >= t1) {
+                  daysInp.value = Math.max(1, Math.round((t2 - t1) / (1000 * 60 * 60 * 24)));
+                }
+              }
+            }
+          });
+
+          daysInp.addEventListener('input', () => {
+            if (startInp.value && daysInp.value) {
+              endInp.value = calcEndDate(startInp.value, daysInp.value);
+            }
+          });
+
+          endInp.addEventListener('input', () => {
+            if (startInp.value && endInp.value) {
+              const t1 = Date.parse(startInp.value);
+              const t2 = Date.parse(endInp.value);
+              if (!isNaN(t1) && !isNaN(t2) && t2 >= t1) {
+                daysInp.value = Math.max(1, Math.round((t2 - t1) / (1000 * 60 * 60 * 24)));
+              }
+            }
+          });
+
+          modeSel.addEventListener('change', () => {
+            const m = modeSel.value;
+            if (m === 'start_dur') {
+              startInp.parentElement.style.display = 'block';
+              daysInp.parentElement.style.display = 'block';
+              endInp.parentElement.style.display = 'block';
+              afterSel.parentElement.style.display = 'none';
+            } else if (m === 'start_end') {
+              startInp.parentElement.style.display = 'block';
+              daysInp.parentElement.style.display = 'block';
+              endInp.parentElement.style.display = 'block';
+              afterSel.parentElement.style.display = 'none';
+            } else if (m === 'after_task') {
+              startInp.parentElement.style.display = 'none';
+              daysInp.parentElement.style.display = 'block';
+              endInp.parentElement.style.display = 'none';
+              afterSel.parentElement.style.display = 'block';
+            }
+          });
 
           this.currentCreateCallback = () => {
-            const sec = secInp.value.trim() || 'Sprint Tasks';
+            const sec = (secSel.value === '__NEW__' || existingSections.length === 0) ? (newSecInp.value.trim() || 'Sprint Tasks') : secSel.value;
             const name = nameInp.value.trim();
             if (!name) return Utils.showToast('Task name is required', 'error');
 
             const st = stSel.value;
-            const dur = durInp.value || '5';
-            const stmt = `    ${name.padEnd(20, ' ')} :${st}, ${dur}d`;
+            const mode = modeSel.value;
+            const sDate = startInp.value || defaultStartDate;
+            const eDate = endInp.value || calcEndDate(sDate, 5);
+            const days = daysInp.value || '5';
+            const afterTask = afterSel.value;
+
+            let statusPrefix = '';
+            if (st === 'active') statusPrefix = 'active, ';
+            else if (st === 'done') statusPrefix = 'done, ';
+            else if (st === 'crit') statusPrefix = 'crit, ';
+            else if (st === 'milestone') statusPrefix = 'milestone, ';
+
+            let timingStr = '';
+            if (mode === 'after_task' && afterTask) {
+              timingStr = `after ${afterTask}, ${days}d`;
+            } else if (mode === 'start_end' && eDate) {
+              timingStr = `${sDate}, ${eDate}`;
+            } else {
+              timingStr = `${sDate}, ${days}d`;
+            }
+
+            const stmt = `    ${name.padEnd(20, ' ')} :${statusPrefix}${timingStr}`;
 
             MultiDiagramVisualizer.updateCodeLine((curCode) => {
               if (curCode.includes(`section ${sec}`)) {
@@ -2595,7 +2754,7 @@
                 return `${curCode.trimEnd()}\n  section ${sec}\n${stmt}`;
               }
             });
-            Utils.showToast(`Added Task: ${name}`, 'success');
+            Utils.showToast(`Added Task: ${name} (${timingStr})`, 'success');
           };
         } else if (cat === 'pie') {
           title.textContent = 'Add Pie Slice';
