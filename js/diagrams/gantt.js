@@ -58,6 +58,7 @@ MultiDiagramVisualizer.register('gantt', function(code, nodesLayer, edgesLayer, 
 
       let isDone = false, isActive = false, isCrit = false, isMile = false;
       let id = null, startDate = null, endDate = null, durDays = 5;
+      let afterIds = [];
 
       parts.forEach(p => {
         const pl = p.toLowerCase();
@@ -65,7 +66,10 @@ MultiDiagramVisualizer.register('gantt', function(code, nodesLayer, edgesLayer, 
         else if (pl === 'active') isActive = true;
         else if (pl === 'crit') isCrit = true;
         else if (pl === 'milestone') isMile = true;
-        else if (p.match(/^[0-9]+d$/i)) {
+        else if (pl.startsWith('after ')) {
+          const afterStr = p.substring(6).trim();
+          afterIds = afterStr.split(/\s+/).filter(Boolean);
+        } else if (p.match(/^[0-9]+d$/i)) {
           durDays = parseInt(p);
         } else if (p.match(/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/)) {
           if (!startDate) startDate = p;
@@ -95,6 +99,8 @@ MultiDiagramVisualizer.register('gantt', function(code, nodesLayer, edgesLayer, 
       const taskObj = {
         name,
         id: id || `t_${allTasks.length + 1}`,
+        rawId: id,
+        afterIds,
         startDate,
         endDate,
         status,
@@ -112,6 +118,55 @@ MultiDiagramVisualizer.register('gantt', function(code, nodesLayer, edgesLayer, 
       allTasks.push(taskObj);
     }
   });
+
+  // Multi-pass resolution for dependencies and dates (after <id>)
+  const taskById = new Map();
+  allTasks.forEach(t => {
+    if (t.id) taskById.set(t.id, t);
+    if (t.rawId) taskById.set(t.rawId, t);
+  });
+
+  let resolvedAny = true;
+  let pass = 0;
+  while (resolvedAny && pass < 10) {
+    resolvedAny = false;
+    pass++;
+    allTasks.forEach((t, idx) => {
+      if (!t.startDate) {
+        if (t.afterIds && t.afterIds.length > 0) {
+          let maxPredecessorEnd = null;
+          t.afterIds.forEach(aId => {
+            const pred = taskById.get(aId);
+            if (pred && (pred.endDate || pred.startDate)) {
+              const pStart = parseDateOffset(pred.startDate);
+              const pEnd = pred.endDate ? parseDateOffset(pred.endDate) : (pStart ? pStart + pred.dur * 86400000 : null);
+              if (pEnd && (maxPredecessorEnd === null || pEnd > maxPredecessorEnd)) {
+                maxPredecessorEnd = pEnd;
+              }
+            }
+          });
+          if (maxPredecessorEnd !== null) {
+            const d = new Date(maxPredecessorEnd);
+            t.startDate = d.toISOString().split('T')[0];
+            const dEnd = new Date(maxPredecessorEnd + t.dur * 86400000);
+            t.endDate = dEnd.toISOString().split('T')[0];
+            resolvedAny = true;
+          }
+        } else if (idx > 0 && (allTasks[idx - 1].endDate || allTasks[idx - 1].startDate)) {
+          const prev = allTasks[idx - 1];
+          const pStart = parseDateOffset(prev.startDate);
+          const pEnd = prev.endDate ? parseDateOffset(prev.endDate) : (pStart ? pStart + prev.dur * 86400000 : null);
+          if (pEnd) {
+            const d = new Date(pEnd);
+            t.startDate = d.toISOString().split('T')[0];
+            const dEnd = new Date(pEnd + t.dur * 86400000);
+            t.endDate = dEnd.toISOString().split('T')[0];
+            resolvedAny = true;
+          }
+        }
+      }
+    });
+  }
 
   // Compute global date baseline
   let minTime = null;

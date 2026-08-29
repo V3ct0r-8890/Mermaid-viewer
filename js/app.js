@@ -2745,10 +2745,18 @@
             const stmt = `    ${name.padEnd(20, ' ')} :${statusPrefix}${timingStr}`;
 
             MultiDiagramVisualizer.updateCodeLine((curCode) => {
-              if (curCode.includes(`section ${sec}`)) {
-                const lines = curCode.split('\n');
-                const idx = lines.findIndex(l => l.trim().toLowerCase() === `section ${sec}`.toLowerCase());
-                lines.splice(idx + 1, 0, stmt);
+              const lines = curCode.split('\n');
+              const secIdx = lines.findIndex(l => l.trim().toLowerCase() === `section ${sec}`.toLowerCase());
+              if (secIdx !== -1) {
+                // Find end of section (either next section or end of file)
+                let insertIdx = lines.length;
+                for (let i = secIdx + 1; i < lines.length; i++) {
+                  if (lines[i].trim().toLowerCase().startsWith('section ')) {
+                    insertIdx = i;
+                    break;
+                  }
+                }
+                lines.splice(insertIdx, 0, stmt);
                 return lines.join('\n');
               } else {
                 return `${curCode.trimEnd()}\n  section ${sec}\n${stmt}`;
