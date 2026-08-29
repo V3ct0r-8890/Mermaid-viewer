@@ -2661,9 +2661,23 @@
             newSecInp.style.display = secSel.value === '__NEW__' ? 'block' : 'none';
           });
 
+          const idInp = addField('Task ID (Optional, e.g. t1 / sec_audit)', document.createElement('input'));
+          idInp.className = 'form-control';
+          idInp.placeholder = 'e.g. t1';
+
           const nameInp = addField('Task Name', document.createElement('input'));
           nameInp.className = 'form-control';
           nameInp.placeholder = 'e.g. API Security Audit';
+
+          // Auto-extract Task ID if user types 'id: Name' into Task Name
+          nameInp.addEventListener('input', () => {
+            const val = nameInp.value.trim();
+            const prefixM = val.match(/^([A-Za-z0-9_]+)\s*:\s*(.+)$/);
+            if (prefixM) {
+              if (!idInp.value) idInp.value = prefixM[1];
+              nameInp.value = prefixM[2].trim();
+            }
+          });
 
           const stSel = addField('Task Status / Type', document.createElement('select'));
           stSel.className = 'form-control';
@@ -2775,6 +2789,7 @@
             const name = nameInp.value.trim();
             if (!name) return Utils.showToast('Task name is required', 'error');
 
+            const taskId = idInp.value.trim();
             const st = stSel.value;
             const mode = modeSel.value;
             const sDate = startInp.value || defaultStartDate;
@@ -2788,6 +2803,8 @@
             else if (st === 'crit') statusPrefix = 'crit, ';
             else if (st === 'milestone') statusPrefix = 'milestone, ';
 
+            const idPrefix = taskId ? `${taskId}, ` : '';
+
             let timingStr = '';
             if (mode === 'after_task' && afterTask) {
               timingStr = `after ${afterTask}, ${days}d`;
@@ -2797,7 +2814,7 @@
               timingStr = `${sDate}, ${days}d`;
             }
 
-            const stmt = `    ${name.padEnd(20, ' ')} :${statusPrefix}${timingStr}`;
+            const stmt = `    ${name.padEnd(20, ' ')} :${statusPrefix}${idPrefix}${timingStr}`;
 
             MultiDiagramVisualizer.updateCodeLine((curCode) => {
               const lines = curCode.split('\n');

@@ -52,7 +52,7 @@ MultiDiagramVisualizer.register('gantt', function(code, nodesLayer, edgesLayer, 
 
     const taskMatch = line.match(/^([^:]+):(.*)$/);
     if (taskMatch) {
-      const name = taskMatch[1].trim();
+      let name = taskMatch[1].trim();
       const details = taskMatch[2].trim();
       const parts = details.split(',').map(s => s.trim());
 
@@ -78,6 +78,13 @@ MultiDiagramVisualizer.register('gantt', function(code, nodesLayer, edgesLayer, 
           id = p;
         }
       });
+
+      // Also extract Task ID from Task Name if formatted as 'id: Name' or 'id - Name'
+      const colonPrefixMatch = name.match(/^([A-Za-z0-9_]+)\s*[:\-]\s*(.+)$/);
+      if (colonPrefixMatch) {
+        if (!id) id = colonPrefixMatch[1];
+        name = colonPrefixMatch[2].trim();
+      }
 
       if (startDate && endDate) {
         const t1 = parseDateOffset(startDate);
@@ -167,6 +174,18 @@ MultiDiagramVisualizer.register('gantt', function(code, nodesLayer, edgesLayer, 
       }
     });
   }
+
+  // Auto-sort tasks within each section by Start Date (earliest first) and Task ID
+  sections.forEach(sec => {
+    sec.tasks.sort((a, b) => {
+      const timeA = a.startDate ? (parseDateOffset(a.startDate) || 0) : 0;
+      const timeB = b.startDate ? (parseDateOffset(b.startDate) || 0) : 0;
+      if (timeA !== timeB) {
+        return timeA - timeB;
+      }
+      return String(a.id || '').localeCompare(String(b.id || ''), undefined, { numeric: true, sensitivity: 'base' });
+    });
+  });
 
   // Compute global date baseline
   let minTime = null;
@@ -533,6 +552,7 @@ MultiDiagramVisualizer.register('gantt', function(code, nodesLayer, edgesLayer, 
             type: 'Gantt Task',
             title: t.name,
             fields: [
+              { key: 'id', label: 'Task ID (e.g. t1, q1, m1)', type: 'text', value: t.id || t.rawId || '' },
               { key: 'name', label: 'Task Name', type: 'text', value: t.name },
               { key: 'section', label: 'Section', type: 'select', value: sec.name, options: allSectionOptions },
               { key: 'status', label: 'Task Status', type: 'select', value: t.status || 'normal', options: [
@@ -568,7 +588,7 @@ MultiDiagramVisualizer.register('gantt', function(code, nodesLayer, edgesLayer, 
 
                 const lead = '    ';
                 const stPart = vals.status && vals.status !== 'normal' ? `${vals.status}, ` : '';
-                const idPart = t.id ? `${t.id}, ` : '';
+                const idPart = vals.id ? `${vals.id.trim()}, ` : (t.id ? `${t.id}, ` : '');
                 let timePart = '';
                 if (vals.startDate && vals.endDate) {
                   timePart = `${vals.startDate}, ${vals.endDate}`;
