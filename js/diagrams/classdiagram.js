@@ -1,4 +1,4 @@
-// --- PERFECT CLASS DIAGRAM VISUALIZER ---
+// --- PERFECT DYNAMIC CLASS DIAGRAM VISUALIZER ---
 MultiDiagramVisualizer.register('classdiagram', function(code, nodesLayer, edgesLayer, isDark) {
   const primaryText = isDark ? '#FFFFFF' : '#1F2937';
   const textColor = isDark ? '#E0E0E0' : '#374151';
@@ -16,43 +16,63 @@ MultiDiagramVisualizer.register('classdiagram', function(code, nodesLayer, edges
   const relations = [];
 
   const ensureClass = (name) => {
-    if (!classesMap.has(name)) {
-      classesMap.set(name, {
-        name,
+    if (!name) return null;
+    const cleanName = name.replace(/^[<"']|[>"']$/g, '').trim();
+    if (!cleanName) return null;
+    if (!classesMap.has(cleanName)) {
+      classesMap.set(cleanName, {
+        name: cleanName,
         attributes: [],
         methods: []
       });
     }
-    return classesMap.get(name);
+    return classesMap.get(cleanName);
   };
 
   let curClass = null;
 
   rawLines.forEach(line => {
-    const relMatch1 = line.match(/^([A-Za-z0-9_]+)\s*<\|--\s*([A-Za-z0-9_]+)/);
-    if (relMatch1) {
-      const superCls = relMatch1[1];
-      const subCls = relMatch1[2];
-      ensureClass(superCls);
-      ensureClass(subCls);
-      relations.push({ superCls, subCls });
+    // Check relations: e.g. Super <|-- Sub, ClassA *-- ClassB, ClassA --> ClassB, ClassA ..|> ClassB, etc.
+    const relMatch = line.match(/^([A-Za-z0-9_]+)\s*(<\|--|--\|>|\*--|--\*|o--|--o|-->|<--|\.\.\|>|<\|\.\.|\.\.>|<\.\.|\.\.|--)\s*([A-Za-z0-9_]+)(?:\s*:\s*(.+))?$/);
+    if (relMatch) {
+      let src = relMatch[1];
+      let relType = relMatch[2];
+      let tgt = relMatch[3];
+      const label = relMatch[4] ? relMatch[4].trim() : '';
+
+      // Normalize super/sub for inheritance
+      let superCls = src;
+      let subCls = tgt;
+      let normType = relType;
+
+      if (relType === '--|>') {
+        superCls = tgt;
+        subCls = src;
+        normType = '<|--';
+      }
+
+      ensureClass(src);
+      ensureClass(tgt);
+      relations.push({
+        src,
+        tgt,
+        superCls,
+        subCls,
+        relType: normType,
+        label
+      });
       return;
     }
 
-    const relMatch2 = line.match(/^([A-Za-z0-9_]+)\s*--\|>\s*([A-Za-z0-9_]+)/);
-    if (relMatch2) {
-      const subCls = relMatch2[1];
-      const superCls = relMatch2[2];
-      ensureClass(superCls);
-      ensureClass(subCls);
-      relations.push({ superCls, subCls });
-      return;
-    }
-
-    const classBlockMatch = line.match(/^class\s+([A-Za-z0-9_]+)\s*\{?/i);
+    // Class block start: e.g. class Animal { or class Animal
+    const classBlockMatch = line.match(/^class\s+([A-Za-z0-9_]+)\s*(\{)?/i);
     if (classBlockMatch) {
-      curClass = ensureClass(classBlockMatch[1]);
-      if (!line.includes('{')) curClass = null;
+      const c = ensureClass(classBlockMatch[1]);
+      if (classBlockMatch[2] === '{') {
+        curClass = c;
+      } else {
+        curClass = null;
+      }
       return;
     }
 
@@ -61,24 +81,30 @@ MultiDiagramVisualizer.register('classdiagram', function(code, nodesLayer, edges
       return;
     }
 
+    // Member definition: e.g. Animal : +int age or Animal : +mate()
     const memberMatch = line.match(/^([A-Za-z0-9_]+)\s*:\s*(.+)$/);
     if (memberMatch) {
       const cls = ensureClass(memberMatch[1]);
-      const member = memberMatch[2].trim();
-      if (member.includes('(')) {
-        cls.methods.push(member);
-      } else {
-        cls.attributes.push(member);
+      if (cls) {
+        const member = memberMatch[2].trim();
+        if (member.includes('(')) {
+          if (!cls.methods.includes(member)) cls.methods.push(member);
+        } else {
+          if (!cls.attributes.includes(member)) cls.attributes.push(member);
+        }
       }
       return;
     }
 
+    // Inside class block
     if (curClass) {
       const member = line.trim();
-      if (member.includes('(')) {
-        curClass.methods.push(member);
-      } else {
-        curClass.attributes.push(member);
+      if (member && !member.startsWith('}')) {
+        if (member.includes('(')) {
+          if (!curClass.methods.includes(member)) curClass.methods.push(member);
+        } else {
+          if (!curClass.attributes.includes(member)) curClass.attributes.push(member);
+        }
       }
     }
   });
@@ -100,49 +126,107 @@ MultiDiagramVisualizer.register('classdiagram', function(code, nodesLayer, edges
     z.attributes = ['+bool is_wild'];
     z.methods = ['+run()'];
 
-    relations.push({ superCls: 'Animal', subCls: 'Duck' });
-    relations.push({ superCls: 'Animal', subCls: 'Fish' });
-    relations.push({ superCls: 'Animal', subCls: 'Zebra' });
+    relations.push({ src: 'Animal', tgt: 'Duck', superCls: 'Animal', subCls: 'Duck', relType: '<|--', label: '' });
+    relations.push({ src: 'Animal', tgt: 'Fish', superCls: 'Animal', subCls: 'Fish', relType: '<|--', label: '' });
+    relations.push({ src: 'Animal', tgt: 'Zebra', superCls: 'Animal', subCls: 'Zebra', relType: '<|--', label: '' });
   }
 
-  // 2. PRECISE UML POSITIONS
+  // 2. DYNAMIC TOPOLOGICAL / GRID LAYOUT
   const allClasses = Array.from(classesMap.values());
-  const superClasses = allClasses.filter(c => relations.some(r => r.superCls === c.name) && !relations.some(r => r.subCls === c.name));
-  const subClasses = allClasses.filter(c => !superClasses.includes(c));
-
   const defaultPositions = new Map();
 
-  // Position Super Class (Animal) at top center
-  const mainSuper = superClasses[0] || allClasses[0];
-  if (mainSuper) {
-    defaultPositions.set(mainSuper.name, { x: 350, y: 40, w: 200 });
+  // Check if standard template classes exist
+  const hasTemplateClasses = classesMap.has('Animal') && classesMap.has('Duck') && classesMap.has('Fish') && classesMap.has('Zebra');
+
+  if (hasTemplateClasses) {
+    defaultPositions.set('Animal', { x: 350, y: 40, w: 200 });
+    defaultPositions.set('Duck', { x: 60, y: 390, w: 180 });
+    defaultPositions.set('Fish', { x: 360, y: 390, w: 180 });
+    defaultPositions.set('Zebra', { x: 660, y: 390, w: 180 });
   }
 
-  // Position 3 Subclasses side by side
-  // Left: Duck, Center: Fish (directly aligned with Animal), Right: Zebra
-  defaultPositions.set('Duck', { x: 60, y: 390, w: 180 });
-  defaultPositions.set('Fish', { x: 360, y: 390, w: 180 });
-  defaultPositions.set('Zebra', { x: 660, y: 390, w: 180 });
+  // Rank-based auto-positioning for all classes
+  const inDegree = new Map();
+  const outDegree = new Map();
+  allClasses.forEach(c => {
+    inDegree.set(c.name, 0);
+    outDegree.set(c.name, 0);
+  });
 
-  // Fallback for any extra classes
-  let extraIdx = 0;
-  subClasses.forEach(sc => {
-    if (!defaultPositions.has(sc.name)) {
-      defaultPositions.set(sc.name, { x: 60 + (extraIdx++) * 220, y: 390, w: 180 });
+  relations.forEach(r => {
+    outDegree.set(r.src, (outDegree.get(r.src) || 0) + 1);
+    inDegree.set(r.tgt, (inDegree.get(r.tgt) || 0) + 1);
+  });
+
+  // Calculate Ranks
+  const ranks = new Map();
+  allClasses.forEach(c => {
+    if (inDegree.get(c.name) === 0) {
+      ranks.set(c.name, 0);
     }
+  });
+
+  let changed = true;
+  let iter = 0;
+  while (changed && iter < 10) {
+    changed = false;
+    iter++;
+    relations.forEach(r => {
+      const srcRank = ranks.get(r.src) || 0;
+      const tgtRank = ranks.get(r.tgt) || 0;
+      if (tgtRank <= srcRank) {
+        ranks.set(r.tgt, srcRank + 1);
+        changed = true;
+      }
+    });
+  }
+
+  const rankGroups = new Map();
+  allClasses.forEach(c => {
+    const rk = ranks.get(c.name) || 0;
+    if (!rankGroups.has(rk)) rankGroups.set(rk, []);
+    rankGroups.get(rk).push(c);
+  });
+
+  let extraY = 40;
+  const sortedRanks = Array.from(rankGroups.keys()).sort((a, b) => a - b);
+  sortedRanks.forEach(rk => {
+    const group = rankGroups.get(rk);
+    const count = group.length;
+    const totalW = count * 220;
+    const startX = Math.max(60, 440 - totalW / 2);
+
+    group.forEach((c, idx) => {
+      if (!defaultPositions.has(c.name)) {
+        defaultPositions.set(c.name, {
+          x: startX + idx * 240,
+          y: extraY,
+          w: 190
+        });
+      }
+    });
+    extraY += 320;
   });
 
   const classDimensions = new Map();
   allClasses.forEach(cls => {
-    const defPos = defaultPositions.get(cls.name) || { x: 100, y: 100, w: 180 };
+    const defPos = defaultPositions.get(cls.name) || { x: 100, y: 100, w: 190 };
+    const maxTextLen = Math.max(
+      cls.name.length,
+      ...cls.attributes.map(a => a.length),
+      ...cls.methods.map(m => m.length),
+      12
+    );
+    const cardW = Math.max(180, maxTextLen * 7.5 + 32);
     const headerH = 38;
-    const attrH = Math.max(30, cls.attributes.length * 22 + 12);
-    const methH = Math.max(30, cls.methods.length * 22 + 12);
+    const attrH = Math.max(28, cls.attributes.length * 22 + 10);
+    const methH = Math.max(28, cls.methods.length * 22 + 10);
     const totalH = headerH + attrH + methH;
+
     classDimensions.set(cls.name, {
       x: defPos.x,
       y: defPos.y,
-      w: defPos.w,
+      w: cardW,
       h: totalH,
       headerH,
       attrH,
@@ -150,64 +234,72 @@ MultiDiagramVisualizer.register('classdiagram', function(code, nodesLayer, edges
     });
   });
 
-  // 3. RENDER UML GENERALIZATION INHERITANCE CONNECTORS (<|--)
-  relations.forEach(r => {
-    const sDim = classDimensions.get(r.superCls);
-    const subDim = classDimensions.get(r.subCls);
-    if (!sDim || !subDim) return;
+  // 3. RENDER ALL RELATIONS & CONNECTORS
+  relations.forEach((r, rIdx) => {
+    const srcDim = classDimensions.get(r.src);
+    const tgtDim = classDimensions.get(r.tgt);
+    if (!srcDim || !tgtDim) return;
 
-    const sPos = MultiDiagramVisualizer.getPosition(r.superCls, sDim.x, sDim.y);
-    const subPos = MultiDiagramVisualizer.getPosition(r.subCls, subDim.x, subDim.y);
+    const sPos = MultiDiagramVisualizer.getPosition(r.src, srcDim.x, srcDim.y);
+    const tPos = MultiDiagramVisualizer.getPosition(r.tgt, tgtDim.x, tgtDim.y);
 
-    const sW = sDim.w;
-    const sH = sDim.h;
-    const subW = subDim.w;
+    const sW = srcDim.w;
+    const sH = srcDim.h;
+    const tW = tgtDim.w;
+    const tH = tgtDim.h;
 
-    let pathD, triPoints;
+    const sCenterX = sPos.x + sW / 2;
+    const sCenterY = sPos.y + sH / 2;
+    const tCenterX = tPos.x + tW / 2;
+    const tCenterY = tPos.y + tH / 2;
 
-    const subCenterX = subPos.x + subW / 2;
-    const superCenterX = sPos.x + sW / 2;
+    let pathD, markerPoints, isDiamond = false, isFilled = false;
+    const linkKey = `rel_${r.src}_to_${r.tgt}_${rIdx}`;
+    const linkTitle = `${r.src} ${r.relType} ${r.tgt}`;
+    const isRelSel = (selTitle === linkTitle || selTitle === linkKey);
 
-    if (subCenterX < superCenterX - 50) {
-      // Left Branch (Duck -> Animal left side)
-      const xStart = subPos.x + subW * 0.75;
-      const yStart = subPos.y;
-      const tx = sPos.x;
-      const ty = sPos.y + sH * 0.82;
+    const rColor = MultiDiagramVisualizer.getColor(linkKey, linkColor);
+    const rWidth = MultiDiagramVisualizer.getColor(`${linkKey}_width`, '1.5');
+    const isDashed = r.relType.startsWith('..') || r.relType.endsWith('..');
 
-      triPoints = `${tx},${ty} ${tx - 14},${ty - 7} ${tx - 14},${ty + 7}`;
-      const lineEndX = tx - 14;
-      const lineEndY = ty;
+    if (tCenterY > sCenterY + 50) {
+      // Top to Bottom
+      const startX = sCenterX;
+      const startY = sPos.y + sH;
+      const endX = tCenterX;
+      const endY = tPos.y;
+      const midY = (startY + endY) / 2;
 
-      pathD = `M ${xStart} ${yStart} C ${xStart} ${yStart - 60}, ${lineEndX - 40} ${lineEndY + 30}, ${lineEndX} ${lineEndY}`;
-    } else if (subCenterX > superCenterX + 50) {
-      // Right Branch (Zebra -> Animal right side)
-      const xStart = subPos.x + subW * 0.25;
-      const yStart = subPos.y;
-      const tx = sPos.x + sW;
-      const ty = sPos.y + sH * 0.82;
+      pathD = `M ${startX} ${startY} C ${startX} ${midY}, ${endX} ${midY}, ${endX} ${endY - 12}`;
+      markerPoints = `${endX},${endY} ${endX - 7},${endY - 14} ${endX + 7},${endY - 14}`;
+    } else if (sCenterY > tCenterY + 50) {
+      // Bottom to Top (Inheritance Sub -> Super)
+      const startX = sCenterX;
+      const startY = sPos.y;
+      const endX = tCenterX;
+      const endY = tPos.y + tH;
+      const midY = (startY + endY) / 2;
 
-      triPoints = `${tx},${ty} ${tx + 14},${ty - 7} ${tx + 14},${ty + 7}`;
-      const lineEndX = tx + 14;
-      const lineEndY = ty;
-
-      pathD = `M ${xStart} ${yStart} C ${xStart} ${yStart - 60}, ${lineEndX + 40} ${lineEndY + 30}, ${lineEndX} ${lineEndY}`;
+      pathD = `M ${startX} ${startY} C ${startX} ${midY}, ${endX} ${midY}, ${endX} ${endY + 12}`;
+      markerPoints = `${endX},${endY} ${endX - 7},${endY + 14} ${endX + 7},${endY + 14}`;
     } else {
-      // Direct Center Vertical (Fish -> Animal bottom center)
-      const xStart = subPos.x + subW / 2;
-      const yStart = subPos.y;
-      const tx = sPos.x + sW / 2;
-      const ty = sPos.y + sH;
+      // Left / Right side by side
+      const isLeft = sCenterX > tCenterX;
+      const startX = isLeft ? sPos.x : sPos.x + sW;
+      const startY = sCenterY;
+      const endX = isLeft ? tPos.x + tW : tPos.x;
+      const endY = tCenterY;
+      const midX = (startX + endX) / 2;
 
-      triPoints = `${tx},${ty} ${tx - 7},${ty + 14} ${tx + 7},${ty + 14}`;
-      const lineEndX = tx;
-      const lineEndY = ty + 14;
-
-      pathD = `M ${xStart} ${yStart} L ${lineEndX} ${lineEndY}`;
+      pathD = `M ${startX} ${startY} C ${midX} ${startY}, ${midX} ${endY}, ${isLeft ? endX + 12 : endX - 12} ${endY}`;
+      markerPoints = isLeft
+        ? `${endX},${endY} ${endX + 14},${endY - 7} ${endX + 14},${endY + 7}`
+        : `${endX},${endY} ${endX - 14},${endY - 7} ${endX - 14},${endY + 7}`;
     }
 
     const relG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
 
+    // Click Hitbox
     const hitbox = document.createElementNS('http://www.w3.org/2000/svg', 'path');
     hitbox.setAttribute('d', pathD);
     hitbox.setAttribute('fill', 'none');
@@ -216,42 +308,65 @@ MultiDiagramVisualizer.register('classdiagram', function(code, nodesLayer, edges
     hitbox.style.cursor = 'pointer';
     relG.appendChild(hitbox);
 
+    // Visible Curve
     const pathEl = document.createElementNS('http://www.w3.org/2000/svg', 'path');
     pathEl.setAttribute('d', pathD);
     pathEl.setAttribute('fill', 'none');
-    pathEl.setAttribute('stroke', linkColor);
-    pathEl.setAttribute('stroke-width', '1.4');
+    pathEl.setAttribute('stroke', isRelSel ? 'var(--selection-color)' : rColor);
+    pathEl.setAttribute('stroke-width', isRelSel ? `${parseFloat(rWidth) + 1.2}` : rWidth);
+    if (isDashed) pathEl.setAttribute('stroke-dasharray', '5 4');
+    if (isRelSel) pathEl.style.filter = selGlow;
     relG.appendChild(pathEl);
 
-    const tri = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
-    tri.setAttribute('points', triPoints);
-    tri.setAttribute('fill', isDark ? '#222538' : '#FFFFFF');
-    tri.setAttribute('stroke', linkColor);
-    tri.setAttribute('stroke-width', '1.4');
-    relG.appendChild(tri);
+    // Arrow Marker Polygon (UML Triangle)
+    const marker = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+    marker.setAttribute('points', markerPoints);
+    marker.setAttribute('fill', isDark ? '#222538' : '#FFFFFF');
+    marker.setAttribute('stroke', isRelSel ? 'var(--selection-color)' : rColor);
+    marker.setAttribute('stroke-width', rWidth);
+    relG.appendChild(marker);
 
-        relG.addEventListener('click', (e) => {
+    // Optional Label
+    if (r.label) {
+      const midLabelX = (sCenterX + tCenterX) / 2;
+      const midLabelY = (sCenterY + tCenterY) / 2;
+      const lbl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      lbl.setAttribute('x', `${midLabelX}`);
+      lbl.setAttribute('y', `${midLabelY}`);
+      lbl.setAttribute('text-anchor', 'middle');
+      lbl.setAttribute('fill', textColor);
+      lbl.setAttribute('font-size', '11px');
+      lbl.setAttribute('font-style', 'italic');
+      lbl.textContent = r.label;
+      relG.appendChild(lbl);
+    }
+
+    relG.addEventListener('click', (e) => {
       e.stopPropagation();
       if (typeof AppController !== 'undefined' && AppController.instance) {
         AppController.instance.selectVisualObject({
-          type: 'Inheritance Relation Link',
-          title: `${r.superCls} <|-- ${r.subCls}`,
+          type: 'UML Relationship',
+          title: linkTitle,
           fields: [
-            { key: 'type', label: 'Relationship Type', type: 'select', value: '<|--', options: [
+            { key: 'type', label: 'Relationship Type', type: 'select', value: r.relType, options: [
                 { value: '<|--', label: 'Inheritance / Generalization (<|--)' },
                 { value: '*--', label: 'Composition (*--)' },
                 { value: 'o--', label: 'Aggregation (o--)' },
-                { value: '-->', label: 'Association (-->)' }
+                { value: '-->', label: 'Association (-->)' },
+                { value: '..|>', label: 'Realization (..|>)' },
+                { value: '..>', label: 'Dependency (..>)' }
             ]},
-            { key: 'color', label: 'Line / Triangle Color', type: 'color', value: linkColor }
+            { key: 'color', label: 'Line & Arrow Color', type: 'color', value: rColor }
           ],
           onSave: (vals) => {
+            MultiDiagramVisualizer.setColor(linkKey, vals.color);
+            MultiDiagramVisualizer.syncColorToCode(linkKey, vals.color);
             MultiDiagramVisualizer.updateCodeLine((curCode) => {
               const lines = curCode.split('\n');
               for (let i = 0; i < lines.length; i++) {
-                if (lines[i].includes(r.superCls) && lines[i].includes(r.subCls)) {
+                if (lines[i].includes(r.src) && lines[i].includes(r.tgt)) {
                   const lead = lines[i].match(/^\s*/)[0] || '    ';
-                  lines[i] = `${lead}${r.superCls} ${vals.type || '<|--'} ${r.subCls}`;
+                  lines[i] = `${lead}${r.src} ${vals.type || '<|--'} ${r.tgt}${r.label ? ` : ${r.label}` : ''}`;
                   break;
                 }
               }
@@ -281,7 +396,7 @@ MultiDiagramVisualizer.register('classdiagram', function(code, nodesLayer, edges
     const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
     rect.setAttribute('width', `${dim.w}`);
     rect.setAttribute('height', `${dim.h}`);
-    rect.setAttribute('rx', '2');
+    rect.setAttribute('rx', '4');
     rect.setAttribute('fill', fillColor);
     rect.setAttribute('stroke', isSelected ? 'var(--selection-color)' : borderColor);
     rect.setAttribute('stroke-width', isSelected ? '2.5' : '1.4');
@@ -313,9 +428,9 @@ MultiDiagramVisualizer.register('classdiagram', function(code, nodesLayer, edges
     cls.attributes.forEach((attr, idx) => {
       const aTxt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
       aTxt.setAttribute('x', '14');
-      aTxt.setAttribute('y', `${dim.headerH + 22 + idx * 22}`);
+      aTxt.setAttribute('y', `${dim.headerH + 20 + idx * 22}`);
       aTxt.setAttribute('fill', textColor);
-      aTxt.setAttribute('font-size', '13px');
+      aTxt.setAttribute('font-size', '12.5px');
       aTxt.setAttribute('font-weight', '500');
       aTxt.setAttribute('font-family', 'monospace');
       aTxt.textContent = attr;
@@ -337,9 +452,9 @@ MultiDiagramVisualizer.register('classdiagram', function(code, nodesLayer, edges
     cls.methods.forEach((meth, idx) => {
       const mTxt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
       mTxt.setAttribute('x', '14');
-      mTxt.setAttribute('y', `${div2Y + 22 + idx * 22}`);
+      mTxt.setAttribute('y', `${div2Y + 20 + idx * 22}`);
       mTxt.setAttribute('fill', textColor);
-      mTxt.setAttribute('font-size', '13px');
+      mTxt.setAttribute('font-size', '12.5px');
       mTxt.setAttribute('font-weight', '500');
       mTxt.setAttribute('font-family', 'monospace');
       mTxt.textContent = meth;
