@@ -10655,7 +10655,7 @@ MultiDiagramVisualizer.register('sequence', function(code, nodesLayer, edgesLaye
 MultiDiagramVisualizer.register('sequenceDiagram', MultiDiagramVisualizer.renderers.get('sequence'));
 
 
-// --- DYNAMIC STATE DIAGRAM VISUALIZER ---
+// --- DYNAMIC STATE DIAGRAM VISUALIZER WITH ORTHOGONAL STEPPED LINES ---
 MultiDiagramVisualizer.register('statediagram', function(code, nodesLayer, edgesLayer, isDark) {
   const primaryText = isDark ? '#FFFFFF' : '#1F2937';
   const textColor = isDark ? '#E0E0E0' : '#374151';
@@ -10666,7 +10666,7 @@ MultiDiagramVisualizer.register('statediagram', function(code, nodesLayer, edges
   const selTitle = (typeof AppController !== 'undefined' && AppController.instance && AppController.instance.selectedVisualObject) ? AppController.instance.selectedVisualObject.title : null;
   const selGlow = 'drop-shadow(0 0 6px rgba(33, 150, 243, 0.8))';
 
-  // 1. DYNAMIC PARSER
+  // 1. DYNAMIC PARSER FOR STATE DIAGRAM
   const rawLines = (code || '').split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('%%') && !l.startsWith('stateDiagram'));
 
   const containers = [];
@@ -10675,11 +10675,25 @@ MultiDiagramVisualizer.register('statediagram', function(code, nodesLayer, edges
   const rawTransitions = [];
   const choiceStates = new Set();
   const stateLabels = new Map();
+  const allParsedStates = new Map(); // id -> { id, label, desc }
+
+  const recordState = (id, label = null, desc = null) => {
+    if (!id || id === '[*]') return;
+    const cleanId = id.trim();
+    if (!allParsedStates.has(cleanId)) {
+      allParsedStates.set(cleanId, {
+        id: cleanId,
+        label: label || cleanId,
+        desc: desc || ''
+      });
+    }
+  };
 
   rawLines.forEach(line => {
     const choiceM = line.match(/^state\s+([A-Za-z0-9_]+)\s*<<choice>>/i);
     if (choiceM) {
       choiceStates.add(choiceM[1]);
+      recordState(choiceM[1]);
       return;
     }
 
@@ -10708,11 +10722,33 @@ MultiDiagramVisualizer.register('statediagram', function(code, nodesLayer, edges
       return;
     }
 
+    // State declaration: state "Desc" as State1 or State1 : Desc or state State1
+    const descAsM = line.match(/^state\s+"([^"]+)"\s+as\s+([A-Za-z0-9_]+)/i);
+    if (descAsM) {
+      recordState(descAsM[2], descAsM[1], descAsM[1]);
+      return;
+    }
+
+    const colonDescM = line.match(/^([A-Za-z0-9_]+)\s*:\s*(.+)$/);
+    if (colonDescM && !line.includes('-->')) {
+      recordState(colonDescM[1], colonDescM[1], colonDescM[2].trim());
+      return;
+    }
+
+    const simpleStateM = line.match(/^state\s+([A-Za-z0-9_]+)$/i);
+    if (simpleStateM) {
+      recordState(simpleStateM[1]);
+      return;
+    }
+
     const transM = line.match(/^(\[\*\]|[A-Za-z0-9_]+)\s*-->\s*(\[\*\]|[A-Za-z0-9_]+)(?:\s*:\s*(.+))?$/);
     if (transM) {
       const src = transM[1];
       const tgt = transM[2];
       const label = transM[3] ? transM[3].trim() : '';
+
+      recordState(src);
+      recordState(tgt);
 
       rawTransitions.push({
         src,
@@ -10771,6 +10807,36 @@ MultiDiagramVisualizer.register('statediagram', function(code, nodesLayer, edges
   // Bottom Terminal for Active
   stateDefs.push({ id: 'end_active', type: 'end', label: '◉', defaultX: 499, defaultY: 770, w: 32, h: 32, defaultFill: '#333333', defaultBorder: cardBorder, defaultFont: '#FFFFFF' });
 
+  // Dynamic Add Any Extra / User Created States
+  const existingIds = new Set(stateDefs.map(s => s.id));
+  const newStates = Array.from(allParsedStates.values()).filter(s => !existingIds.has(s.id));
+
+  let nextExtraX = 100;
+  let nextExtraY = 840;
+  newStates.forEach((s, idx) => {
+    const col = idx % 3;
+    const row = Math.floor(idx / 3);
+    const posX = 100 + col * 240;
+    const posY = nextExtraY + row * 110;
+    const w = Math.max(160, (s.label || s.id).length * 8 + 36);
+
+    stateDefs.push({
+      id: s.id,
+      type: choiceStates.has(s.id) ? 'choice' : 'state',
+      label: s.label || s.id,
+      defaultX: posX,
+      defaultY: posY,
+      w,
+      h: 44,
+      defaultFill: cardBg,
+      defaultBorder: cardBorder,
+      defaultFont: primaryText
+    });
+  });
+
+  const nodeMap = new Map();
+  stateDefs.forEach(s => nodeMap.set(s.id, s));
+
   // Connect transitions dynamically from rawTransitions
   rawTransitions.forEach(tr => {
     let fromId = tr.src;
@@ -10803,6 +10869,19 @@ MultiDiagramVisualizer.register('statediagram', function(code, nodesLayer, edges
         kind = 'straight';
       } else if ((tr.src === 'Active' || tr.src === compId) && tr.tgt === '[*]') {
         toId = 'end_active';
+        kind = 'straight';
+      } else if (tr.tgt === '[*]') {
+        // End state for custom branch
+        const endId = `end_${tr.src}`;
+        if (!nodeMap.has(endId)) {
+          const sNode = nodeMap.get(fromId);
+          const endX = sNode ? sNode.defaultX + sNode.w / 2 - 16 : 360;
+          const endY = sNode ? sNode.defaultY + 100 : 400;
+          const endNode = { id: endId, type: 'end', label: '◉', defaultX: endX, defaultY: endY, w: 32, h: 32, defaultFill: '#333333', defaultBorder: cardBorder, defaultFont: '#FFFFFF' };
+          stateDefs.push(endNode);
+          nodeMap.set(endId, endNode);
+        }
+        toId = endId;
         kind = 'straight';
       }
     }
@@ -10945,31 +11024,58 @@ MultiDiagramVisualizer.register('statediagram', function(code, nodesLayer, edges
       labelX = xStep;
       labelY = (yStart + yEnd) / 2;
     } else {
+      // Orthogonal Stepped Connection for general/custom transitions
       const x1 = sPos.x + sDef.w / 2;
       const y1 = sPos.y + sDef.h;
       const x2 = tPos.x + tDef.w / 2;
       const y2 = tPos.y;
-      pathD = `M ${x1} ${y1} L ${x2} ${y2}`;
-      labelX = (x1 + x2) / 2;
-      labelY = (y1 + y2) / 2;
+
+      if (Math.abs(x1 - x2) < 10) {
+        pathD = `M ${x1} ${y1} L ${x2} ${y2}`;
+        labelX = (x1 + x2) / 2;
+        labelY = (y1 + y2) / 2;
+      } else if (y2 > y1 + 30) {
+        const yMid = (y1 + y2) / 2;
+        pathD = `M ${x1} ${y1} L ${x1} ${yMid} L ${x2} ${yMid} L ${x2} ${y2}`;
+        labelX = (x1 + x2) / 2;
+        labelY = yMid;
+      } else if (y1 > y2 + 30) {
+        const yMid = (y1 + y2) / 2;
+        const xStart = sPos.x + sDef.w / 2;
+        const yStart = sPos.y;
+        const xEnd = tPos.x + tDef.w / 2;
+        const yEnd = tPos.y + tDef.h;
+        pathD = `M ${xStart} ${yStart} L ${xStart} ${yMid} L ${xEnd} ${yMid} L ${xEnd} ${yEnd}`;
+        labelX = (xStart + xEnd) / 2;
+        labelY = yMid;
+      } else {
+        const isLeft = x1 > x2;
+        const startX = isLeft ? sPos.x : sPos.x + sDef.w;
+        const startY = sPos.y + sDef.h / 2;
+        const endX = isLeft ? tPos.x + tDef.w : tPos.x;
+        const endY = tPos.y + tDef.h / 2;
+        const xMid = (startX + endX) / 2;
+        pathD = `M ${startX} ${startY} L ${xMid} ${startY} L ${xMid} ${endY} L ${endX} ${endY}`;
+        labelX = xMid;
+        labelY = (startY + endY) / 2;
+      }
     }
 
     const sName = tr.from.replace('active_start_', '[*]').replace('start_main', '[*]');
     const tName = tr.to.replace('end_lowpower', '[*]').replace('end_active', '[*]');
-    const trKey = `trans_${tr.from}_to_${tr.to}`;
+    const trKey = `trans_${sName}_to_${tName}`;
     const trTitle = tr.label ? `${sName} → ${tName} (${tr.label})` : `${sName} → ${tName}`;
+    const isSelected = (selTitle === trTitle || selTitle === trKey);
 
     const trColor = MultiDiagramVisualizer.getColor(trKey, linkColor);
-    const trWidth = MultiDiagramVisualizer.getColor(`${trKey}_width`, '1.4');
+    const trWidth = MultiDiagramVisualizer.getColor(`${trKey}_width`, '1.8');
     const trStyle = MultiDiagramVisualizer.getColor(`${trKey}_style`, 'solid');
-    const trFont = MultiDiagramVisualizer.getColor(`${trKey}_font`, textColor);
-    const trBg = MultiDiagramVisualizer.getColor(`${trKey}_bg`, cardBg);
-
-    const isSelected = (selTitle === trTitle || selTitle === trKey || (tr.label && selTitle === tr.label));
+    const trFont = MultiDiagramVisualizer.getColor(`${trKey}_font`, isDark ? '#90CAF9' : '#1976D2');
+    const trBg = MultiDiagramVisualizer.getColor(`${trKey}_bg`, isDark ? '#1E293B' : '#F3F4F6');
 
     const trG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
 
-    // Click hitbox
+    // Click Hitbox
     const hitbox = document.createElementNS('http://www.w3.org/2000/svg', 'path');
     hitbox.setAttribute('d', pathD);
     hitbox.setAttribute('fill', 'none');
@@ -10978,38 +11084,29 @@ MultiDiagramVisualizer.register('statediagram', function(code, nodesLayer, edges
     hitbox.style.cursor = 'pointer';
     trG.appendChild(hitbox);
 
-    // Visible path
-    const pathEl = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    pathEl.setAttribute('d', pathD);
-    pathEl.setAttribute('fill', 'none');
-    pathEl.setAttribute('stroke', isSelected ? 'var(--selection-color)' : trColor);
-    pathEl.setAttribute('stroke-width', isSelected ? `${parseFloat(trWidth) + 1.2}` : trWidth);
-    if (isSelected) pathEl.style.filter = selGlow;
+    // Visible Stepped Line
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('d', pathD);
+    path.setAttribute('fill', 'none');
+    path.setAttribute('stroke', isSelected ? 'var(--selection-color)' : trColor);
+    path.setAttribute('stroke-width', isSelected ? `${parseFloat(trWidth) + 1.2}` : trWidth);
+    if (trStyle === 'dashed') path.setAttribute('stroke-dasharray', '5 4');
+    else if (trStyle === 'dotted') path.setAttribute('stroke-dasharray', '2 3');
+    path.setAttribute('marker-end', isSelected ? 'url(#marker-arrow-selected)' : 'url(#marker-arrow)');
+    if (isSelected) path.style.filter = selGlow;
+    trG.appendChild(path);
 
-    if (trStyle === 'dashed') {
-      pathEl.setAttribute('stroke-dasharray', '5 4');
-    } else if (trStyle === 'dotted') {
-      pathEl.setAttribute('stroke-dasharray', '2 3');
-    }
-
-    if (typeof AppController !== 'undefined' && AppController.instance && AppController.instance.getOrCreateMarker) {
-      const markerId = AppController.instance.getOrCreateMarker(trColor, false, false, isSelected);
-      pathEl.setAttribute('marker-end', `url(#${markerId})`);
-    } else {
-      pathEl.setAttribute('marker-end', 'url(#marker-arrow)');
-    }
-    trG.appendChild(pathEl);
-
-    // Label badge
+    // Condition Badge & Label
     if (tr.label) {
       const lblG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
       lblG.setAttribute('transform', `translate(${labelX}, ${labelY})`);
+      lblG.style.cursor = 'pointer';
 
-      const textLen = tr.label.length * 6.8 + 16;
+      const padW = tr.label.length * 6.8 + 14;
       const lblBg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-      lblBg.setAttribute('x', `${-textLen / 2}`);
+      lblBg.setAttribute('x', `${-padW / 2}`);
       lblBg.setAttribute('y', '-10');
-      lblBg.setAttribute('width', `${textLen}`);
+      lblBg.setAttribute('width', `${padW}`);
       lblBg.setAttribute('height', '20');
       lblBg.setAttribute('rx', '3');
       lblBg.setAttribute('fill', trBg);
@@ -11083,7 +11180,7 @@ MultiDiagramVisualizer.register('statediagram', function(code, nodesLayer, edges
     edgesLayer.appendChild(trG);
   });
 
-    // 5. RENDER ALL STATE NODES
+  // 5. RENDER ALL STATE NODES
   normalNodes.forEach(s => {
     const pos = MultiDiagramVisualizer.getPosition(s.id, s.defaultX, s.defaultY);
     const fillColor = MultiDiagramVisualizer.getColor(s.id, s.defaultFill);
@@ -11122,6 +11219,16 @@ MultiDiagramVisualizer.register('statediagram', function(code, nodesLayer, edges
       innerCore.setAttribute('r', `${s.w / 2 - 5}`);
       innerCore.setAttribute('fill', fillColor);
       nodeG.appendChild(innerCore);
+    } else if (s.type === 'choice') {
+      const diam = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+      const hw = s.w / 2;
+      const hh = s.h / 2;
+      diam.setAttribute('points', `${hw},0 ${s.w},${hh} ${hw},${s.h} 0,${hh}`);
+      diam.setAttribute('fill', fillColor);
+      diam.setAttribute('stroke', isSelected ? 'var(--selection-color)' : borderColor);
+      diam.setAttribute('stroke-width', isSelected ? '2.5' : '1.5');
+      if (isSelected) diam.style.filter = selGlow;
+      nodeG.appendChild(diam);
     } else {
       const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
       rect.setAttribute('width', `${s.w}`);
