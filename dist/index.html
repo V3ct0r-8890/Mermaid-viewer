@@ -5093,39 +5093,24 @@ MultiDiagramVisualizer.register('classdiagram', function(code, nodesLayer, edges
   let curClass = null;
 
   rawLines.forEach(line => {
-    // Check relations: e.g. Super <|-- Sub, ClassA *-- ClassB, ClassA --> ClassB, ClassA ..|> ClassB, etc.
     const relMatch = line.match(/^([A-Za-z0-9_]+)\s*(<\|--|--\|>|\*--|--\*|o--|--o|-->|<--|\.\.\|>|<\|\.\.|\.\.>|<\.\.|\.\.|--)\s*([A-Za-z0-9_]+)(?:\s*:\s*(.+))?$/);
     if (relMatch) {
-      let src = relMatch[1];
-      let relType = relMatch[2];
-      let tgt = relMatch[3];
+      const src = relMatch[1];
+      const relType = relMatch[2];
+      const tgt = relMatch[3];
       const label = relMatch[4] ? relMatch[4].trim() : '';
-
-      // Normalize super/sub for inheritance
-      let superCls = src;
-      let subCls = tgt;
-      let normType = relType;
-
-      if (relType === '--|>') {
-        superCls = tgt;
-        subCls = src;
-        normType = '<|--';
-      }
 
       ensureClass(src);
       ensureClass(tgt);
       relations.push({
         src,
         tgt,
-        superCls,
-        subCls,
-        relType: normType,
+        relType,
         label
       });
       return;
     }
 
-    // Class block start: e.g. class Animal { or class Animal
     const classBlockMatch = line.match(/^class\s+([A-Za-z0-9_]+)\s*(\{)?/i);
     if (classBlockMatch) {
       const c = ensureClass(classBlockMatch[1]);
@@ -5142,7 +5127,6 @@ MultiDiagramVisualizer.register('classdiagram', function(code, nodesLayer, edges
       return;
     }
 
-    // Member definition: e.g. Animal : +int age or Animal : +mate()
     const memberMatch = line.match(/^([A-Za-z0-9_]+)\s*:\s*(.+)$/);
     if (memberMatch) {
       const cls = ensureClass(memberMatch[1]);
@@ -5157,7 +5141,6 @@ MultiDiagramVisualizer.register('classdiagram', function(code, nodesLayer, edges
       return;
     }
 
-    // Inside class block
     if (curClass) {
       const member = line.trim();
       if (member && !member.startsWith('}')) {
@@ -5187,16 +5170,15 @@ MultiDiagramVisualizer.register('classdiagram', function(code, nodesLayer, edges
     z.attributes = ['+bool is_wild'];
     z.methods = ['+run()'];
 
-    relations.push({ src: 'Animal', tgt: 'Duck', superCls: 'Animal', subCls: 'Duck', relType: '<|--', label: '' });
-    relations.push({ src: 'Animal', tgt: 'Fish', superCls: 'Animal', subCls: 'Fish', relType: '<|--', label: '' });
-    relations.push({ src: 'Animal', tgt: 'Zebra', superCls: 'Animal', subCls: 'Zebra', relType: '<|--', label: '' });
+    relations.push({ src: 'Animal', tgt: 'Duck', relType: '<|--', label: '' });
+    relations.push({ src: 'Animal', tgt: 'Fish', relType: '<|--', label: '' });
+    relations.push({ src: 'Animal', tgt: 'Zebra', relType: '<|--', label: '' });
   }
 
   // 2. DYNAMIC TOPOLOGICAL / GRID LAYOUT
   const allClasses = Array.from(classesMap.values());
   const defaultPositions = new Map();
 
-  // Check if standard template classes exist
   const hasTemplateClasses = classesMap.has('Animal') && classesMap.has('Duck') && classesMap.has('Fish') && classesMap.has('Zebra');
 
   if (hasTemplateClasses) {
@@ -5206,7 +5188,7 @@ MultiDiagramVisualizer.register('classdiagram', function(code, nodesLayer, edges
     defaultPositions.set('Zebra', { x: 660, y: 390, w: 180 });
   }
 
-  // Rank-based auto-positioning for all classes
+  // Auto-positioning for all classes
   const inDegree = new Map();
   const outDegree = new Map();
   allClasses.forEach(c => {
@@ -5219,7 +5201,6 @@ MultiDiagramVisualizer.register('classdiagram', function(code, nodesLayer, edges
     inDegree.set(r.tgt, (inDegree.get(r.tgt) || 0) + 1);
   });
 
-  // Calculate Ranks
   const ranks = new Map();
   allClasses.forEach(c => {
     if (inDegree.get(c.name) === 0) {
@@ -5295,7 +5276,7 @@ MultiDiagramVisualizer.register('classdiagram', function(code, nodesLayer, edges
     });
   });
 
-  // 3. RENDER ALL RELATIONS & CONNECTORS
+  // 3. RENDER ALL RELATIONS & CONNECTORS (WITH ACCURATE UML ARROWHEAD ORIENTATIONS)
   relations.forEach((r, rIdx) => {
     const srcDim = classDimensions.get(r.src);
     const tgtDim = classDimensions.get(r.tgt);
@@ -5314,7 +5295,6 @@ MultiDiagramVisualizer.register('classdiagram', function(code, nodesLayer, edges
     const tCenterX = tPos.x + tW / 2;
     const tCenterY = tPos.y + tH / 2;
 
-    let pathD, markerPoints, isDiamond = false, isFilled = false;
     const linkKey = `rel_${r.src}_to_${r.tgt}_${rIdx}`;
     const linkTitle = `${r.src} ${r.relType} ${r.tgt}`;
     const isRelSel = (selTitle === linkTitle || selTitle === linkKey);
@@ -5323,39 +5303,89 @@ MultiDiagramVisualizer.register('classdiagram', function(code, nodesLayer, edges
     const rWidth = MultiDiagramVisualizer.getColor(`${linkKey}_width`, '1.5');
     const isDashed = r.relType.startsWith('..') || r.relType.endsWith('..');
 
-    if (tCenterY > sCenterY + 50) {
-      // Top to Bottom
-      const startX = sCenterX;
-      const startY = sPos.y + sH;
-      const endX = tCenterX;
-      const endY = tPos.y;
-      const midY = (startY + endY) / 2;
+    // Determine which end the marker belongs to:
+    // Left-marker types (pointing to src): <|--, <|.., *--, o--, <--, <..
+    // Right-marker types (pointing to tgt): --|>, ..|>, --*, --o, -->, ..>
+    const isMarkerAtSrc = ['<|--', '<|..', '*--', 'o--', '<--', '<..'].includes(r.relType);
+    const isTriangle = ['<|--', '--|>', '<|..', '..|>'].includes(r.relType);
+    const isDiamond = ['*--', '--*', 'o--', '--o'].includes(r.relType);
+    const isSolidDiamond = ['*--', '--*'].includes(r.relType);
 
-      pathD = `M ${startX} ${startY} C ${startX} ${midY}, ${endX} ${midY}, ${endX} ${endY - 12}`;
-      markerPoints = `${endX},${endY} ${endX - 7},${endY - 14} ${endX + 7},${endY - 14}`;
-    } else if (sCenterY > tCenterY + 50) {
-      // Bottom to Top (Inheritance Sub -> Super)
-      const startX = sCenterX;
-      const startY = sPos.y;
-      const endX = tCenterX;
-      const endY = tPos.y + tH;
-      const midY = (startY + endY) / 2;
+    // Arrow line start (fromNode) and end (toNode with marker)
+    let fromCenterX, fromY, toCenterX, toY, pathD, markerPoints;
 
-      pathD = `M ${startX} ${startY} C ${startX} ${midY}, ${endX} ${midY}, ${endX} ${endY + 12}`;
-      markerPoints = `${endX},${endY} ${endX - 7},${endY + 14} ${endX + 7},${endY + 14}`;
+    if (isMarkerAtSrc) {
+      // Line travels from TGT (subclass) to SRC (superclass), arrow points into SRC
+      if (tCenterY > sCenterY + 40) {
+        // TGT is below SRC -> line goes from TGT top to SRC bottom
+        const startX = tCenterX;
+        const startY = tPos.y;
+        const endX = sCenterX;
+        const endY = sPos.y + sH;
+        const midY = (startY + endY) / 2;
+
+        pathD = `M ${startX} ${startY} C ${startX} ${midY}, ${endX} ${midY}, ${endX} ${endY + 14}`;
+        markerPoints = `${endX},${endY} ${endX - 7},${endY + 14} ${endX + 7},${endY + 14}`;
+      } else if (sCenterY > tCenterY + 40) {
+        // TGT is above SRC -> line goes from TGT bottom to SRC top
+        const startX = tCenterX;
+        const startY = tPos.y + tH;
+        const endX = sCenterX;
+        const endY = sPos.y;
+        const midY = (startY + endY) / 2;
+
+        pathD = `M ${startX} ${startY} C ${startX} ${midY}, ${endX} ${midY}, ${endX} ${endY - 14}`;
+        markerPoints = `${endX},${endY} ${endX - 7},${endY - 14} ${endX + 7},${endY - 14}`;
+      } else {
+        // Side by side
+        const isTgtRight = tCenterX > sCenterX;
+        const startX = isTgtRight ? tPos.x : tPos.x + tW;
+        const startY = tCenterY;
+        const endX = isTgtRight ? sPos.x + sW : sPos.x;
+        const endY = sCenterY;
+        const midX = (startX + endX) / 2;
+
+        pathD = `M ${startX} ${startY} C ${midX} ${startY}, ${midX} ${endY}, ${isTgtRight ? endX + 14 : endX - 14} ${endY}`;
+        markerPoints = isTgtRight
+          ? `${endX},${endY} ${endX + 14},${endY - 7} ${endX + 14},${endY + 7}`
+          : `${endX},${endY} ${endX - 14},${endY - 7} ${endX - 14},${endY + 7}`;
+      }
     } else {
-      // Left / Right side by side
-      const isLeft = sCenterX > tCenterX;
-      const startX = isLeft ? sPos.x : sPos.x + sW;
-      const startY = sCenterY;
-      const endX = isLeft ? tPos.x + tW : tPos.x;
-      const endY = tCenterY;
-      const midX = (startX + endX) / 2;
+      // Line travels from SRC to TGT, arrow points into TGT
+      if (tCenterY > sCenterY + 40) {
+        // TGT is below SRC -> line goes from SRC bottom to TGT top
+        const startX = sCenterX;
+        const startY = sPos.y + sH;
+        const endX = tCenterX;
+        const endY = tPos.y;
+        const midY = (startY + endY) / 2;
 
-      pathD = `M ${startX} ${startY} C ${midX} ${startY}, ${midX} ${endY}, ${isLeft ? endX + 12 : endX - 12} ${endY}`;
-      markerPoints = isLeft
-        ? `${endX},${endY} ${endX + 14},${endY - 7} ${endX + 14},${endY + 7}`
-        : `${endX},${endY} ${endX - 14},${endY - 7} ${endX - 14},${endY + 7}`;
+        pathD = `M ${startX} ${startY} C ${startX} ${midY}, ${endX} ${midY}, ${endX} ${endY - 14}`;
+        markerPoints = `${endX},${endY} ${endX - 7},${endY - 14} ${endX + 7},${endY - 14}`;
+      } else if (sCenterY > tCenterY + 40) {
+        // TGT is above SRC -> line goes from SRC top to TGT bottom
+        const startX = sCenterX;
+        const startY = sPos.y;
+        const endX = tCenterX;
+        const endY = tPos.y + tH;
+        const midY = (startY + endY) / 2;
+
+        pathD = `M ${startX} ${startY} C ${startX} ${midY}, ${endX} ${midY}, ${endX} ${endY + 14}`;
+        markerPoints = `${endX},${endY} ${endX - 7},${endY + 14} ${endX + 7},${endY + 14}`;
+      } else {
+        // Side by side
+        const isSrcRight = sCenterX > tCenterX;
+        const startX = isSrcRight ? sPos.x : sPos.x + sW;
+        const startY = sCenterY;
+        const endX = isSrcRight ? tPos.x + tW : tPos.x;
+        const endY = tCenterY;
+        const midX = (startX + endX) / 2;
+
+        pathD = `M ${startX} ${startY} C ${midX} ${startY}, ${midX} ${endY}, ${isSrcRight ? endX + 14 : endX - 14} ${endY}`;
+        markerPoints = isSrcRight
+          ? `${endX},${endY} ${endX + 14},${endY - 7} ${endX + 14},${endY + 7}`
+          : `${endX},${endY} ${endX - 14},${endY - 7} ${endX - 14},${endY + 7}`;
+      }
     }
 
     const relG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
@@ -5369,7 +5399,7 @@ MultiDiagramVisualizer.register('classdiagram', function(code, nodesLayer, edges
     hitbox.style.cursor = 'pointer';
     relG.appendChild(hitbox);
 
-    // Visible Curve
+    // Visible Line
     const pathEl = document.createElementNS('http://www.w3.org/2000/svg', 'path');
     pathEl.setAttribute('d', pathD);
     pathEl.setAttribute('fill', 'none');
@@ -5379,13 +5409,22 @@ MultiDiagramVisualizer.register('classdiagram', function(code, nodesLayer, edges
     if (isRelSel) pathEl.style.filter = selGlow;
     relG.appendChild(pathEl);
 
-    // Arrow Marker Polygon (UML Triangle)
-    const marker = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
-    marker.setAttribute('points', markerPoints);
-    marker.setAttribute('fill', isDark ? '#222538' : '#FFFFFF');
-    marker.setAttribute('stroke', isRelSel ? 'var(--selection-color)' : rColor);
-    marker.setAttribute('stroke-width', rWidth);
-    relG.appendChild(marker);
+    // Marker
+    if (isTriangle || isDiamond) {
+      const marker = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+      marker.setAttribute('points', markerPoints);
+      marker.setAttribute('fill', isSolidDiamond ? rColor : (isDark ? '#222538' : '#FFFFFF'));
+      marker.setAttribute('stroke', isRelSel ? 'var(--selection-color)' : rColor);
+      marker.setAttribute('stroke-width', rWidth);
+      relG.appendChild(marker);
+    } else {
+      // Standard open arrowhead
+      const marker = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+      marker.setAttribute('points', markerPoints);
+      marker.setAttribute('fill', isRelSel ? 'var(--selection-color)' : rColor);
+      marker.setAttribute('stroke', isRelSel ? 'var(--selection-color)' : rColor);
+      relG.appendChild(marker);
+    }
 
     // Optional Label
     if (r.label) {
@@ -14684,7 +14723,7 @@ MultiDiagramVisualizer.register('treemap-beta', MultiDiagramVisualizer.renderers
             Utils.showToast(`Added Class: ${cName}`, 'success');
           };
         } else if (cat === 'state') {
-          title.textContent = 'Add State';
+          title.textContent = 'Add State & Transition';
           btnSave.textContent = 'Add State';
 
           const idInp = addField('State Name / ID', document.createElement('input'));
@@ -14695,13 +14734,71 @@ MultiDiagramVisualizer.register('treemap-beta', MultiDiagramVisualizer.renderers
           descInp.className = 'form-control';
           descInp.placeholder = 'e.g. Verifying user credentials';
 
+          // Helper to extract all existing states from code
+          const extractAllStates = (c) => {
+            const list = new Set(['[*]']);
+            (c || '').split('\n').forEach(l => {
+              const trimmed = l.trim();
+              if (!trimmed || trimmed.startsWith('%%') || trimmed.startsWith('stateDiagram')) return;
+              const sm = trimmed.match(/^state\s+([A-Za-z0-9_]+)/i);
+              if (sm && sm[1] !== '<<choice>>' && sm[1] !== '<<fork>>' && sm[1] !== '<<join>>') list.add(sm[1]);
+              const cm = trimmed.match(/^([A-Za-z0-9_]+)\s*:/);
+              if (cm && !trimmed.includes('-->')) list.add(cm[1]);
+              const asM = trimmed.match(/^state\s+"[^"]+"\s+as\s+([A-Za-z0-9_]+)/i);
+              if (asM) list.add(asM[1]);
+              const tm = trimmed.match(/^(\[\*\]|[A-Za-z0-9_]+)\s*-->\s*(\[\*\]|[A-Za-z0-9_]+)/);
+              if (tm) {
+                if (tm[1] !== '[*]') list.add(tm[1]);
+                if (tm[2] !== '[*]') list.add(tm[2]);
+              }
+            });
+            return Array.from(list);
+          };
+
+          const existingStates = extractAllStates(code);
+
+          const fromSel = addField('Connect Link From (Predecessor)', document.createElement('select'));
+          fromSel.className = 'form-control';
+          fromSel.innerHTML = '<option value="">-- None (Standalone State) --</option>';
+          existingStates.forEach(s => {
+            const opt = document.createElement('option');
+            opt.value = s;
+            opt.textContent = s === '[*]' ? '[*] (Start State)' : s;
+            fromSel.appendChild(opt);
+          });
+
+          const toSel = addField('Connect Link To (Successor)', document.createElement('select'));
+          toSel.className = 'form-control';
+          toSel.innerHTML = '<option value="">-- None --</option>';
+          existingStates.forEach(s => {
+            const opt = document.createElement('option');
+            opt.value = s;
+            opt.textContent = s === '[*]' ? '[*] (End State)' : s;
+            toSel.appendChild(opt);
+          });
+
+          const condInp = addField('Transition Condition / Label (Optional)', document.createElement('input'));
+          condInp.className = 'form-control';
+          condInp.placeholder = 'e.g. timeout / start / battery < 20%';
+
           this.currentCreateCallback = () => {
             const sId = idInp.value.trim().replace(/\s+/g, '_');
             const desc = descInp.value.trim();
+            const fromState = fromSel.value;
+            const toState = toSel.value;
+            const cond = condInp.value.trim();
             if (!sId) return Utils.showToast('State name is required', 'error');
 
-            const stmt = desc ? `    ${sId} : ${desc}` : `    state ${sId}`;
-            MultiDiagramVisualizer.updateCodeLine((curCode) => `${curCode.trimEnd()}\n${stmt}`);
+            let stmts = [];
+            stmts.push(desc ? `    ${sId} : ${desc}` : `    state ${sId}`);
+            if (fromState) {
+              stmts.push(cond ? `    ${fromState} --> ${sId} : ${cond}` : `    ${fromState} --> ${sId}`);
+            }
+            if (toState) {
+              stmts.push(`    ${sId} --> ${toState}`);
+            }
+
+            MultiDiagramVisualizer.updateCodeLine((curCode) => `${curCode.trimEnd()}\n${stmts.join('\n')}`);
             Utils.showToast(`Added State: ${sId}`, 'success');
           };
         } else if (cat === 'er') {
@@ -15035,8 +15132,27 @@ MultiDiagramVisualizer.register('treemap-beta', MultiDiagramVisualizer.renderers
           title.textContent = 'Add State Transition';
           btnSave.textContent = 'Add Transition';
 
-          const sMatches = Array.from(code.matchAll(/([A-Za-z0-9_]+)\s*-->/g));
-          const states = Array.from(new Set(['[*]', ...sMatches.map(m => m[1])]));
+          const extractAllStates = (c) => {
+            const list = new Set(['[*]']);
+            (c || '').split('\n').forEach(l => {
+              const trimmed = l.trim();
+              if (!trimmed || trimmed.startsWith('%%') || trimmed.startsWith('stateDiagram')) return;
+              const sm = trimmed.match(/^state\s+([A-Za-z0-9_]+)/i);
+              if (sm && sm[1] !== '<<choice>>' && sm[1] !== '<<fork>>' && sm[1] !== '<<join>>') list.add(sm[1]);
+              const cm = trimmed.match(/^([A-Za-z0-9_]+)\s*:/);
+              if (cm && !trimmed.includes('-->')) list.add(cm[1]);
+              const asM = trimmed.match(/^state\s+"[^"]+"\s+as\s+([A-Za-z0-9_]+)/i);
+              if (asM) list.add(asM[1]);
+              const tm = trimmed.match(/^(\[\*\]|[A-Za-z0-9_]+)\s*-->\s*(\[\*\]|[A-Za-z0-9_]+)/);
+              if (tm) {
+                if (tm[1] !== '[*]') list.add(tm[1]);
+                if (tm[2] !== '[*]') list.add(tm[2]);
+              }
+            });
+            return Array.from(list);
+          };
+
+          const states = extractAllStates(code);
 
           const srcSel = addField('From State', document.createElement('select'));
           srcSel.className = 'form-control';
@@ -15044,8 +15160,8 @@ MultiDiagramVisualizer.register('treemap-beta', MultiDiagramVisualizer.renderers
           tgtSel.className = 'form-control';
 
           states.forEach(s => {
-            const o1 = document.createElement('option'); o1.value = s; o1.textContent = s;
-            const o2 = document.createElement('option'); o2.value = s; o2.textContent = s;
+            const o1 = document.createElement('option'); o1.value = s; o1.textContent = s === '[*]' ? '[*] (Start State)' : s;
+            const o2 = document.createElement('option'); o2.value = s; o2.textContent = s === '[*]' ? '[*] (End State)' : s;
             srcSel.appendChild(o1);
             tgtSel.appendChild(o2);
           });

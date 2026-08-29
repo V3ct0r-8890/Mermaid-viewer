@@ -32,39 +32,24 @@ MultiDiagramVisualizer.register('classdiagram', function(code, nodesLayer, edges
   let curClass = null;
 
   rawLines.forEach(line => {
-    // Check relations: e.g. Super <|-- Sub, ClassA *-- ClassB, ClassA --> ClassB, ClassA ..|> ClassB, etc.
     const relMatch = line.match(/^([A-Za-z0-9_]+)\s*(<\|--|--\|>|\*--|--\*|o--|--o|-->|<--|\.\.\|>|<\|\.\.|\.\.>|<\.\.|\.\.|--)\s*([A-Za-z0-9_]+)(?:\s*:\s*(.+))?$/);
     if (relMatch) {
-      let src = relMatch[1];
-      let relType = relMatch[2];
-      let tgt = relMatch[3];
+      const src = relMatch[1];
+      const relType = relMatch[2];
+      const tgt = relMatch[3];
       const label = relMatch[4] ? relMatch[4].trim() : '';
-
-      // Normalize super/sub for inheritance
-      let superCls = src;
-      let subCls = tgt;
-      let normType = relType;
-
-      if (relType === '--|>') {
-        superCls = tgt;
-        subCls = src;
-        normType = '<|--';
-      }
 
       ensureClass(src);
       ensureClass(tgt);
       relations.push({
         src,
         tgt,
-        superCls,
-        subCls,
-        relType: normType,
+        relType,
         label
       });
       return;
     }
 
-    // Class block start: e.g. class Animal { or class Animal
     const classBlockMatch = line.match(/^class\s+([A-Za-z0-9_]+)\s*(\{)?/i);
     if (classBlockMatch) {
       const c = ensureClass(classBlockMatch[1]);
@@ -81,7 +66,6 @@ MultiDiagramVisualizer.register('classdiagram', function(code, nodesLayer, edges
       return;
     }
 
-    // Member definition: e.g. Animal : +int age or Animal : +mate()
     const memberMatch = line.match(/^([A-Za-z0-9_]+)\s*:\s*(.+)$/);
     if (memberMatch) {
       const cls = ensureClass(memberMatch[1]);
@@ -96,7 +80,6 @@ MultiDiagramVisualizer.register('classdiagram', function(code, nodesLayer, edges
       return;
     }
 
-    // Inside class block
     if (curClass) {
       const member = line.trim();
       if (member && !member.startsWith('}')) {
@@ -126,16 +109,15 @@ MultiDiagramVisualizer.register('classdiagram', function(code, nodesLayer, edges
     z.attributes = ['+bool is_wild'];
     z.methods = ['+run()'];
 
-    relations.push({ src: 'Animal', tgt: 'Duck', superCls: 'Animal', subCls: 'Duck', relType: '<|--', label: '' });
-    relations.push({ src: 'Animal', tgt: 'Fish', superCls: 'Animal', subCls: 'Fish', relType: '<|--', label: '' });
-    relations.push({ src: 'Animal', tgt: 'Zebra', superCls: 'Animal', subCls: 'Zebra', relType: '<|--', label: '' });
+    relations.push({ src: 'Animal', tgt: 'Duck', relType: '<|--', label: '' });
+    relations.push({ src: 'Animal', tgt: 'Fish', relType: '<|--', label: '' });
+    relations.push({ src: 'Animal', tgt: 'Zebra', relType: '<|--', label: '' });
   }
 
   // 2. DYNAMIC TOPOLOGICAL / GRID LAYOUT
   const allClasses = Array.from(classesMap.values());
   const defaultPositions = new Map();
 
-  // Check if standard template classes exist
   const hasTemplateClasses = classesMap.has('Animal') && classesMap.has('Duck') && classesMap.has('Fish') && classesMap.has('Zebra');
 
   if (hasTemplateClasses) {
@@ -145,7 +127,7 @@ MultiDiagramVisualizer.register('classdiagram', function(code, nodesLayer, edges
     defaultPositions.set('Zebra', { x: 660, y: 390, w: 180 });
   }
 
-  // Rank-based auto-positioning for all classes
+  // Auto-positioning for all classes
   const inDegree = new Map();
   const outDegree = new Map();
   allClasses.forEach(c => {
@@ -158,7 +140,6 @@ MultiDiagramVisualizer.register('classdiagram', function(code, nodesLayer, edges
     inDegree.set(r.tgt, (inDegree.get(r.tgt) || 0) + 1);
   });
 
-  // Calculate Ranks
   const ranks = new Map();
   allClasses.forEach(c => {
     if (inDegree.get(c.name) === 0) {
@@ -234,7 +215,7 @@ MultiDiagramVisualizer.register('classdiagram', function(code, nodesLayer, edges
     });
   });
 
-  // 3. RENDER ALL RELATIONS & CONNECTORS
+  // 3. RENDER ALL RELATIONS & CONNECTORS (WITH ACCURATE UML ARROWHEAD ORIENTATIONS)
   relations.forEach((r, rIdx) => {
     const srcDim = classDimensions.get(r.src);
     const tgtDim = classDimensions.get(r.tgt);
@@ -253,7 +234,6 @@ MultiDiagramVisualizer.register('classdiagram', function(code, nodesLayer, edges
     const tCenterX = tPos.x + tW / 2;
     const tCenterY = tPos.y + tH / 2;
 
-    let pathD, markerPoints, isDiamond = false, isFilled = false;
     const linkKey = `rel_${r.src}_to_${r.tgt}_${rIdx}`;
     const linkTitle = `${r.src} ${r.relType} ${r.tgt}`;
     const isRelSel = (selTitle === linkTitle || selTitle === linkKey);
@@ -262,39 +242,89 @@ MultiDiagramVisualizer.register('classdiagram', function(code, nodesLayer, edges
     const rWidth = MultiDiagramVisualizer.getColor(`${linkKey}_width`, '1.5');
     const isDashed = r.relType.startsWith('..') || r.relType.endsWith('..');
 
-    if (tCenterY > sCenterY + 50) {
-      // Top to Bottom
-      const startX = sCenterX;
-      const startY = sPos.y + sH;
-      const endX = tCenterX;
-      const endY = tPos.y;
-      const midY = (startY + endY) / 2;
+    // Determine which end the marker belongs to:
+    // Left-marker types (pointing to src): <|--, <|.., *--, o--, <--, <..
+    // Right-marker types (pointing to tgt): --|>, ..|>, --*, --o, -->, ..>
+    const isMarkerAtSrc = ['<|--', '<|..', '*--', 'o--', '<--', '<..'].includes(r.relType);
+    const isTriangle = ['<|--', '--|>', '<|..', '..|>'].includes(r.relType);
+    const isDiamond = ['*--', '--*', 'o--', '--o'].includes(r.relType);
+    const isSolidDiamond = ['*--', '--*'].includes(r.relType);
 
-      pathD = `M ${startX} ${startY} C ${startX} ${midY}, ${endX} ${midY}, ${endX} ${endY - 12}`;
-      markerPoints = `${endX},${endY} ${endX - 7},${endY - 14} ${endX + 7},${endY - 14}`;
-    } else if (sCenterY > tCenterY + 50) {
-      // Bottom to Top (Inheritance Sub -> Super)
-      const startX = sCenterX;
-      const startY = sPos.y;
-      const endX = tCenterX;
-      const endY = tPos.y + tH;
-      const midY = (startY + endY) / 2;
+    // Arrow line start (fromNode) and end (toNode with marker)
+    let fromCenterX, fromY, toCenterX, toY, pathD, markerPoints;
 
-      pathD = `M ${startX} ${startY} C ${startX} ${midY}, ${endX} ${midY}, ${endX} ${endY + 12}`;
-      markerPoints = `${endX},${endY} ${endX - 7},${endY + 14} ${endX + 7},${endY + 14}`;
+    if (isMarkerAtSrc) {
+      // Line travels from TGT (subclass) to SRC (superclass), arrow points into SRC
+      if (tCenterY > sCenterY + 40) {
+        // TGT is below SRC -> line goes from TGT top to SRC bottom
+        const startX = tCenterX;
+        const startY = tPos.y;
+        const endX = sCenterX;
+        const endY = sPos.y + sH;
+        const midY = (startY + endY) / 2;
+
+        pathD = `M ${startX} ${startY} C ${startX} ${midY}, ${endX} ${midY}, ${endX} ${endY + 14}`;
+        markerPoints = `${endX},${endY} ${endX - 7},${endY + 14} ${endX + 7},${endY + 14}`;
+      } else if (sCenterY > tCenterY + 40) {
+        // TGT is above SRC -> line goes from TGT bottom to SRC top
+        const startX = tCenterX;
+        const startY = tPos.y + tH;
+        const endX = sCenterX;
+        const endY = sPos.y;
+        const midY = (startY + endY) / 2;
+
+        pathD = `M ${startX} ${startY} C ${startX} ${midY}, ${endX} ${midY}, ${endX} ${endY - 14}`;
+        markerPoints = `${endX},${endY} ${endX - 7},${endY - 14} ${endX + 7},${endY - 14}`;
+      } else {
+        // Side by side
+        const isTgtRight = tCenterX > sCenterX;
+        const startX = isTgtRight ? tPos.x : tPos.x + tW;
+        const startY = tCenterY;
+        const endX = isTgtRight ? sPos.x + sW : sPos.x;
+        const endY = sCenterY;
+        const midX = (startX + endX) / 2;
+
+        pathD = `M ${startX} ${startY} C ${midX} ${startY}, ${midX} ${endY}, ${isTgtRight ? endX + 14 : endX - 14} ${endY}`;
+        markerPoints = isTgtRight
+          ? `${endX},${endY} ${endX + 14},${endY - 7} ${endX + 14},${endY + 7}`
+          : `${endX},${endY} ${endX - 14},${endY - 7} ${endX - 14},${endY + 7}`;
+      }
     } else {
-      // Left / Right side by side
-      const isLeft = sCenterX > tCenterX;
-      const startX = isLeft ? sPos.x : sPos.x + sW;
-      const startY = sCenterY;
-      const endX = isLeft ? tPos.x + tW : tPos.x;
-      const endY = tCenterY;
-      const midX = (startX + endX) / 2;
+      // Line travels from SRC to TGT, arrow points into TGT
+      if (tCenterY > sCenterY + 40) {
+        // TGT is below SRC -> line goes from SRC bottom to TGT top
+        const startX = sCenterX;
+        const startY = sPos.y + sH;
+        const endX = tCenterX;
+        const endY = tPos.y;
+        const midY = (startY + endY) / 2;
 
-      pathD = `M ${startX} ${startY} C ${midX} ${startY}, ${midX} ${endY}, ${isLeft ? endX + 12 : endX - 12} ${endY}`;
-      markerPoints = isLeft
-        ? `${endX},${endY} ${endX + 14},${endY - 7} ${endX + 14},${endY + 7}`
-        : `${endX},${endY} ${endX - 14},${endY - 7} ${endX - 14},${endY + 7}`;
+        pathD = `M ${startX} ${startY} C ${startX} ${midY}, ${endX} ${midY}, ${endX} ${endY - 14}`;
+        markerPoints = `${endX},${endY} ${endX - 7},${endY - 14} ${endX + 7},${endY - 14}`;
+      } else if (sCenterY > tCenterY + 40) {
+        // TGT is above SRC -> line goes from SRC top to TGT bottom
+        const startX = sCenterX;
+        const startY = sPos.y;
+        const endX = tCenterX;
+        const endY = tPos.y + tH;
+        const midY = (startY + endY) / 2;
+
+        pathD = `M ${startX} ${startY} C ${startX} ${midY}, ${endX} ${midY}, ${endX} ${endY + 14}`;
+        markerPoints = `${endX},${endY} ${endX - 7},${endY + 14} ${endX + 7},${endY + 14}`;
+      } else {
+        // Side by side
+        const isSrcRight = sCenterX > tCenterX;
+        const startX = isSrcRight ? sPos.x : sPos.x + sW;
+        const startY = sCenterY;
+        const endX = isSrcRight ? tPos.x + tW : tPos.x;
+        const endY = tCenterY;
+        const midX = (startX + endX) / 2;
+
+        pathD = `M ${startX} ${startY} C ${midX} ${startY}, ${midX} ${endY}, ${isSrcRight ? endX + 14 : endX - 14} ${endY}`;
+        markerPoints = isSrcRight
+          ? `${endX},${endY} ${endX + 14},${endY - 7} ${endX + 14},${endY + 7}`
+          : `${endX},${endY} ${endX - 14},${endY - 7} ${endX - 14},${endY + 7}`;
+      }
     }
 
     const relG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
@@ -308,7 +338,7 @@ MultiDiagramVisualizer.register('classdiagram', function(code, nodesLayer, edges
     hitbox.style.cursor = 'pointer';
     relG.appendChild(hitbox);
 
-    // Visible Curve
+    // Visible Line
     const pathEl = document.createElementNS('http://www.w3.org/2000/svg', 'path');
     pathEl.setAttribute('d', pathD);
     pathEl.setAttribute('fill', 'none');
@@ -318,13 +348,22 @@ MultiDiagramVisualizer.register('classdiagram', function(code, nodesLayer, edges
     if (isRelSel) pathEl.style.filter = selGlow;
     relG.appendChild(pathEl);
 
-    // Arrow Marker Polygon (UML Triangle)
-    const marker = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
-    marker.setAttribute('points', markerPoints);
-    marker.setAttribute('fill', isDark ? '#222538' : '#FFFFFF');
-    marker.setAttribute('stroke', isRelSel ? 'var(--selection-color)' : rColor);
-    marker.setAttribute('stroke-width', rWidth);
-    relG.appendChild(marker);
+    // Marker
+    if (isTriangle || isDiamond) {
+      const marker = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+      marker.setAttribute('points', markerPoints);
+      marker.setAttribute('fill', isSolidDiamond ? rColor : (isDark ? '#222538' : '#FFFFFF'));
+      marker.setAttribute('stroke', isRelSel ? 'var(--selection-color)' : rColor);
+      marker.setAttribute('stroke-width', rWidth);
+      relG.appendChild(marker);
+    } else {
+      // Standard open arrowhead
+      const marker = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+      marker.setAttribute('points', markerPoints);
+      marker.setAttribute('fill', isRelSel ? 'var(--selection-color)' : rColor);
+      marker.setAttribute('stroke', isRelSel ? 'var(--selection-color)' : rColor);
+      relG.appendChild(marker);
+    }
 
     // Optional Label
     if (r.label) {

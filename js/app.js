@@ -2329,7 +2329,7 @@
             Utils.showToast(`Added Class: ${cName}`, 'success');
           };
         } else if (cat === 'state') {
-          title.textContent = 'Add State';
+          title.textContent = 'Add State & Transition';
           btnSave.textContent = 'Add State';
 
           const idInp = addField('State Name / ID', document.createElement('input'));
@@ -2340,13 +2340,71 @@
           descInp.className = 'form-control';
           descInp.placeholder = 'e.g. Verifying user credentials';
 
+          // Helper to extract all existing states from code
+          const extractAllStates = (c) => {
+            const list = new Set(['[*]']);
+            (c || '').split('\n').forEach(l => {
+              const trimmed = l.trim();
+              if (!trimmed || trimmed.startsWith('%%') || trimmed.startsWith('stateDiagram')) return;
+              const sm = trimmed.match(/^state\s+([A-Za-z0-9_]+)/i);
+              if (sm && sm[1] !== '<<choice>>' && sm[1] !== '<<fork>>' && sm[1] !== '<<join>>') list.add(sm[1]);
+              const cm = trimmed.match(/^([A-Za-z0-9_]+)\s*:/);
+              if (cm && !trimmed.includes('-->')) list.add(cm[1]);
+              const asM = trimmed.match(/^state\s+"[^"]+"\s+as\s+([A-Za-z0-9_]+)/i);
+              if (asM) list.add(asM[1]);
+              const tm = trimmed.match(/^(\[\*\]|[A-Za-z0-9_]+)\s*-->\s*(\[\*\]|[A-Za-z0-9_]+)/);
+              if (tm) {
+                if (tm[1] !== '[*]') list.add(tm[1]);
+                if (tm[2] !== '[*]') list.add(tm[2]);
+              }
+            });
+            return Array.from(list);
+          };
+
+          const existingStates = extractAllStates(code);
+
+          const fromSel = addField('Connect Link From (Predecessor)', document.createElement('select'));
+          fromSel.className = 'form-control';
+          fromSel.innerHTML = '<option value="">-- None (Standalone State) --</option>';
+          existingStates.forEach(s => {
+            const opt = document.createElement('option');
+            opt.value = s;
+            opt.textContent = s === '[*]' ? '[*] (Start State)' : s;
+            fromSel.appendChild(opt);
+          });
+
+          const toSel = addField('Connect Link To (Successor)', document.createElement('select'));
+          toSel.className = 'form-control';
+          toSel.innerHTML = '<option value="">-- None --</option>';
+          existingStates.forEach(s => {
+            const opt = document.createElement('option');
+            opt.value = s;
+            opt.textContent = s === '[*]' ? '[*] (End State)' : s;
+            toSel.appendChild(opt);
+          });
+
+          const condInp = addField('Transition Condition / Label (Optional)', document.createElement('input'));
+          condInp.className = 'form-control';
+          condInp.placeholder = 'e.g. timeout / start / battery < 20%';
+
           this.currentCreateCallback = () => {
             const sId = idInp.value.trim().replace(/\s+/g, '_');
             const desc = descInp.value.trim();
+            const fromState = fromSel.value;
+            const toState = toSel.value;
+            const cond = condInp.value.trim();
             if (!sId) return Utils.showToast('State name is required', 'error');
 
-            const stmt = desc ? `    ${sId} : ${desc}` : `    state ${sId}`;
-            MultiDiagramVisualizer.updateCodeLine((curCode) => `${curCode.trimEnd()}\n${stmt}`);
+            let stmts = [];
+            stmts.push(desc ? `    ${sId} : ${desc}` : `    state ${sId}`);
+            if (fromState) {
+              stmts.push(cond ? `    ${fromState} --> ${sId} : ${cond}` : `    ${fromState} --> ${sId}`);
+            }
+            if (toState) {
+              stmts.push(`    ${sId} --> ${toState}`);
+            }
+
+            MultiDiagramVisualizer.updateCodeLine((curCode) => `${curCode.trimEnd()}\n${stmts.join('\n')}`);
             Utils.showToast(`Added State: ${sId}`, 'success');
           };
         } else if (cat === 'er') {
@@ -2680,8 +2738,27 @@
           title.textContent = 'Add State Transition';
           btnSave.textContent = 'Add Transition';
 
-          const sMatches = Array.from(code.matchAll(/([A-Za-z0-9_]+)\s*-->/g));
-          const states = Array.from(new Set(['[*]', ...sMatches.map(m => m[1])]));
+          const extractAllStates = (c) => {
+            const list = new Set(['[*]']);
+            (c || '').split('\n').forEach(l => {
+              const trimmed = l.trim();
+              if (!trimmed || trimmed.startsWith('%%') || trimmed.startsWith('stateDiagram')) return;
+              const sm = trimmed.match(/^state\s+([A-Za-z0-9_]+)/i);
+              if (sm && sm[1] !== '<<choice>>' && sm[1] !== '<<fork>>' && sm[1] !== '<<join>>') list.add(sm[1]);
+              const cm = trimmed.match(/^([A-Za-z0-9_]+)\s*:/);
+              if (cm && !trimmed.includes('-->')) list.add(cm[1]);
+              const asM = trimmed.match(/^state\s+"[^"]+"\s+as\s+([A-Za-z0-9_]+)/i);
+              if (asM) list.add(asM[1]);
+              const tm = trimmed.match(/^(\[\*\]|[A-Za-z0-9_]+)\s*-->\s*(\[\*\]|[A-Za-z0-9_]+)/);
+              if (tm) {
+                if (tm[1] !== '[*]') list.add(tm[1]);
+                if (tm[2] !== '[*]') list.add(tm[2]);
+              }
+            });
+            return Array.from(list);
+          };
+
+          const states = extractAllStates(code);
 
           const srcSel = addField('From State', document.createElement('select'));
           srcSel.className = 'form-control';
@@ -2689,8 +2766,8 @@
           tgtSel.className = 'form-control';
 
           states.forEach(s => {
-            const o1 = document.createElement('option'); o1.value = s; o1.textContent = s;
-            const o2 = document.createElement('option'); o2.value = s; o2.textContent = s;
+            const o1 = document.createElement('option'); o1.value = s; o1.textContent = s === '[*]' ? '[*] (Start State)' : s;
+            const o2 = document.createElement('option'); o2.value = s; o2.textContent = s === '[*]' ? '[*] (End State)' : s;
             srcSel.appendChild(o1);
             tgtSel.appendChild(o2);
           });
