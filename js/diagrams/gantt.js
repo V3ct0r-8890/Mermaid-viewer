@@ -524,6 +524,8 @@ MultiDiagramVisualizer.register('gantt', function(code, nodesLayer, edgesLayer, 
       }
 
       taskRowG.addEventListener('mousedown', (e) => e.stopPropagation());
+      const allSectionOptions = sections.map(s => ({ value: s.name, label: s.name }));
+
       taskRowG.addEventListener('click', (e) => {
         e.stopPropagation();
         if (typeof AppController !== 'undefined' && AppController.instance) {
@@ -532,6 +534,7 @@ MultiDiagramVisualizer.register('gantt', function(code, nodesLayer, edgesLayer, 
             title: t.name,
             fields: [
               { key: 'name', label: 'Task Name', type: 'text', value: t.name },
+              { key: 'section', label: 'Section', type: 'select', value: sec.name, options: allSectionOptions },
               { key: 'status', label: 'Task Status', type: 'select', value: t.status || 'normal', options: [
                 { value: 'normal', label: 'Normal Task' },
                 { value: 'active', label: 'Active (In Progress)' },
@@ -539,9 +542,9 @@ MultiDiagramVisualizer.register('gantt', function(code, nodesLayer, edgesLayer, 
                 { value: 'crit', label: 'Critical Path (Red)' },
                 { value: 'milestone', label: 'Milestone (Diamond)' }
               ]},
-              { key: 'startDate', label: 'Start Date (YYYY-MM-DD)', type: 'text', value: t.startDate || '' },
-              { key: 'endDate', label: 'End Date (YYYY-MM-DD)', type: 'text', value: t.endDate || '' },
-              { key: 'dur', label: 'Duration (Days)', type: 'number', min: 1, step: 1, value: t.dur },
+              { key: 'startDate', label: 'Start Date (YYYY-MM-DD)', type: 'date', value: t.startDate || '' },
+              { key: 'dur', label: 'Duration (# of Days)', type: 'number', min: 1, step: 1, value: t.dur },
+              { key: 'endDate', label: 'End Date (YYYY-MM-DD)', type: 'date', value: t.endDate || '' },
               { key: 'font', label: '1. Font / Text Color', type: 'color', value: t.fontColor },
               { key: 'fill', label: '2. Node / Bar Fill Color', type: 'color', value: t.fillColor },
               { key: 'border', label: '3. Node / Bar Border Color', type: 'color', value: t.borderColor }
@@ -559,24 +562,48 @@ MultiDiagramVisualizer.register('gantt', function(code, nodesLayer, edgesLayer, 
               }
 
               MultiDiagramVisualizer.updateCodeLine((curCode) => {
-                const lines = curCode.split('\n');
+                let lines = curCode.split('\n');
                 const esc = t.name.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
-                const idx = lines.findIndex(l => !l.trim().startsWith('%%') && new RegExp(`^\\s*${esc}\\s*:`, 'i').test(l.trim()));
-                if (idx !== -1) {
-                  const lead = lines[idx].match(/^(\s*)/)[1] || '    ';
-                  const stPart = vals.status && vals.status !== 'normal' ? `${vals.status}, ` : '';
-                  const idPart = t.id ? `${t.id}, ` : '';
-                  let timePart = '';
-                  if (vals.startDate && vals.endDate) {
-                    timePart = `${vals.startDate}, ${vals.endDate}`;
-                  } else if (vals.startDate && vals.dur) {
-                    timePart = `${vals.startDate}, ${vals.dur}d`;
-                  } else if (vals.dur) {
-                    timePart = `${vals.dur}d`;
+                const oldIdx = lines.findIndex(l => !l.trim().startsWith('%%') && new RegExp(`^\\s*${esc}\\s*:`, 'i').test(l.trim()));
+
+                const lead = '    ';
+                const stPart = vals.status && vals.status !== 'normal' ? `${vals.status}, ` : '';
+                const idPart = t.id ? `${t.id}, ` : '';
+                let timePart = '';
+                if (vals.startDate && vals.endDate) {
+                  timePart = `${vals.startDate}, ${vals.endDate}`;
+                } else if (vals.startDate && vals.dur) {
+                  timePart = `${vals.startDate}, ${vals.dur}d`;
+                } else if (vals.dur) {
+                  timePart = `${vals.dur}d`;
+                } else {
+                  timePart = '5d';
+                }
+
+                const updatedStmt = `${lead}${vals.name.padEnd(20, ' ')} :${stPart}${idPart}${timePart}`;
+
+                if (oldIdx !== -1) {
+                  if (vals.section && vals.section !== sec.name) {
+                    // Remove line from old section
+                    lines.splice(oldIdx, 1);
+                    // Find target new section
+                    const targetSecIdx = lines.findIndex(l => l.trim().toLowerCase() === `section ${vals.section}`.toLowerCase());
+                    if (targetSecIdx !== -1) {
+                      let insertIdx = lines.length;
+                      for (let i = targetSecIdx + 1; i < lines.length; i++) {
+                        if (lines[i].trim().toLowerCase().startsWith('section ')) {
+                          insertIdx = i;
+                          break;
+                        }
+                      }
+                      lines.splice(insertIdx, 0, updatedStmt);
+                    } else {
+                      lines.push(`  section ${vals.section}`);
+                      lines.push(updatedStmt);
+                    }
                   } else {
-                    timePart = '5d';
+                    lines[oldIdx] = updatedStmt;
                   }
-                  lines[idx] = `${lead}${vals.name.padEnd(20, ' ')} :${stPart}${idPart}${timePart}`;
                 }
                 return lines.join('\n');
               });

@@ -800,9 +800,64 @@
                   numInp.value = f.value;
                   numInp.addEventListener('input', (e) => {
                     draftValues[f.key] = parseFloat(e.target.value) || 0;
+                    // Auto-calculate End Date when Duration changes
+                    if (f.key === 'dur' && inputElements['startDate'] && inputElements['endDate']) {
+                      const sVal = inputElements['startDate'].value;
+                      const dVal = parseFloat(e.target.value) || 1;
+                      if (sVal) {
+                        try {
+                          const d = new Date(sVal);
+                          if (!isNaN(d.getTime())) {
+                            d.setDate(d.getDate() + dVal);
+                            const calcEnd = d.toISOString().split('T')[0];
+                            inputElements['endDate'].value = calcEnd;
+                            draftValues['endDate'] = calcEnd;
+                          }
+                        } catch (err) {}
+                      }
+                    }
                   });
                   inputElements[f.key] = numInp;
                   grp.appendChild(numInp);
+                } else if (f.type === 'date') {
+                  const dateInp = document.createElement('input');
+                  dateInp.type = 'date';
+                  dateInp.className = 'prop-input';
+                  dateInp.value = f.value || '';
+                  dateInp.addEventListener('input', (e) => {
+                    draftValues[f.key] = e.target.value;
+                    // Auto-calculate End Date when Start Date changes
+                    if (f.key === 'startDate' && inputElements['dur'] && inputElements['endDate']) {
+                      const sVal = e.target.value;
+                      const dVal = parseFloat(inputElements['dur'].value) || 1;
+                      if (sVal) {
+                        try {
+                          const d = new Date(sVal);
+                          if (!isNaN(d.getTime())) {
+                            d.setDate(d.getDate() + dVal);
+                            const calcEnd = d.toISOString().split('T')[0];
+                            inputElements['endDate'].value = calcEnd;
+                            draftValues['endDate'] = calcEnd;
+                          }
+                        } catch (err) {}
+                      }
+                    } else if (f.key === 'endDate' && inputElements['startDate'] && inputElements['dur']) {
+                      // Auto-calculate Duration when End Date changes
+                      const sVal = inputElements['startDate'].value;
+                      const eVal = e.target.value;
+                      if (sVal && eVal) {
+                        const t1 = Date.parse(sVal);
+                        const t2 = Date.parse(eVal);
+                        if (!isNaN(t1) && !isNaN(t2) && t2 >= t1) {
+                          const calcDays = Math.max(1, Math.round((t2 - t1) / (1000 * 60 * 60 * 24)));
+                          inputElements['dur'].value = calcDays;
+                          draftValues['dur'] = calcDays;
+                        }
+                      }
+                    }
+                  });
+                  inputElements[f.key] = dateInp;
+                  grp.appendChild(dateInp);
                 } else {
                   const txt = document.createElement('input');
                   txt.type = 'text';
