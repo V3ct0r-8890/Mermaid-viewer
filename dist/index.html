@@ -4918,28 +4918,40 @@ MultiDiagramVisualizer.register('c4context', function(code, nodesLayer, edgesLay
 
           const selectThisRel = () => {
             if (typeof AppController !== 'undefined' && AppController.instance) {
+              const allElemOptions = elements.map(e => ({ value: e.id, label: `${e.id} (${e.label || e.id})` }));
               AppController.instance.selectVisualObject({
                 type: 'C4 Relationship',
                 title: `${rel.from} → ${rel.to}`,
                 fields: [
-                  { key: 'label', label: 'Action / Description', type: 'text', value: rel.label },
-                  { key: 'tech', label: 'Protocol / Technology (e.g. HTTPS, gRPC)', type: 'text', value: rel.tech || '' },
-                  { key: 'font', label: '1. Label Font Color', type: 'color', value: labelFont },
-                  { key: 'color', label: '2. Line / Arrow Color', type: 'color', value: lineColor }
+                  { key: 'from', label: 'From Element', type: 'select', value: rel.from, options: allElemOptions },
+                  { key: 'to', label: 'To Element', type: 'select', value: rel.to, options: allElemOptions },
+                  { key: 'label', label: 'Action / Call Label', type: 'text', value: rel.label },
+                  { key: 'type', label: 'Relationship Type (Includes Bi-directional)', type: 'select', value: rel.type || 'Rel', options: [
+                      { value: 'Rel', label: 'Forward (Rel)' },
+                      { value: 'BiRel', label: 'Bidirectional (BiRel)' },
+                      { value: 'Rel_Back', label: 'Reverse (Rel_Back)' },
+                      { value: 'Rel_Neighbor', label: 'Neighbor (Rel_Neighbor)' }
+                  ]},
+                  { key: 'tech', label: 'Technology / Protocol', type: 'text', value: rel.tech || '' },
+                  { key: 'color', label: 'Line Color', type: 'color', value: lineColor }
                 ],
                 onSave: (vals) => {
-                  const newKey = `${rel.from}->${rel.to}:${vals.label}`;
-                  MultiDiagramVisualizer.setColor(newKey, vals.color);
-                  MultiDiagramVisualizer.setColor(`${newKey}_font`, vals.font);
-                  MultiDiagramVisualizer.syncColorToCode(newKey, vals.color);
-                  MultiDiagramVisualizer.syncColorToCode(`${newKey}_font`, vals.font);
+                  const fromEl = vals.from || rel.from;
+                  const toEl = vals.to || rel.to;
+                  const rType = vals.type || 'Rel';
+                  const lbl = vals.label !== undefined ? vals.label : rel.label;
+                  const newKey = `${fromEl}->${toEl}:${lbl}`;
+                  if (vals.color) {
+                    MultiDiagramVisualizer.setColor(newKey, vals.color);
+                    MultiDiagramVisualizer.syncColorToCode(newKey, vals.color);
+                  }
                   MultiDiagramVisualizer.updateCodeLine((curCode) => {
                     const lines = curCode.split('\n');
-                    const idx = lines.findIndex(l => !l.trim().startsWith('%%') && new RegExp(`^\\s*(?:Rel|BiRel)\\s*\\(\\s*${rel.from}\\s*,\\s*${rel.to}`, 'i').test(l.trim()));
+                    const idx = lines.findIndex(l => !l.trim().startsWith('%%') && new RegExp(`^\\s*(?:Rel|BiRel|Rel_Back|Rel_Neighbor)\\s*\\(\\s*${rel.from}\\s*,\\s*${rel.to}`, 'i').test(l.trim()));
                     if (idx !== -1) {
                       const lead = lines[idx].match(/^(\s*)/)[1] || '  ';
                       const techStr = vals.tech ? `, "${vals.tech}"` : '';
-                      lines[idx] = `${lead}Rel(${rel.from}, ${rel.to}, "${vals.label}"${techStr})`;
+                      lines[idx] = `${lead}${rType}(${fromEl}, ${toEl}, "${lbl}"${techStr})`;
                     }
                     return lines.join('\n');
                   });
@@ -5041,15 +5053,17 @@ MultiDiagramVisualizer.register('c4context', function(code, nodesLayer, edgesLay
                 type: `C4 ${n.kind}`,
                 title: n.label,
                 fields: [
-                  { key: 'label', label: 'Display Name / Label', type: 'text', value: n.label },
-                  { key: 'kind', label: 'C4 Element Type', type: 'select', value: n.kind, options: [
-                    { value: 'Person', label: 'Person (Internal User / Actor)' },
-                    { value: 'Person_Ext', label: 'Person_Ext (External User / Actor)' },
-                    { value: 'System', label: 'System (Software System)' },
-                    { value: 'System_Ext', label: 'System_Ext (External System / SaaS)' },
-                    { value: 'SystemDb', label: 'SystemDb (Database / Storage)' },
-                    { value: 'Container', label: 'Container (App / API / Microservice)' },
-                    { value: 'Component', label: 'Component (Internal Module)' }
+                  { key: 'label', label: 'Display Label', type: 'text', value: n.label },
+                  { key: 'kind', label: 'Component Type', type: 'select', value: n.kind, options: [
+                      { value: 'Person', label: 'Person' },
+                      { value: 'Person_Ext', label: 'Person (External)' },
+                      { value: 'System', label: 'System' },
+                      { value: 'System_Ext', label: 'System (External)' },
+                      { value: 'SystemDb', label: 'System Database' },
+                      { value: 'SystemDb_Ext', label: 'System Database (External)' },
+                      { value: 'Container', label: 'Container' },
+                      { value: 'ContainerDb', label: 'Container Database' },
+                      { value: 'Component', label: 'Component' }
                   ]},
                   { key: 'desc', label: 'Description', type: 'textarea', rows: 3, value: n.desc || '' },
                   { key: 'font', label: '1. Font / Text Color', type: 'color', value: n.fontColor },
@@ -5473,6 +5487,8 @@ MultiDiagramVisualizer.register('classdiagram', function(code, nodesLayer, edges
       relG.appendChild(lbl);
     }
 
+    const allClassOptions = allClasses.map(c => ({ value: c.name, label: c.name }));
+
     relG.addEventListener('click', (e) => {
       e.stopPropagation();
       if (typeof AppController !== 'undefined' && AppController.instance) {
@@ -5480,14 +5496,24 @@ MultiDiagramVisualizer.register('classdiagram', function(code, nodesLayer, edges
           type: 'UML Relationship',
           title: linkTitle,
           fields: [
-            { key: 'type', label: 'Relationship Type', type: 'select', value: r.relType, options: [
-                { value: '<|--', label: 'Inheritance / Generalization (<|--)' },
-                { value: '*--', label: 'Composition (*--)' },
-                { value: 'o--', label: 'Aggregation (o--)' },
-                { value: '-->', label: 'Association (-->)' },
+            { key: 'src', label: 'From (Super / Source Class)', type: 'select', value: r.src, options: allClassOptions },
+            { key: 'tgt', label: 'To (Sub / Target Class)', type: 'select', value: r.tgt, options: allClassOptions },
+            { key: 'type', label: 'Relationship Type (Includes Bi-directional)', type: 'select', value: r.relType, options: [
+                { value: '<|--', label: 'Inheritance Super <|-- Sub' },
+                { value: '--|>', label: 'Inheritance Sub --|> Super' },
+                { value: '*--', label: 'Composition Whole *-- Part' },
+                { value: '--*', label: 'Composition Part --* Whole' },
+                { value: 'o--', label: 'Aggregation Whole o-- Part' },
+                { value: '--o', label: 'Aggregation Part --o Whole' },
+                { value: '-->', label: 'Forward Association (-->)' },
+                { value: '<--', label: 'Reverse Association (<--)' },
+                { value: '<-->', label: 'Bidirectional Association (<-->)' },
                 { value: '..|>', label: 'Realization (..|>)' },
-                { value: '..>', label: 'Dependency (..>)' }
+                { value: '..>', label: 'Dependency (..>)' },
+                { value: '--', label: 'Solid Link (--) ' },
+                { value: '..', label: 'Dashed Link (..)' }
             ]},
+            { key: 'label', label: 'Relationship Label / Multiplicity', type: 'text', value: r.label || '' },
             { key: 'color', label: 'Line & Arrow Color', type: 'color', value: rColor }
           ],
           onSave: (vals) => {
@@ -5498,7 +5524,10 @@ MultiDiagramVisualizer.register('classdiagram', function(code, nodesLayer, edges
               for (let i = 0; i < lines.length; i++) {
                 if (lines[i].includes(r.src) && lines[i].includes(r.tgt)) {
                   const lead = lines[i].match(/^\s*/)[0] || '    ';
-                  lines[i] = `${lead}${r.src} ${vals.type || '<|--'} ${r.tgt}${r.label ? ` : ${r.label}` : ''}`;
+                  const s = vals.src || r.src;
+                  const t = vals.tgt || r.tgt;
+                  const lbl = vals.label !== undefined ? vals.label : r.label;
+                  lines[i] = `${lead}${s} ${vals.type || r.relType} ${t}${lbl ? ` : ${lbl}` : ''}`;
                   break;
                 }
               }
@@ -10529,6 +10558,8 @@ MultiDiagramVisualizer.register('sequence', function(code, nodesLayer, edgesLaye
     textEl.textContent = msg.label;
     msgG.appendChild(textEl);
 
+    const allPartOptions = participants.map(p => ({ value: p.id, label: p.label ? `${p.id} (${p.label})` : p.id }));
+
     msgG.addEventListener('click', (e) => {
       e.stopPropagation();
       if (typeof AppController !== 'undefined' && AppController.instance) {
@@ -10536,12 +10567,16 @@ MultiDiagramVisualizer.register('sequence', function(code, nodesLayer, edgesLaye
           type: 'Sequence Message Link',
           title: msg.label || `${msg.src} -> ${msg.tgt}`,
           fields: [
+            { key: 'src', label: 'From (Sender)', type: 'select', value: msg.src, options: allPartOptions },
+            { key: 'tgt', label: 'To (Receiver)', type: 'select', value: msg.tgt, options: allPartOptions },
             { key: 'label', label: 'Message Label', type: 'text', value: msg.label },
-            { key: 'arrow', label: 'Arrowhead Style', type: 'select', value: msg.isDashed ? '-->>' : '->>', options: [
-                { value: '->>', label: 'Solid Synchronous (->>)' },
-                { value: '-->>', label: 'Dashed Return (-->>)' },
-                { value: '->', label: 'Open Asynchronous (->)' },
-                { value: '-->', label: 'Dashed Open (-->)' }
+            { key: 'arrow', label: 'Arrowhead Style (Includes Bi-directional)', type: 'select', value: msg.arrow || (msg.isDashed ? '-->>' : '->>'), options: [
+                { value: '->>', label: 'Forward Solid Synchronous (->>)' },
+                { value: '-->>', label: 'Forward Dashed Return (-->>)' },
+                { value: '->', label: 'Forward Open Async (->)' },
+                { value: '-->', label: 'Forward Dashed Open (-->)' },
+                { value: '<->', label: 'Bidirectional Open (<->)' },
+                { value: '<->>', label: 'Bidirectional Solid (<->>)' }
             ]},
             { key: 'color', label: 'Line / Arrow Color', type: 'color', value: linkColor }
           ],
@@ -10549,10 +10584,10 @@ MultiDiagramVisualizer.register('sequence', function(code, nodesLayer, edgesLaye
             MultiDiagramVisualizer.updateCodeLine((curCode) => {
               const lines = curCode.split('\n');
               for (let i = 0; i < lines.length; i++) {
-                const m = lines[i].match(new RegExp(`(${msg.src})\\s*(-->>|->>|-->|->)\\s*(${msg.tgt})\\s*:\\s*(.+)`));
+                const m = lines[i].match(new RegExp(`(${msg.src})\\s*(-->>|->>|-->|->|<->|<->>)\\s*(${msg.tgt})\\s*:\\s*(.+)`));
                 if (m) {
                   const lead = lines[i].match(/^\s*/)[0] || '    ';
-                  lines[i] = `${lead}${msg.src}${vals.arrow || msg.arrow}${msg.tgt}: ${vals.label}`;
+                  lines[i] = `${lead}${vals.src || msg.src}${vals.arrow || msg.arrow}${vals.tgt || msg.tgt}: ${vals.label || msg.label}`;
                   break;
                 }
               }
@@ -11176,6 +11211,20 @@ MultiDiagramVisualizer.register('statediagram', function(code, nodesLayer, edges
       trG.appendChild(lblG);
     }
 
+    const allStateOptions = stateDefs.filter(s => s.type !== 'composite').map(s => ({
+      value: (s.id === 'start_main' || s.id.startsWith('active_start_')) ? '[*]' : (s.id.startsWith('end_') ? '[*]' : s.id),
+      label: (s.id === 'start_main' || s.id.startsWith('active_start_')) ? '[*] (Start State)' : (s.id.startsWith('end_') ? '[*] (End State)' : s.label || s.id)
+    }));
+    // Remove duplicate [*] options
+    const uniqueStateOptions = [];
+    const seenOptVals = new Set();
+    allStateOptions.forEach(o => {
+      if (!seenOptVals.has(o.value)) {
+        seenOptVals.add(o.value);
+        uniqueStateOptions.push(o);
+      }
+    });
+
     // Interactive Inspector selection for Transition Link
     trG.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -11184,7 +11233,16 @@ MultiDiagramVisualizer.register('statediagram', function(code, nodesLayer, edges
           type: 'State Transition Link',
           title: trTitle,
           fields: [
+            { key: 'src', label: 'From State', type: 'select', value: sName, options: uniqueStateOptions },
+            { key: 'tgt', label: 'To State', type: 'select', value: tName, options: uniqueStateOptions },
             { key: 'label', label: 'Condition / Action Label', type: 'text', value: tr.label || '' },
+            { key: 'type', label: 'Transition Style (Includes Bi-directional)', type: 'select', value: '-->', options: [
+                { value: '-->', label: 'Forward Transition (-->)' },
+                { value: '<--', label: 'Reverse Transition (<--)' },
+                { value: '<-->', label: 'Bidirectional Transition (<-->)' },
+                { value: '-.->', label: 'Dotted Transition (-.->)' },
+                { value: '---', label: 'Open Line (---)' }
+            ]},
             { key: 'color', label: '1. Line & Arrow Color', type: 'color', value: trColor },
             { key: 'width', label: '2. Line Thickness', type: 'select', value: trWidth, options: [
                 { value: '1.2', label: 'Thin (1.2px)' },
@@ -11214,7 +11272,10 @@ MultiDiagramVisualizer.register('statediagram', function(code, nodesLayer, edges
               for (let i = 0; i < lines.length; i++) {
                 if (lines[i].includes(sName) && lines[i].includes(tName) && lines[i].includes('-->')) {
                   const lead = lines[i].match(/^\s*/)[0] || '    ';
-                  lines[i] = vals.label ? `${lead}${sName} --> ${tName} : ${vals.label}` : `${lead}${sName} --> ${tName}`;
+                  const fromS = vals.src || sName;
+                  const toS = vals.tgt || tName;
+                  const arr = vals.type || '-->';
+                  lines[i] = vals.label ? `${lead}${fromS} ${arr} ${toS} : ${vals.label}` : `${lead}${fromS} ${arr} ${toS}`;
                   break;
                 }
               }

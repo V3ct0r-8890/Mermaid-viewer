@@ -351,6 +351,8 @@ MultiDiagramVisualizer.register('sequence', function(code, nodesLayer, edgesLaye
     textEl.textContent = msg.label;
     msgG.appendChild(textEl);
 
+    const allPartOptions = participants.map(p => ({ value: p.id, label: p.label ? `${p.id} (${p.label})` : p.id }));
+
     msgG.addEventListener('click', (e) => {
       e.stopPropagation();
       if (typeof AppController !== 'undefined' && AppController.instance) {
@@ -358,12 +360,16 @@ MultiDiagramVisualizer.register('sequence', function(code, nodesLayer, edgesLaye
           type: 'Sequence Message Link',
           title: msg.label || `${msg.src} -> ${msg.tgt}`,
           fields: [
+            { key: 'src', label: 'From (Sender)', type: 'select', value: msg.src, options: allPartOptions },
+            { key: 'tgt', label: 'To (Receiver)', type: 'select', value: msg.tgt, options: allPartOptions },
             { key: 'label', label: 'Message Label', type: 'text', value: msg.label },
-            { key: 'arrow', label: 'Arrowhead Style', type: 'select', value: msg.isDashed ? '-->>' : '->>', options: [
-                { value: '->>', label: 'Solid Synchronous (->>)' },
-                { value: '-->>', label: 'Dashed Return (-->>)' },
-                { value: '->', label: 'Open Asynchronous (->)' },
-                { value: '-->', label: 'Dashed Open (-->)' }
+            { key: 'arrow', label: 'Arrowhead Style (Includes Bi-directional)', type: 'select', value: msg.arrow || (msg.isDashed ? '-->>' : '->>'), options: [
+                { value: '->>', label: 'Forward Solid Synchronous (->>)' },
+                { value: '-->>', label: 'Forward Dashed Return (-->>)' },
+                { value: '->', label: 'Forward Open Async (->)' },
+                { value: '-->', label: 'Forward Dashed Open (-->)' },
+                { value: '<->', label: 'Bidirectional Open (<->)' },
+                { value: '<->>', label: 'Bidirectional Solid (<->>)' }
             ]},
             { key: 'color', label: 'Line / Arrow Color', type: 'color', value: linkColor }
           ],
@@ -371,10 +377,10 @@ MultiDiagramVisualizer.register('sequence', function(code, nodesLayer, edgesLaye
             MultiDiagramVisualizer.updateCodeLine((curCode) => {
               const lines = curCode.split('\n');
               for (let i = 0; i < lines.length; i++) {
-                const m = lines[i].match(new RegExp(`(${msg.src})\\s*(-->>|->>|-->|->)\\s*(${msg.tgt})\\s*:\\s*(.+)`));
+                const m = lines[i].match(new RegExp(`(${msg.src})\\s*(-->>|->>|-->|->|<->|<->>)\\s*(${msg.tgt})\\s*:\\s*(.+)`));
                 if (m) {
                   const lead = lines[i].match(/^\s*/)[0] || '    ';
-                  lines[i] = `${lead}${msg.src}${vals.arrow || msg.arrow}${msg.tgt}: ${vals.label}`;
+                  lines[i] = `${lead}${vals.src || msg.src}${vals.arrow || msg.arrow}${vals.tgt || msg.tgt}: ${vals.label || msg.label}`;
                   break;
                 }
               }

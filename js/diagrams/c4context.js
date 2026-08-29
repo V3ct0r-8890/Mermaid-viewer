@@ -293,28 +293,40 @@ MultiDiagramVisualizer.register('c4context', function(code, nodesLayer, edgesLay
 
           const selectThisRel = () => {
             if (typeof AppController !== 'undefined' && AppController.instance) {
+              const allElemOptions = elements.map(e => ({ value: e.id, label: `${e.id} (${e.label || e.id})` }));
               AppController.instance.selectVisualObject({
                 type: 'C4 Relationship',
                 title: `${rel.from} → ${rel.to}`,
                 fields: [
-                  { key: 'label', label: 'Action / Description', type: 'text', value: rel.label },
-                  { key: 'tech', label: 'Protocol / Technology (e.g. HTTPS, gRPC)', type: 'text', value: rel.tech || '' },
-                  { key: 'font', label: '1. Label Font Color', type: 'color', value: labelFont },
-                  { key: 'color', label: '2. Line / Arrow Color', type: 'color', value: lineColor }
+                  { key: 'from', label: 'From Element', type: 'select', value: rel.from, options: allElemOptions },
+                  { key: 'to', label: 'To Element', type: 'select', value: rel.to, options: allElemOptions },
+                  { key: 'label', label: 'Action / Call Label', type: 'text', value: rel.label },
+                  { key: 'type', label: 'Relationship Type (Includes Bi-directional)', type: 'select', value: rel.type || 'Rel', options: [
+                      { value: 'Rel', label: 'Forward (Rel)' },
+                      { value: 'BiRel', label: 'Bidirectional (BiRel)' },
+                      { value: 'Rel_Back', label: 'Reverse (Rel_Back)' },
+                      { value: 'Rel_Neighbor', label: 'Neighbor (Rel_Neighbor)' }
+                  ]},
+                  { key: 'tech', label: 'Technology / Protocol', type: 'text', value: rel.tech || '' },
+                  { key: 'color', label: 'Line Color', type: 'color', value: lineColor }
                 ],
                 onSave: (vals) => {
-                  const newKey = `${rel.from}->${rel.to}:${vals.label}`;
-                  MultiDiagramVisualizer.setColor(newKey, vals.color);
-                  MultiDiagramVisualizer.setColor(`${newKey}_font`, vals.font);
-                  MultiDiagramVisualizer.syncColorToCode(newKey, vals.color);
-                  MultiDiagramVisualizer.syncColorToCode(`${newKey}_font`, vals.font);
+                  const fromEl = vals.from || rel.from;
+                  const toEl = vals.to || rel.to;
+                  const rType = vals.type || 'Rel';
+                  const lbl = vals.label !== undefined ? vals.label : rel.label;
+                  const newKey = `${fromEl}->${toEl}:${lbl}`;
+                  if (vals.color) {
+                    MultiDiagramVisualizer.setColor(newKey, vals.color);
+                    MultiDiagramVisualizer.syncColorToCode(newKey, vals.color);
+                  }
                   MultiDiagramVisualizer.updateCodeLine((curCode) => {
                     const lines = curCode.split('\n');
-                    const idx = lines.findIndex(l => !l.trim().startsWith('%%') && new RegExp(`^\\s*(?:Rel|BiRel)\\s*\\(\\s*${rel.from}\\s*,\\s*${rel.to}`, 'i').test(l.trim()));
+                    const idx = lines.findIndex(l => !l.trim().startsWith('%%') && new RegExp(`^\\s*(?:Rel|BiRel|Rel_Back|Rel_Neighbor)\\s*\\(\\s*${rel.from}\\s*,\\s*${rel.to}`, 'i').test(l.trim()));
                     if (idx !== -1) {
                       const lead = lines[idx].match(/^(\s*)/)[1] || '  ';
                       const techStr = vals.tech ? `, "${vals.tech}"` : '';
-                      lines[idx] = `${lead}Rel(${rel.from}, ${rel.to}, "${vals.label}"${techStr})`;
+                      lines[idx] = `${lead}${rType}(${fromEl}, ${toEl}, "${lbl}"${techStr})`;
                     }
                     return lines.join('\n');
                   });
@@ -416,15 +428,17 @@ MultiDiagramVisualizer.register('c4context', function(code, nodesLayer, edgesLay
                 type: `C4 ${n.kind}`,
                 title: n.label,
                 fields: [
-                  { key: 'label', label: 'Display Name / Label', type: 'text', value: n.label },
-                  { key: 'kind', label: 'C4 Element Type', type: 'select', value: n.kind, options: [
-                    { value: 'Person', label: 'Person (Internal User / Actor)' },
-                    { value: 'Person_Ext', label: 'Person_Ext (External User / Actor)' },
-                    { value: 'System', label: 'System (Software System)' },
-                    { value: 'System_Ext', label: 'System_Ext (External System / SaaS)' },
-                    { value: 'SystemDb', label: 'SystemDb (Database / Storage)' },
-                    { value: 'Container', label: 'Container (App / API / Microservice)' },
-                    { value: 'Component', label: 'Component (Internal Module)' }
+                  { key: 'label', label: 'Display Label', type: 'text', value: n.label },
+                  { key: 'kind', label: 'Component Type', type: 'select', value: n.kind, options: [
+                      { value: 'Person', label: 'Person' },
+                      { value: 'Person_Ext', label: 'Person (External)' },
+                      { value: 'System', label: 'System' },
+                      { value: 'System_Ext', label: 'System (External)' },
+                      { value: 'SystemDb', label: 'System Database' },
+                      { value: 'SystemDb_Ext', label: 'System Database (External)' },
+                      { value: 'Container', label: 'Container' },
+                      { value: 'ContainerDb', label: 'Container Database' },
+                      { value: 'Component', label: 'Component' }
                   ]},
                   { key: 'desc', label: 'Description', type: 'textarea', rows: 3, value: n.desc || '' },
                   { key: 'font', label: '1. Font / Text Color', type: 'color', value: n.fontColor },

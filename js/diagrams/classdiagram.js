@@ -380,6 +380,8 @@ MultiDiagramVisualizer.register('classdiagram', function(code, nodesLayer, edges
       relG.appendChild(lbl);
     }
 
+    const allClassOptions = allClasses.map(c => ({ value: c.name, label: c.name }));
+
     relG.addEventListener('click', (e) => {
       e.stopPropagation();
       if (typeof AppController !== 'undefined' && AppController.instance) {
@@ -387,14 +389,24 @@ MultiDiagramVisualizer.register('classdiagram', function(code, nodesLayer, edges
           type: 'UML Relationship',
           title: linkTitle,
           fields: [
-            { key: 'type', label: 'Relationship Type', type: 'select', value: r.relType, options: [
-                { value: '<|--', label: 'Inheritance / Generalization (<|--)' },
-                { value: '*--', label: 'Composition (*--)' },
-                { value: 'o--', label: 'Aggregation (o--)' },
-                { value: '-->', label: 'Association (-->)' },
+            { key: 'src', label: 'From (Super / Source Class)', type: 'select', value: r.src, options: allClassOptions },
+            { key: 'tgt', label: 'To (Sub / Target Class)', type: 'select', value: r.tgt, options: allClassOptions },
+            { key: 'type', label: 'Relationship Type (Includes Bi-directional)', type: 'select', value: r.relType, options: [
+                { value: '<|--', label: 'Inheritance Super <|-- Sub' },
+                { value: '--|>', label: 'Inheritance Sub --|> Super' },
+                { value: '*--', label: 'Composition Whole *-- Part' },
+                { value: '--*', label: 'Composition Part --* Whole' },
+                { value: 'o--', label: 'Aggregation Whole o-- Part' },
+                { value: '--o', label: 'Aggregation Part --o Whole' },
+                { value: '-->', label: 'Forward Association (-->)' },
+                { value: '<--', label: 'Reverse Association (<--)' },
+                { value: '<-->', label: 'Bidirectional Association (<-->)' },
                 { value: '..|>', label: 'Realization (..|>)' },
-                { value: '..>', label: 'Dependency (..>)' }
+                { value: '..>', label: 'Dependency (..>)' },
+                { value: '--', label: 'Solid Link (--) ' },
+                { value: '..', label: 'Dashed Link (..)' }
             ]},
+            { key: 'label', label: 'Relationship Label / Multiplicity', type: 'text', value: r.label || '' },
             { key: 'color', label: 'Line & Arrow Color', type: 'color', value: rColor }
           ],
           onSave: (vals) => {
@@ -405,7 +417,10 @@ MultiDiagramVisualizer.register('classdiagram', function(code, nodesLayer, edges
               for (let i = 0; i < lines.length; i++) {
                 if (lines[i].includes(r.src) && lines[i].includes(r.tgt)) {
                   const lead = lines[i].match(/^\s*/)[0] || '    ';
-                  lines[i] = `${lead}${r.src} ${vals.type || '<|--'} ${r.tgt}${r.label ? ` : ${r.label}` : ''}`;
+                  const s = vals.src || r.src;
+                  const t = vals.tgt || r.tgt;
+                  const lbl = vals.label !== undefined ? vals.label : r.label;
+                  lines[i] = `${lead}${s} ${vals.type || r.relType} ${t}${lbl ? ` : ${lbl}` : ''}`;
                   break;
                 }
               }

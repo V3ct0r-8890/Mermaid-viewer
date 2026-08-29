@@ -471,6 +471,20 @@ MultiDiagramVisualizer.register('statediagram', function(code, nodesLayer, edges
       trG.appendChild(lblG);
     }
 
+    const allStateOptions = stateDefs.filter(s => s.type !== 'composite').map(s => ({
+      value: (s.id === 'start_main' || s.id.startsWith('active_start_')) ? '[*]' : (s.id.startsWith('end_') ? '[*]' : s.id),
+      label: (s.id === 'start_main' || s.id.startsWith('active_start_')) ? '[*] (Start State)' : (s.id.startsWith('end_') ? '[*] (End State)' : s.label || s.id)
+    }));
+    // Remove duplicate [*] options
+    const uniqueStateOptions = [];
+    const seenOptVals = new Set();
+    allStateOptions.forEach(o => {
+      if (!seenOptVals.has(o.value)) {
+        seenOptVals.add(o.value);
+        uniqueStateOptions.push(o);
+      }
+    });
+
     // Interactive Inspector selection for Transition Link
     trG.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -479,7 +493,16 @@ MultiDiagramVisualizer.register('statediagram', function(code, nodesLayer, edges
           type: 'State Transition Link',
           title: trTitle,
           fields: [
+            { key: 'src', label: 'From State', type: 'select', value: sName, options: uniqueStateOptions },
+            { key: 'tgt', label: 'To State', type: 'select', value: tName, options: uniqueStateOptions },
             { key: 'label', label: 'Condition / Action Label', type: 'text', value: tr.label || '' },
+            { key: 'type', label: 'Transition Style (Includes Bi-directional)', type: 'select', value: '-->', options: [
+                { value: '-->', label: 'Forward Transition (-->)' },
+                { value: '<--', label: 'Reverse Transition (<--)' },
+                { value: '<-->', label: 'Bidirectional Transition (<-->)' },
+                { value: '-.->', label: 'Dotted Transition (-.->)' },
+                { value: '---', label: 'Open Line (---)' }
+            ]},
             { key: 'color', label: '1. Line & Arrow Color', type: 'color', value: trColor },
             { key: 'width', label: '2. Line Thickness', type: 'select', value: trWidth, options: [
                 { value: '1.2', label: 'Thin (1.2px)' },
@@ -509,7 +532,10 @@ MultiDiagramVisualizer.register('statediagram', function(code, nodesLayer, edges
               for (let i = 0; i < lines.length; i++) {
                 if (lines[i].includes(sName) && lines[i].includes(tName) && lines[i].includes('-->')) {
                   const lead = lines[i].match(/^\s*/)[0] || '    ';
-                  lines[i] = vals.label ? `${lead}${sName} --> ${tName} : ${vals.label}` : `${lead}${sName} --> ${tName}`;
+                  const fromS = vals.src || sName;
+                  const toS = vals.tgt || tName;
+                  const arr = vals.type || '-->';
+                  lines[i] = vals.label ? `${lead}${fromS} ${arr} ${toS} : ${vals.label}` : `${lead}${fromS} ${arr} ${toS}`;
                   break;
                 }
               }
