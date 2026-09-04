@@ -4686,14 +4686,15 @@ MultiDiagramVisualizer.register('c4context', function(code, nodesLayer, edgesLay
             return;
           }
 
-          // Relationship match: Rel(from, to, "label", "tech") or BiRel(...)
-          const relMatch = line.match(/^(?:Rel|BiRel)\s*\(\s*([A-Za-z0-9_]+)\s*,\s*([A-Za-z0-9_]+)\s*,\s*"([^"]+)"(?:\s*,\s*"([^"]*)")?\s*\)/i);
+          // Relationship match: Rel(from, to, "label", "tech") / BiRel(...) / Rel_Back(...) / Rel_Neighbor(...)
+          const relMatch = line.match(/^(Rel|BiRel|Rel_Back|Rel_Neighbor)\s*\(\s*([A-Za-z0-9_]+)\s*,\s*([A-Za-z0-9_]+)\s*,\s*"([^"]+)"(?:\s*,\s*"([^"]*)")?\s*\)/i);
           if (relMatch) {
-            const from = relMatch[1];
-            const to = relMatch[2];
-            const rLabel = relMatch[3];
-            const rTech = relMatch[4] || '';
-            relationships.push({ from, to, label: rLabel, tech: rTech });
+            const rType = relMatch[1];
+            const from = relMatch[2];
+            const to = relMatch[3];
+            const rLabel = relMatch[4];
+            const rTech = relMatch[5] || '';
+            relationships.push({ from, to, label: rLabel, tech: rTech, type: rType });
           }
         });
 
@@ -4758,6 +4759,7 @@ MultiDiagramVisualizer.register('c4context', function(code, nodesLayer, edgesLay
           const isSelRel = (rel.label === selTitle || `${rel.from} → ${rel.to}` === selTitle);
           const lineColor = MultiDiagramVisualizer.getColor(relKey, MultiDiagramVisualizer.getColor(`${rel.from}->${rel.to}`, linkColor));
           const labelFont = MultiDiagramVisualizer.getColor(`${relKey}_font`, textColor);
+          const lineWidth = parseFloat(MultiDiagramVisualizer.getColor(`${relKey}_width`, '2')) || 2;
 
           let sx, sy, tx, ty;
           let cx1, cy1, cx2, cy2;
@@ -4850,22 +4852,35 @@ MultiDiagramVisualizer.register('c4context', function(code, nodesLayer, edgesLay
           path.setAttribute('d', pathD);
           path.setAttribute('fill', 'none');
           path.setAttribute('stroke', isSelRel ? 'var(--selection-color)' : lineColor);
-          path.setAttribute('stroke-width', isSelRel ? '3.5' : '2');
+          path.setAttribute('stroke-width', isSelRel ? `${lineWidth + 1.5}` : `${lineWidth}`);
           path.setAttribute('stroke-dasharray', '5,4');
           if (isSelRel) path.style.filter = selGlow;
           relG.appendChild(path);
 
-          // Arrowhead
-          const arrow = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
-          if (isHorizontal) {
-            if (tx < sx) arrow.setAttribute('points', `${tx + 7},${ty - 5} ${tx},${ty} ${tx + 7},${ty + 5}`);
-            else arrow.setAttribute('points', `${tx - 7},${ty - 5} ${tx},${ty} ${tx - 7},${ty + 5}`);
-          } else {
-            if (ty > sy) arrow.setAttribute('points', `${tx - 5},${ty - 7} ${tx},${ty} ${tx + 5},${ty - 7}`);
-            else arrow.setAttribute('points', `${tx - 5},${ty + 7} ${tx},${ty} ${tx + 5},${ty + 7}`);
+          // Arrowhead(s) — direction depends on relationship type:
+          // Rel/Rel_Neighbor: target only. BiRel: both ends. Rel_Back: source only (reversed).
+          const makeArrowPoints = (tipX, tipY, dirX, dirY) => {
+            const len = Math.hypot(dirX, dirY) || 1;
+            const ux = dirX / len, uy = dirY / len;
+            const perpX = -uy, perpY = ux;
+            const backX = tipX - ux * 7, backY = tipY - uy * 7;
+            return `${backX + perpX * 5},${backY + perpY * 5} ${tipX},${tipY} ${backX - perpX * 5},${backY - perpY * 5}`;
+          };
+          const arrowFill = isSelRel ? 'var(--selection-color)' : lineColor;
+          const showTargetArrow = rel.type !== 'Rel_Back';
+          const showSourceArrow = rel.type === 'BiRel' || rel.type === 'Rel_Back';
+          if (showTargetArrow) {
+            const arrow = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+            arrow.setAttribute('points', makeArrowPoints(tx, ty, tx - sx, ty - sy));
+            arrow.setAttribute('fill', arrowFill);
+            relG.appendChild(arrow);
           }
-          arrow.setAttribute('fill', isSelRel ? 'var(--selection-color)' : lineColor);
-          relG.appendChild(arrow);
+          if (showSourceArrow) {
+            const arrowBack = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+            arrowBack.setAttribute('points', makeArrowPoints(sx, sy, sx - tx, sy - ty));
+            arrowBack.setAttribute('fill', arrowFill);
+            relG.appendChild(arrowBack);
+          }
 
           // Compact 2-Line Badge
           const cleanLabel = rel.label.length > 28 ? rel.label.substring(0, 25) + '...' : rel.label;
@@ -4933,7 +4948,13 @@ MultiDiagramVisualizer.register('c4context', function(code, nodesLayer, edgesLay
                       { value: 'Rel_Neighbor', label: 'Neighbor (Rel_Neighbor)' }
                   ]},
                   { key: 'tech', label: 'Technology / Protocol', type: 'text', value: rel.tech || '' },
-                  { key: 'color', label: 'Line Color', type: 'color', value: lineColor }
+                  { key: 'color', label: 'Line Color', type: 'color', value: lineColor },
+                  { key: 'width', label: 'Line Thickness', type: 'select', value: String(lineWidth), options: [
+                      { value: '1.5', label: 'Thin (1.5px)' },
+                      { value: '2', label: 'Medium (2px - Default)' },
+                      { value: '3', label: 'Thick (3px)' },
+                      { value: '4', label: 'Heavy (4px)' }
+                  ]}
                 ],
                 onSave: (vals) => {
                   const fromEl = vals.from || rel.from;
@@ -4944,6 +4965,9 @@ MultiDiagramVisualizer.register('c4context', function(code, nodesLayer, edgesLay
                   if (vals.color) {
                     MultiDiagramVisualizer.setColor(newKey, vals.color);
                     MultiDiagramVisualizer.syncColorToCode(newKey, vals.color);
+                  }
+                  if (vals.width) {
+                    MultiDiagramVisualizer.setColor(`${newKey}_width`, vals.width);
                   }
                   MultiDiagramVisualizer.updateCodeLine((curCode) => {
                     const lines = curCode.split('\n');
