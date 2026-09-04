@@ -4933,7 +4933,7 @@ MultiDiagramVisualizer.register('c4context', function(code, nodesLayer, edgesLay
 
           const selectThisRel = () => {
             if (typeof AppController !== 'undefined' && AppController.instance) {
-              const allElemOptions = elements.map(e => ({ value: e.id, label: `${e.id} (${e.label || e.id})` }));
+              const allElemOptions = Array.from(nodes.values()).map(e => ({ value: e.alias, label: `${e.alias} (${e.label || e.alias})` }));
               AppController.instance.selectVisualObject({
                 type: 'C4 Relationship',
                 title: `${rel.from} → ${rel.to}`,
