@@ -75,6 +75,6 @@ console.log(`\n=== TEST SUMMARY: ${passedCount} PASSED, ${failedCount} FAILED ==
 if (failedCount > 0) {
   process.exit(1);
 } else {
-  console.log('All 15 diagram suites passed regression testing successfully!\n');
+  console.log(`All ${DIAGRAM_TEMPLATES.length} diagram suites passed regression testing successfully!\n`);
   process.exit(0);
 }

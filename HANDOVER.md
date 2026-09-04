@@ -5,11 +5,11 @@
 **Mermaid Viewer & Visual Editor** is an interactive, browser-based visual design and editing environment for Mermaid diagrams. It offers bidirectional synchronization between graphical drag-and-drop / property-based editing and standard Mermaid text-based syntax.
 
 ### Dual-Architecture Engine:
-1. **Flowchart Canvas (`js/graph.js`, `js/renderer.js`)**:
+1. **Flowchart Canvas (`js/model.js`, `js/layout.js`, `js/generator.js`)**:
    - Handles standard Flowcharts (`flowchart TD`, `flowchart LR`).
    - Features node dragging, auto-grid snapping, SVG edge curves (Bezier, Linear, Step), bidirectional arrowheads, and real-time syntax generation.
-2. **Extensible Multi-Diagram Visualizer (`js/multiDiagramVisualizer.js`, `js/diagrams/*.js`)**:
-   - A modular registry architecture supporting 14+ specialized diagram types with dynamic parsing, interactive node selection, live color swatches, and inline inspector editing.
+2. **Extensible Multi-Diagram Visualizer (`js/visualizer.js`, `js/diagrams/*.js`)**:
+   - A modular registry architecture (`MultiDiagramVisualizer.register(...)`) supporting 14+ specialized diagram types with dynamic parsing, interactive node selection, live color swatches, and inline inspector editing.
 
 ---
 
@@ -68,16 +68,18 @@ Mermaid-viewer/
 ├── dist/
 │   └── index.html              # Standalone zero-dependency distribution bundle
 ├── css/
-│   ├── main.css                # Global layout, variables, themes
-│   ├── panels.css              # Left sidebar, toolbar, right code editor
-│   └── modals.css              # Universal wizards & popup styles
+│   └── styles.css              # All layout, variables, themes, panels & modal styles
 └── js/
     ├── app.js                  # AppController, Inspector panel, Wizards, Code sync
-    ├── graph.js                # Graph model (Nodes & Edges) for Flowcharts
-    ├── renderer.js             # SVG rendering engine for Flowcharts
-    ├── multiDiagramVisualizer.js # Multi-diagram registry & base interactive visualizer
+    ├── model.js                # GraphModel & ValidationEngine (Nodes & Edges) for Flowcharts
+    ├── layout.js                # Auto-layout (TD/LR grid placement) for Flowcharts
+    ├── generator.js            # Mermaid syntax generation from the Flowchart graph model
+    ├── visualizer.js           # MultiDiagramVisualizer registry & base interactive visualizer
+    ├── parser.js                # Mermaid text -> GraphModel parser
+    ├── highlighter.js          # Mermaid code editor syntax highlighting
+    ├── export.js                # PNG/SVG/JSON/MMD export
     ├── templates.js            # Default templates for all 16 diagram types
-    ├── utils.js                # Helper functions (colors, snapping, UIDs, toasts)
+    ├── utils.js                # Helper functions (colors, snapping, UIDs, toasts, ThemeManager, HistoryManager)
     └── diagrams/               # Specialized diagram visualizers
         ├── classdiagram.js     # UML Class cards & relationship renderers
         ├── statediagram.js     # State v2 containers, choices & stepped transitions
