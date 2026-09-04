@@ -363,10 +363,13 @@ MultiDiagramVisualizer.register('erdiagram', function(code, nodesLayer, edgesLay
     relG.addEventListener('click', (e) => {
       e.stopPropagation();
       if (typeof AppController !== 'undefined' && AppController.instance) {
+        const allEntityOptions = Array.from(entities.values()).map(en => ({ value: en.name, label: en.name }));
         AppController.instance.selectVisualObject({
           type: 'ER Relationship Link',
           title: relTitle,
           fields: [
+            { key: 'src', label: 'Entity 1 (From)', type: 'select', value: rel.src, options: allEntityOptions },
+            { key: 'tgt', label: 'Entity 2 (To)', type: 'select', value: rel.tgt, options: allEntityOptions },
             { key: 'label', label: 'Relationship Verb / Label', type: 'text', value: rel.label },
             { key: 'card', label: 'Cardinality', type: 'select', value: rel.card, options: [
                 { value: '||--o{', label: 'One to Zero-or-More (||--o{)' },
@@ -385,16 +388,19 @@ MultiDiagramVisualizer.register('erdiagram', function(code, nodesLayer, edgesLay
             ]}
           ],
           onSave: (vals) => {
-            MultiDiagramVisualizer.setColor(relKey, vals.color);
-            MultiDiagramVisualizer.setColor(`${relKey}_width`, vals.width);
-            MultiDiagramVisualizer.syncColorToCode(relKey, vals.color);
+            const newSrc = vals.src || rel.src;
+            const newTgt = vals.tgt || rel.tgt;
+            const newRelKey = `rel_${newSrc}_to_${newTgt}`;
+            MultiDiagramVisualizer.setColor(newRelKey, vals.color);
+            MultiDiagramVisualizer.setColor(`${newRelKey}_width`, vals.width);
+            MultiDiagramVisualizer.syncColorToCode(newRelKey, vals.color);
             MultiDiagramVisualizer.updateCodeLine((curCode) => {
               const lines = curCode.split('\n');
               for (let i = 0; i < lines.length; i++) {
                 if (lines[i].includes(rel.src) && lines[i].includes(rel.tgt) && (lines[i].includes('--') || lines[i].includes('..'))) {
                   const lead = lines[i].match(/^\s*/)[0] || '    ';
                   const labelEsc = vals.label.includes(' ') ? `"${vals.label}"` : vals.label;
-                  lines[i] = `${lead}${rel.src} ${vals.card} ${rel.tgt} : ${labelEsc}`;
+                  lines[i] = `${lead}${newSrc} ${vals.card} ${newTgt} : ${labelEsc}`;
                   break;
                 }
               }

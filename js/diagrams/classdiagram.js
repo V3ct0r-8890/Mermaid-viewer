@@ -407,10 +407,17 @@ MultiDiagramVisualizer.register('classdiagram', function(code, nodesLayer, edges
                 { value: '..', label: 'Dashed Link (..)' }
             ]},
             { key: 'label', label: 'Relationship Label / Multiplicity', type: 'text', value: r.label || '' },
-            { key: 'color', label: 'Line & Arrow Color', type: 'color', value: rColor }
+            { key: 'color', label: 'Line & Arrow Color', type: 'color', value: rColor },
+            { key: 'width', label: 'Line Thickness', type: 'select', value: rWidth, options: [
+                { value: '1', label: 'Thin (1px)' },
+                { value: '1.5', label: 'Medium (1.5px - Default)' },
+                { value: '2.2', label: 'Thick (2.2px)' },
+                { value: '3', label: 'Heavy (3px)' }
+            ]}
           ],
           onSave: (vals) => {
             MultiDiagramVisualizer.setColor(linkKey, vals.color);
+            MultiDiagramVisualizer.setColor(`${linkKey}_width`, vals.width);
             MultiDiagramVisualizer.syncColorToCode(linkKey, vals.color);
             MultiDiagramVisualizer.updateCodeLine((curCode) => {
               const lines = curCode.split('\n');

@@ -284,6 +284,10 @@ MultiDiagramVisualizer.register('sequence', function(code, nodesLayer, edgesLaye
     const y = msg.y;
     const isLeftToRight = x2 > x1;
 
+    const msgKey = `${msg.src}->${msg.tgt}:${msg.label}`;
+    const msgColor = MultiDiagramVisualizer.getColor(msgKey, linkColor);
+    const msgWidth = MultiDiagramVisualizer.getColor(`${msgKey}_width`, '1.4');
+
     const msgG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
 
     const hitbox = document.createElementNS('http://www.w3.org/2000/svg', 'line');
@@ -301,8 +305,8 @@ MultiDiagramVisualizer.register('sequence', function(code, nodesLayer, edgesLaye
     line.setAttribute('y1', `${y}`);
     line.setAttribute('x2', `${x2}`);
     line.setAttribute('y2', `${y}`);
-    line.setAttribute('stroke', linkColor);
-    line.setAttribute('stroke-width', '1.4');
+    line.setAttribute('stroke', msgColor);
+    line.setAttribute('stroke-width', msgWidth);
     if (msg.isDashed) line.setAttribute('stroke-dasharray', '4 3');
     msgG.appendChild(line);
 
@@ -313,8 +317,8 @@ MultiDiagramVisualizer.register('sequence', function(code, nodesLayer, edgesLaye
     } else {
       arrow.setAttribute('points', `${ax},${y} ${ax + 9},${y - 5} ${ax + 9},${y + 5}`);
     }
-    arrow.setAttribute('fill', msg.isDashed ? (isDark ? '#222538' : '#FFFFFF') : linkColor);
-    arrow.setAttribute('stroke', linkColor);
+    arrow.setAttribute('fill', msg.isDashed ? (isDark ? '#222538' : '#FFFFFF') : msgColor);
+    arrow.setAttribute('stroke', msgColor);
     arrow.setAttribute('stroke-width', '1.2');
     msgG.appendChild(arrow);
 
@@ -371,9 +375,19 @@ MultiDiagramVisualizer.register('sequence', function(code, nodesLayer, edgesLaye
                 { value: '<->', label: 'Bidirectional Open (<->)' },
                 { value: '<->>', label: 'Bidirectional Solid (<->>)' }
             ]},
-            { key: 'color', label: 'Line / Arrow Color', type: 'color', value: linkColor }
+            { key: 'color', label: 'Line / Arrow Color', type: 'color', value: msgColor },
+            { key: 'width', label: 'Line Thickness', type: 'select', value: msgWidth, options: [
+                { value: '1', label: 'Thin (1px)' },
+                { value: '1.4', label: 'Medium (1.4px - Default)' },
+                { value: '2.2', label: 'Thick (2.2px)' },
+                { value: '3', label: 'Heavy (3px)' }
+            ]}
           ],
           onSave: (vals) => {
+            const newMsgKey = `${vals.src || msg.src}->${vals.tgt || msg.tgt}:${vals.label !== undefined ? vals.label : msg.label}`;
+            MultiDiagramVisualizer.setColor(newMsgKey, vals.color);
+            MultiDiagramVisualizer.setColor(`${newMsgKey}_width`, vals.width);
+            MultiDiagramVisualizer.syncColorToCode(newMsgKey, vals.color);
             MultiDiagramVisualizer.updateCodeLine((curCode) => {
               const lines = curCode.split('\n');
               for (let i = 0; i < lines.length; i++) {

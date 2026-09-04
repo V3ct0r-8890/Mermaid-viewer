@@ -33,6 +33,7 @@ MultiDiagramVisualizer.register('sankey', function(code, nodesLayer, edgesLayer,
 
   const sources = Array.from(new Set(flows.map(f => f.src)));
   const targets = Array.from(new Set(flows.map(f => f.tgt)));
+  const allNodeOptions = Array.from(new Set([...sources, ...targets])).map(n => ({ value: n, label: n }));
 
   const leftNodes = sources.filter(s => !targets.includes(s));
   const rightNodes = targets.filter(t => !sources.includes(t));
@@ -164,8 +165,8 @@ MultiDiagramVisualizer.register('sankey', function(code, nodesLayer, edgesLayer,
           type: 'Sankey Flow',
           title: `${f.src} → ${f.tgt}`,
           fields: [
-            { key: 'src', label: 'Source Node', type: 'text', value: f.src },
-            { key: 'tgt', label: 'Target Node', type: 'text', value: f.tgt },
+            { key: 'src', label: 'Source Node', type: 'select', value: f.src, options: allNodeOptions },
+            { key: 'tgt', label: 'Target Node', type: 'select', value: f.tgt, options: allNodeOptions },
             { key: 'val', label: 'Flow Volume / Value', type: 'number', min: 1, step: 10, value: f.val },
             { key: 'color', label: 'Flow Band Color', type: 'color', value: flowColor }
           ],
