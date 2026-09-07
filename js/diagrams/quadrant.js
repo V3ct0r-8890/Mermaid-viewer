@@ -182,10 +182,11 @@ MultiDiagramVisualizer.register('quadrant', function(code, nodesLayer, edgesLaye
           if (isSelQuad) circle.style.filter = selGlow;
           itemG.appendChild(circle);
 
+          const dotFont = MultiDiagramVisualizer.getColor(`${it.name}_font`, textColor);
           const txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
           txt.setAttribute('x', `${px + 12}`);
           txt.setAttribute('y', `${py + 4}`);
-          txt.setAttribute('fill', textColor);
+          txt.setAttribute('fill', dotFont);
           txt.setAttribute('font-size', '11px');
           txt.setAttribute('font-weight', '500');
           txt.textContent = it.name;
@@ -202,15 +203,15 @@ MultiDiagramVisualizer.register('quadrant', function(code, nodesLayer, edgesLaye
                   { key: 'name', label: 'Item Name', type: 'text', value: it.name },
                   { key: 'x', label: 'X Axis (0.0 - 1.0)', type: 'number', step: 0.05, min: 0, max: 1, value: it.x },
                   { key: 'y', label: 'Y Axis (0.0 - 1.0)', type: 'number', step: 0.05, min: 0, max: 1, value: it.y },
-                  { key: 'color', label: '1. Point Base Color', type: 'color', value: it.color },
-                  { key: 'fill', label: '2. Node Fill Color (Pastel)', type: 'color', value: dotFill },
-                  { key: 'border', label: '3. Node Border / Stroke Color', type: 'color', value: dotBorder }
+                  { key: 'font', label: Utils.FIELD_LABELS.font, type: 'color', value: dotFont },
+                  { key: 'fill', label: Utils.FIELD_LABELS.fill, type: 'color', value: dotFill },
+                  { key: 'border', label: Utils.FIELD_LABELS.border, type: 'color', value: dotBorder }
                 ],
                 onSave: (vals) => {
-                  MultiDiagramVisualizer.setColor(vals.name, vals.color);
+                  MultiDiagramVisualizer.setColor(`${vals.name}_font`, vals.font);
                   MultiDiagramVisualizer.setColor(`${vals.name}_fill`, vals.fill);
                   MultiDiagramVisualizer.setColor(`${vals.name}_border`, vals.border);
-                  MultiDiagramVisualizer.syncColorToCode(vals.name, vals.color);
+                  MultiDiagramVisualizer.syncColorToCode(`${vals.name}_font`, vals.font);
                   MultiDiagramVisualizer.syncColorToCode(`${vals.name}_fill`, vals.fill);
                   MultiDiagramVisualizer.syncColorToCode(`${vals.name}_border`, vals.border);
                   MultiDiagramVisualizer.updateCodeLine((curCode) => {

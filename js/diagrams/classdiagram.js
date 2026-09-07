@@ -420,9 +420,10 @@ MultiDiagramVisualizer.register('classdiagram', function(code, nodesLayer, edges
           type: 'UML Relationship',
           title: linkTitle,
           fields: [
-            { key: 'src', label: 'From (Super / Source Class)', type: 'select', value: r.src, options: allClassOptions },
-            { key: 'tgt', label: 'To (Sub / Target Class)', type: 'select', value: r.tgt, options: allClassOptions },
-            { key: 'type', label: 'Relationship Type (Includes Bi-directional)', type: 'select', value: r.relType, options: [
+            { key: 'src', label: 'From (Source Class)', type: 'select', value: r.src, options: allClassOptions },
+            { key: 'tgt', label: 'To (Target Class)', type: 'select', value: r.tgt, options: allClassOptions },
+            { key: 'label', label: Utils.FIELD_LABELS.linkLabel, type: 'text', value: r.label || '' },
+            { key: 'type', label: `${Utils.FIELD_LABELS.linkType} (Includes Bi-directional)`, type: 'select', value: r.relType, options: [
                 { value: '<|--', label: 'Inheritance Super <|-- Sub' },
                 { value: '--|>', label: 'Inheritance Sub --|> Super' },
                 { value: '*--', label: 'Composition Whole *-- Part' },
@@ -437,15 +438,9 @@ MultiDiagramVisualizer.register('classdiagram', function(code, nodesLayer, edges
                 { value: '--', label: 'Solid Link (--) ' },
                 { value: '..', label: 'Dashed Link (..)' }
             ]},
-            { key: 'label', label: 'Relationship Label / Multiplicity', type: 'text', value: r.label || '' },
-            { key: 'color', label: 'Line & Arrow Color', type: 'color', value: rColor },
-            { key: 'width', label: 'Line Thickness', type: 'select', value: rWidth, options: [
-                { value: '1', label: 'Thin (1px)' },
-                { value: '1.5', label: 'Medium (1.5px - Default)' },
-                { value: '2.2', label: 'Thick (2.2px)' },
-                { value: '3', label: 'Heavy (3px)' }
-            ]},
-            { key: 'connector', label: 'Connector / Line Routing', type: 'select', value: connStyle, options: Utils.CONNECTOR_OPTIONS }
+            { key: 'color', label: Utils.FIELD_LABELS.lineColor, type: 'color', value: rColor },
+            { key: 'width', label: Utils.FIELD_LABELS.lineWidth, type: 'select', value: rWidth, options: Utils.widthOptions(['1', '1.5', '2.2', '3'], '1.5') },
+            { key: 'connector', label: Utils.FIELD_LABELS.connector, type: 'select', value: connStyle, options: Utils.CONNECTOR_OPTIONS }
           ],
           onSave: (vals) => {
             MultiDiagramVisualizer.setColor(linkKey, vals.color);
@@ -570,9 +565,9 @@ MultiDiagramVisualizer.register('classdiagram', function(code, nodesLayer, edges
           title: cls.name,
           fields: [
             { key: 'name', label: 'Class Name', type: 'text', value: cls.name },
-            { key: 'font', label: '1. Font / Text Color', type: 'color', value: fontColor },
-            { key: 'fill', label: '2. Node Fill Color', type: 'color', value: fillColor },
-            { key: 'border', label: '3. Node Border / Stroke Color', type: 'color', value: borderColor }
+            { key: 'font', label: Utils.FIELD_LABELS.font, type: 'color', value: fontColor },
+            { key: 'fill', label: Utils.FIELD_LABELS.fill, type: 'color', value: fillColor },
+            { key: 'border', label: Utils.FIELD_LABELS.border, type: 'color', value: borderColor }
           ],
           onSave: (vals) => {
             MultiDiagramVisualizer.setColor(cls.name, vals.fill);

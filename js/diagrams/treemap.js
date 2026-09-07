@@ -224,9 +224,9 @@ MultiDiagramVisualizer.register('treemap', function(code, nodesLayer, edgesLayer
           title: g.name,
           fields: [
             { key: 'name', label: 'Category Name', type: 'text', value: g.name },
-            { key: 'font', label: '1. Font / Text Color', type: 'color', value: gFont },
-            { key: 'fill', label: '2. Node Fill Color', type: 'color', value: gFill },
-            { key: 'border', label: '3. Node Border / Stroke Color', type: 'color', value: gBorder }
+            { key: 'font', label: Utils.FIELD_LABELS.font, type: 'color', value: gFont },
+            { key: 'fill', label: Utils.FIELD_LABELS.fill, type: 'color', value: gFill },
+            { key: 'border', label: Utils.FIELD_LABELS.border, type: 'color', value: gBorder }
           ],
           onSave: (vals) => {
             MultiDiagramVisualizer.setColor(g.name, vals.fill);
@@ -377,9 +377,9 @@ MultiDiagramVisualizer.register('treemap', function(code, nodesLayer, edgesLayer
             fields: [
               { key: 'name', label: 'Item Name', type: 'text', value: item.name },
               { key: 'value', label: 'Value / Amount', type: 'number', min: 1, step: 10, value: item.value },
-              { key: 'font', label: '1. Font / Text Color', type: 'color', value: itemFont },
-              { key: 'fill', label: '2. Node Fill Color', type: 'color', value: itemFill },
-              { key: 'border', label: '3. Node Border / Stroke Color', type: 'color', value: itemBorder }
+              { key: 'font', label: Utils.FIELD_LABELS.font, type: 'color', value: itemFont },
+              { key: 'fill', label: Utils.FIELD_LABELS.fill, type: 'color', value: itemFill },
+              { key: 'border', label: Utils.FIELD_LABELS.border, type: 'color', value: itemBorder }
             ],
             onSave: (vals) => {
               MultiDiagramVisualizer.setColor(item.name, vals.fill);

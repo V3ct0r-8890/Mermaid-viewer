@@ -333,24 +333,19 @@ MultiDiagramVisualizer.register('c4context', function(code, nodesLayer, edgesLay
                 type: 'C4 Relationship',
                 title: `${rel.from} → ${rel.to}`,
                 fields: [
-                  { key: 'from', label: 'From Element', type: 'select', value: rel.from, options: allElemOptions },
-                  { key: 'to', label: 'To Element', type: 'select', value: rel.to, options: allElemOptions },
-                  { key: 'label', label: 'Action / Call Label', type: 'text', value: rel.label },
-                  { key: 'type', label: 'Relationship Type (Includes Bi-directional)', type: 'select', value: rel.type || 'Rel', options: [
+                  { key: 'from', label: 'From (Source Element)', type: 'select', value: rel.from, options: allElemOptions },
+                  { key: 'to', label: 'To (Target Element)', type: 'select', value: rel.to, options: allElemOptions },
+                  { key: 'label', label: Utils.FIELD_LABELS.linkLabel, type: 'text', value: rel.label },
+                  { key: 'type', label: `${Utils.FIELD_LABELS.linkType} (Includes Bi-directional)`, type: 'select', value: rel.type || 'Rel', options: [
                       { value: 'Rel', label: 'Forward (Rel)' },
                       { value: 'BiRel', label: 'Bidirectional (BiRel)' },
                       { value: 'Rel_Back', label: 'Reverse (Rel_Back)' },
                       { value: 'Rel_Neighbor', label: 'Neighbor (Rel_Neighbor)' }
                   ]},
                   { key: 'tech', label: 'Technology / Protocol', type: 'text', value: rel.tech || '' },
-                  { key: 'color', label: 'Line Color', type: 'color', value: lineColor },
-                  { key: 'width', label: 'Line Thickness', type: 'select', value: String(lineWidth), options: [
-                      { value: '1.5', label: 'Thin (1.5px)' },
-                      { value: '2', label: 'Medium (2px - Default)' },
-                      { value: '3', label: 'Thick (3px)' },
-                      { value: '4', label: 'Heavy (4px)' }
-                  ]},
-                  { key: 'connector', label: 'Connector / Line Routing', type: 'select', value: connStyle, options: Utils.CONNECTOR_OPTIONS }
+                  { key: 'color', label: Utils.FIELD_LABELS.lineColor, type: 'color', value: lineColor },
+                  { key: 'width', label: Utils.FIELD_LABELS.lineWidth, type: 'select', value: String(lineWidth), options: Utils.widthOptions(['1.5', '2', '3', '4'], '2') },
+                  { key: 'connector', label: Utils.FIELD_LABELS.connector, type: 'select', value: connStyle, options: Utils.CONNECTOR_OPTIONS }
                 ],
                 onSave: (vals) => {
                   const fromEl = vals.from || rel.from;
@@ -476,7 +471,7 @@ MultiDiagramVisualizer.register('c4context', function(code, nodesLayer, edgesLay
                 type: `C4 ${n.kind}`,
                 title: n.label,
                 fields: [
-                  { key: 'label', label: 'Display Label', type: 'text', value: n.label },
+                  { key: 'label', label: 'Element Name', type: 'text', value: n.label },
                   { key: 'kind', label: 'Component Type', type: 'select', value: n.kind, options: [
                       { value: 'Person', label: 'Person' },
                       { value: 'Person_Ext', label: 'Person (External)' },
@@ -489,9 +484,9 @@ MultiDiagramVisualizer.register('c4context', function(code, nodesLayer, edgesLay
                       { value: 'Component', label: 'Component' }
                   ]},
                   { key: 'desc', label: 'Description', type: 'textarea', rows: 3, value: n.desc || '' },
-                  { key: 'font', label: '1. Font / Text Color', type: 'color', value: n.fontColor },
-                  { key: 'fill', label: '2. Node Fill Color', type: 'color', value: n.fillColor },
-                  { key: 'border', label: '3. Node Border / Stroke Color', type: 'color', value: n.borderColor }
+                  { key: 'font', label: Utils.FIELD_LABELS.font, type: 'color', value: n.fontColor },
+                  { key: 'fill', label: Utils.FIELD_LABELS.fill, type: 'color', value: n.fillColor },
+                  { key: 'border', label: Utils.FIELD_LABELS.border, type: 'color', value: n.borderColor }
                 ],
                 onSave: (vals) => {
                   MultiDiagramVisualizer.setColor(n.alias, vals.fill);

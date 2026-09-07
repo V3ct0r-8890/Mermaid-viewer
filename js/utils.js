@@ -111,6 +111,45 @@
         return { x: dx / len, y: dy / len };
       },
 
+      // --- SHARED INSPECTOR FIELD VOCABULARY ---
+      // Every diagram's Inspector uses the same field names, in the same order, so a
+      // link panel looks the same whichever diagram you clicked in:
+      //   From -> To -> Link Label -> Link Type -> (domain extras) ->
+      //   Line Color -> Line Thickness -> Connector / Line Routing -> Line Dash Style ->
+      //   Label Text Color -> Label Background Color
+      // and a node panel reads:
+      //   <Name> -> (domain fields) ->
+      //   Font / Text Color -> Node Fill Color -> Node Border / Stroke Color
+      // Labels are never numbered — numbering drifts the moment a field is added.
+      FIELD_LABELS: {
+        linkLabel: 'Link Label',
+        linkType: 'Link Type',
+        lineColor: 'Line Color',
+        lineWidth: 'Line Thickness',
+        connector: 'Connector / Line Routing',
+        lineDash: 'Line Dash Style',
+        labelText: 'Label Text Color',
+        labelBg: 'Label Background Color',
+        font: 'Font / Text Color',
+        fill: 'Node Fill Color',
+        border: 'Node Border / Stroke Color'
+      },
+      DASH_OPTIONS: [
+        { value: 'solid', label: 'Solid (──────)' },
+        { value: 'dashed', label: 'Dashed (– – – –)' },
+        { value: 'dotted', label: 'Dotted (········)' }
+      ],
+      // Thickness lists stay per-diagram (each has its own visually tuned scale) but
+      // are always phrased the same way: Thin / Medium / Thick / Heavy, with the
+      // diagram's own default called out.
+      widthOptions(values, defaultValue) {
+        const names = ['Thin', 'Medium', 'Thick', 'Heavy'];
+        return values.map((v, i) => ({
+          value: String(v),
+          label: `${names[i] || 'Custom'} (${v}px${String(v) === String(defaultValue) ? ' - Default' : ''})`
+        }));
+      },
+
       // --- PASTEL FILL PALETTE ---
       // House rule: node FILLS are pastel; node borders, link lines and text stay at
       // full strength so shapes read clearly against the soft fill.

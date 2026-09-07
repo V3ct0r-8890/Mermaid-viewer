@@ -1198,7 +1198,7 @@
 
           <!-- 1. Font Color -->
           <div class="prop-group">
-            <label>1. Font / Text Color</label>
+            <label>Font / Text Color</label>
             <div style="display:flex; align-items:center; gap:8px;">
               <input type="color" id="prop-node-font" style="width:32px; height:26px; border:none; border-radius:3px; cursor:pointer;">
               <span id="prop-node-font-val" style="font-size:11px; font-family:var(--code-font);">#0D47A1</span>
@@ -1218,7 +1218,7 @@
 
           <!-- 2. Node Fill Color -->
           <div class="prop-group">
-            <label>2. Node Fill Color</label>
+            <label>Node Fill Color</label>
             <div style="display:flex; align-items:center; gap:8px;">
               <input type="color" id="prop-node-fill" style="width:32px; height:26px; border:none; border-radius:3px; cursor:pointer;">
               <span id="prop-node-fill-val" style="font-size:11px; font-family:var(--code-font);">#E3F2FD</span>
@@ -1238,7 +1238,7 @@
 
           <!-- 3. Node Border Color -->
           <div class="prop-group">
-            <label>3. Node Border / Stroke Color</label>
+            <label>Node Border / Stroke Color</label>
             <div style="display:flex; align-items:center; gap:8px;">
               <input type="color" id="prop-node-border" style="width:32px; height:26px; border:none; border-radius:3px; cursor:pointer;">
               <span id="prop-node-border-val" style="font-size:11px; font-family:var(--code-font);">#1976D2</span>
@@ -1286,11 +1286,11 @@
           </div>
 
           <div class="prop-group">
-            <label>Edge Label</label>
+            <label>Link Label</label>
             <input type="text" id="prop-edge-label" class="prop-input" placeholder="e.g. Yes / Action">
           </div>
           <div class="prop-group">
-            <label>Arrow Head / End Style (Includes Bi-directional)</label>
+            <label>Link Type (Includes Bi-directional)</label>
             <select id="prop-edge-type" class="prop-input">
               <option value="-->">Forward Solid Arrow (--&gt;)</option>
               <option value="<--">Reverse Solid Arrow (&lt;--)</option>
@@ -1307,16 +1307,7 @@
           </div>
 
           <div class="prop-group">
-            <label>Connector Curve / Routing Style</label>
-            <select id="prop-edge-curve" class="prop-input">
-              <option value="basis">Smooth Curve (Bezier / basis)</option>
-              <option value="linear">Straight Line (linear)</option>
-              <option value="step">Orthogonal Step (90° Corners / step)</option>
-            </select>
-          </div>
-
-          <div class="prop-group">
-            <label>Link Color</label>
+            <label>Line Color</label>
             <div style="display:flex; align-items:center; gap:8px;">
               <input type="color" id="prop-edge-color" style="width:32px; height:26px; border:none; border-radius:3px; cursor:pointer;">
               <span id="prop-edge-color-val" style="font-size:11px; font-family:var(--code-font);">#616161</span>
@@ -1342,8 +1333,20 @@
             </select>
           </div>
 
+          <!-- Values stay basis/linear/step: they round-trip into the Mermaid
+               %%{init}%% curve directive. Utils.normalizeConnector maps them onto the
+               shared curve/straight/step vocabulary used by every other diagram. -->
           <div class="prop-group">
-            <label>Label Font Color</label>
+            <label>Connector / Line Routing</label>
+            <select id="prop-edge-curve" class="prop-input">
+              <option value="basis">Curved (Bezier)</option>
+              <option value="linear">Straight Line</option>
+              <option value="step">Orthogonal Step (90° Corners)</option>
+            </select>
+          </div>
+
+          <div class="prop-group">
+            <label>Label Text Color</label>
             <div style="display:flex; align-items:center; gap:8px;">
               <input type="color" id="prop-edge-text-color" style="width:32px; height:26px; border:none; border-radius:3px; cursor:pointer;" value="#212121">
               <span id="prop-edge-text-color-val" style="font-size:11px; font-family:var(--code-font);">#212121</span>
@@ -1641,23 +1644,24 @@
             <option value="trapezoid_alt">Trapezoid Alt [\Manual Task/]</option>
           </select>
         </div>
+        <!-- Same names and order as the Inspector's node panel. -->
         <div class="color-row">
           <div class="form-group">
-            <label>Fill Color</label>
+            <label>Font / Text Color</label>
+            <div class="color-input-wrapper">
+              <input type="color" id="nm-font" value="#0D47A1">
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Node Fill Color</label>
             <div class="color-input-wrapper">
               <input type="color" id="nm-fill" value="#E3F2FD">
             </div>
           </div>
           <div class="form-group">
-            <label>Border Color</label>
+            <label>Node Border / Stroke Color</label>
             <div class="color-input-wrapper">
               <input type="color" id="nm-border" value="#1976D2">
-            </div>
-          </div>
-          <div class="form-group">
-            <label>Font Color</label>
-            <div class="color-input-wrapper">
-              <input type="color" id="nm-font" value="#0D47A1">
             </div>
           </div>
         </div>
@@ -1679,20 +1683,20 @@
       <div class="modal-body">
         <div class="form-row">
           <div class="form-group">
-            <label>Source Node</label>
+            <label>From (Source)</label>
             <select id="lm-source" class="form-control"></select>
           </div>
           <div class="form-group">
-            <label>Target Node</label>
+            <label>To (Target)</label>
             <select id="lm-target" class="form-control"></select>
           </div>
         </div>
         <div class="form-group">
-          <label>Edge Label (Optional)</label>
+          <label>Link Label (Optional)</label>
           <input type="text" id="lm-label" class="form-control" placeholder="e.g. Yes / No / Action">
         </div>
         <div class="form-group">
-          <label>Arrow Type</label>
+          <label>Link Type</label>
           <select id="lm-type" class="form-control">
             <option value="-->">Solid Arrow (--&gt;)</option>
             <option value="--->">Long / Solid (---&gt;)</option>
@@ -2315,6 +2319,45 @@ treemap-beta
         }
         const len = Math.sqrt(dx * dx + dy * dy) || 1;
         return { x: dx / len, y: dy / len };
+      },
+
+      // --- SHARED INSPECTOR FIELD VOCABULARY ---
+      // Every diagram's Inspector uses the same field names, in the same order, so a
+      // link panel looks the same whichever diagram you clicked in:
+      //   From -> To -> Link Label -> Link Type -> (domain extras) ->
+      //   Line Color -> Line Thickness -> Connector / Line Routing -> Line Dash Style ->
+      //   Label Text Color -> Label Background Color
+      // and a node panel reads:
+      //   <Name> -> (domain fields) ->
+      //   Font / Text Color -> Node Fill Color -> Node Border / Stroke Color
+      // Labels are never numbered — numbering drifts the moment a field is added.
+      FIELD_LABELS: {
+        linkLabel: 'Link Label',
+        linkType: 'Link Type',
+        lineColor: 'Line Color',
+        lineWidth: 'Line Thickness',
+        connector: 'Connector / Line Routing',
+        lineDash: 'Line Dash Style',
+        labelText: 'Label Text Color',
+        labelBg: 'Label Background Color',
+        font: 'Font / Text Color',
+        fill: 'Node Fill Color',
+        border: 'Node Border / Stroke Color'
+      },
+      DASH_OPTIONS: [
+        { value: 'solid', label: 'Solid (──────)' },
+        { value: 'dashed', label: 'Dashed (– – – –)' },
+        { value: 'dotted', label: 'Dotted (········)' }
+      ],
+      // Thickness lists stay per-diagram (each has its own visually tuned scale) but
+      // are always phrased the same way: Thin / Medium / Thick / Heavy, with the
+      // diagram's own default called out.
+      widthOptions(values, defaultValue) {
+        const names = ['Thin', 'Medium', 'Thick', 'Heavy'];
+        return values.map((v, i) => ({
+          value: String(v),
+          label: `${names[i] || 'Custom'} (${v}px${String(v) === String(defaultValue) ? ' - Default' : ''})`
+        }));
       },
 
       // --- PASTEL FILL PALETTE ---
@@ -4021,7 +4064,7 @@ class MultiDiagramVisualizer {
 
           <!-- 1. Font Color -->
           <div class="prop-group">
-            <label>1. Font / Text Color</label>
+            <label>Font / Text Color</label>
             <div style="display:flex; align-items:center; gap:8px;">
               <input type="color" id="prop-node-font" style="width:32px; height:26px; border:none; border-radius:3px; cursor:pointer;">
               <span id="prop-node-font-val" style="font-size:11px; font-family:var(--code-font);">#0D47A1</span>
@@ -4041,7 +4084,7 @@ class MultiDiagramVisualizer {
 
           <!-- 2. Node Fill Color -->
           <div class="prop-group">
-            <label>2. Node Fill Color</label>
+            <label>Node Fill Color</label>
             <div style="display:flex; align-items:center; gap:8px;">
               <input type="color" id="prop-node-fill" style="width:32px; height:26px; border:none; border-radius:3px; cursor:pointer;">
               <span id="prop-node-fill-val" style="font-size:11px; font-family:var(--code-font);">#E3F2FD</span>
@@ -4061,7 +4104,7 @@ class MultiDiagramVisualizer {
 
           <!-- 3. Node Border Color -->
           <div class="prop-group">
-            <label>3. Node Border / Stroke Color</label>
+            <label>Node Border / Stroke Color</label>
             <div style="display:flex; align-items:center; gap:8px;">
               <input type="color" id="prop-node-border" style="width:32px; height:26px; border:none; border-radius:3px; cursor:pointer;">
               <span id="prop-node-border-val" style="font-size:11px; font-family:var(--code-font);">#1976D2</span>
@@ -4109,11 +4152,11 @@ class MultiDiagramVisualizer {
           </div>
 
           <div class="prop-group">
-            <label>Edge Label</label>
+            <label>Link Label</label>
             <input type="text" id="prop-edge-label" class="prop-input" placeholder="e.g. Yes / Action">
           </div>
           <div class="prop-group">
-            <label>Arrow Head / End Style (Includes Bi-directional)</label>
+            <label>Link Type (Includes Bi-directional)</label>
             <select id="prop-edge-type" class="prop-input">
               <option value="-->">Forward Solid Arrow (--&gt;)</option>
               <option value="<--">Reverse Solid Arrow (&lt;--)</option>
@@ -4130,16 +4173,7 @@ class MultiDiagramVisualizer {
           </div>
 
           <div class="prop-group">
-            <label>Connector Curve / Routing Style</label>
-            <select id="prop-edge-curve" class="prop-input">
-              <option value="basis">Smooth Curve (Bezier / basis)</option>
-              <option value="linear">Straight Line (linear)</option>
-              <option value="step">Orthogonal Step (90° Corners / step)</option>
-            </select>
-          </div>
-
-          <div class="prop-group">
-            <label>Link Color</label>
+            <label>Line Color</label>
             <div style="display:flex; align-items:center; gap:8px;">
               <input type="color" id="prop-edge-color" style="width:32px; height:26px; border:none; border-radius:3px; cursor:pointer;">
               <span id="prop-edge-color-val" style="font-size:11px; font-family:var(--code-font);">#616161</span>
@@ -4165,8 +4199,20 @@ class MultiDiagramVisualizer {
             </select>
           </div>
 
+          <!-- Values stay basis/linear/step: they round-trip into the Mermaid
+               %%{init}%% curve directive. Utils.normalizeConnector maps them onto the
+               shared curve/straight/step vocabulary used by every other diagram. -->
           <div class="prop-group">
-            <label>Label Font Color</label>
+            <label>Connector / Line Routing</label>
+            <select id="prop-edge-curve" class="prop-input">
+              <option value="basis">Curved (Bezier)</option>
+              <option value="linear">Straight Line</option>
+              <option value="step">Orthogonal Step (90° Corners)</option>
+            </select>
+          </div>
+
+          <div class="prop-group">
+            <label>Label Text Color</label>
             <div style="display:flex; align-items:center; gap:8px;">
               <input type="color" id="prop-edge-text-color" style="width:32px; height:26px; border:none; border-radius:3px; cursor:pointer;" value="#212121">
               <span id="prop-edge-text-color-val" style="font-size:11px; font-family:var(--code-font);">#212121</span>
@@ -4464,23 +4510,24 @@ class MultiDiagramVisualizer {
             <option value="trapezoid_alt">Trapezoid Alt [\Manual Task/]</option>
           </select>
         </div>
+        <!-- Same names and order as the Inspector's node panel. -->
         <div class="color-row">
           <div class="form-group">
-            <label>Fill Color</label>
+            <label>Font / Text Color</label>
+            <div class="color-input-wrapper">
+              <input type="color" id="nm-font" value="#0D47A1">
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Node Fill Color</label>
             <div class="color-input-wrapper">
               <input type="color" id="nm-fill" value="#E3F2FD">
             </div>
           </div>
           <div class="form-group">
-            <label>Border Color</label>
+            <label>Node Border / Stroke Color</label>
             <div class="color-input-wrapper">
               <input type="color" id="nm-border" value="#1976D2">
-            </div>
-          </div>
-          <div class="form-group">
-            <label>Font Color</label>
-            <div class="color-input-wrapper">
-              <input type="color" id="nm-font" value="#0D47A1">
             </div>
           </div>
         </div>
@@ -4502,20 +4549,20 @@ class MultiDiagramVisualizer {
       <div class="modal-body">
         <div class="form-row">
           <div class="form-group">
-            <label>Source Node</label>
+            <label>From (Source)</label>
             <select id="lm-source" class="form-control"></select>
           </div>
           <div class="form-group">
-            <label>Target Node</label>
+            <label>To (Target)</label>
             <select id="lm-target" class="form-control"></select>
           </div>
         </div>
         <div class="form-group">
-          <label>Edge Label (Optional)</label>
+          <label>Link Label (Optional)</label>
           <input type="text" id="lm-label" class="form-control" placeholder="e.g. Yes / No / Action">
         </div>
         <div class="form-group">
-          <label>Arrow Type</label>
+          <label>Link Type</label>
           <select id="lm-type" class="form-control">
             <option value="-->">Solid Arrow (--&gt;)</option>
             <option value="--->">Long / Solid (---&gt;)</option>
@@ -5125,24 +5172,19 @@ MultiDiagramVisualizer.register('c4context', function(code, nodesLayer, edgesLay
                 type: 'C4 Relationship',
                 title: `${rel.from} → ${rel.to}`,
                 fields: [
-                  { key: 'from', label: 'From Element', type: 'select', value: rel.from, options: allElemOptions },
-                  { key: 'to', label: 'To Element', type: 'select', value: rel.to, options: allElemOptions },
-                  { key: 'label', label: 'Action / Call Label', type: 'text', value: rel.label },
-                  { key: 'type', label: 'Relationship Type (Includes Bi-directional)', type: 'select', value: rel.type || 'Rel', options: [
+                  { key: 'from', label: 'From (Source Element)', type: 'select', value: rel.from, options: allElemOptions },
+                  { key: 'to', label: 'To (Target Element)', type: 'select', value: rel.to, options: allElemOptions },
+                  { key: 'label', label: Utils.FIELD_LABELS.linkLabel, type: 'text', value: rel.label },
+                  { key: 'type', label: `${Utils.FIELD_LABELS.linkType} (Includes Bi-directional)`, type: 'select', value: rel.type || 'Rel', options: [
                       { value: 'Rel', label: 'Forward (Rel)' },
                       { value: 'BiRel', label: 'Bidirectional (BiRel)' },
                       { value: 'Rel_Back', label: 'Reverse (Rel_Back)' },
                       { value: 'Rel_Neighbor', label: 'Neighbor (Rel_Neighbor)' }
                   ]},
                   { key: 'tech', label: 'Technology / Protocol', type: 'text', value: rel.tech || '' },
-                  { key: 'color', label: 'Line Color', type: 'color', value: lineColor },
-                  { key: 'width', label: 'Line Thickness', type: 'select', value: String(lineWidth), options: [
-                      { value: '1.5', label: 'Thin (1.5px)' },
-                      { value: '2', label: 'Medium (2px - Default)' },
-                      { value: '3', label: 'Thick (3px)' },
-                      { value: '4', label: 'Heavy (4px)' }
-                  ]},
-                  { key: 'connector', label: 'Connector / Line Routing', type: 'select', value: connStyle, options: Utils.CONNECTOR_OPTIONS }
+                  { key: 'color', label: Utils.FIELD_LABELS.lineColor, type: 'color', value: lineColor },
+                  { key: 'width', label: Utils.FIELD_LABELS.lineWidth, type: 'select', value: String(lineWidth), options: Utils.widthOptions(['1.5', '2', '3', '4'], '2') },
+                  { key: 'connector', label: Utils.FIELD_LABELS.connector, type: 'select', value: connStyle, options: Utils.CONNECTOR_OPTIONS }
                 ],
                 onSave: (vals) => {
                   const fromEl = vals.from || rel.from;
@@ -5268,7 +5310,7 @@ MultiDiagramVisualizer.register('c4context', function(code, nodesLayer, edgesLay
                 type: `C4 ${n.kind}`,
                 title: n.label,
                 fields: [
-                  { key: 'label', label: 'Display Label', type: 'text', value: n.label },
+                  { key: 'label', label: 'Element Name', type: 'text', value: n.label },
                   { key: 'kind', label: 'Component Type', type: 'select', value: n.kind, options: [
                       { value: 'Person', label: 'Person' },
                       { value: 'Person_Ext', label: 'Person (External)' },
@@ -5281,9 +5323,9 @@ MultiDiagramVisualizer.register('c4context', function(code, nodesLayer, edgesLay
                       { value: 'Component', label: 'Component' }
                   ]},
                   { key: 'desc', label: 'Description', type: 'textarea', rows: 3, value: n.desc || '' },
-                  { key: 'font', label: '1. Font / Text Color', type: 'color', value: n.fontColor },
-                  { key: 'fill', label: '2. Node Fill Color', type: 'color', value: n.fillColor },
-                  { key: 'border', label: '3. Node Border / Stroke Color', type: 'color', value: n.borderColor }
+                  { key: 'font', label: Utils.FIELD_LABELS.font, type: 'color', value: n.fontColor },
+                  { key: 'fill', label: Utils.FIELD_LABELS.fill, type: 'color', value: n.fillColor },
+                  { key: 'border', label: Utils.FIELD_LABELS.border, type: 'color', value: n.borderColor }
                 ],
                 onSave: (vals) => {
                   MultiDiagramVisualizer.setColor(n.alias, vals.fill);
@@ -5742,9 +5784,10 @@ MultiDiagramVisualizer.register('classdiagram', function(code, nodesLayer, edges
           type: 'UML Relationship',
           title: linkTitle,
           fields: [
-            { key: 'src', label: 'From (Super / Source Class)', type: 'select', value: r.src, options: allClassOptions },
-            { key: 'tgt', label: 'To (Sub / Target Class)', type: 'select', value: r.tgt, options: allClassOptions },
-            { key: 'type', label: 'Relationship Type (Includes Bi-directional)', type: 'select', value: r.relType, options: [
+            { key: 'src', label: 'From (Source Class)', type: 'select', value: r.src, options: allClassOptions },
+            { key: 'tgt', label: 'To (Target Class)', type: 'select', value: r.tgt, options: allClassOptions },
+            { key: 'label', label: Utils.FIELD_LABELS.linkLabel, type: 'text', value: r.label || '' },
+            { key: 'type', label: `${Utils.FIELD_LABELS.linkType} (Includes Bi-directional)`, type: 'select', value: r.relType, options: [
                 { value: '<|--', label: 'Inheritance Super <|-- Sub' },
                 { value: '--|>', label: 'Inheritance Sub --|> Super' },
                 { value: '*--', label: 'Composition Whole *-- Part' },
@@ -5759,15 +5802,9 @@ MultiDiagramVisualizer.register('classdiagram', function(code, nodesLayer, edges
                 { value: '--', label: 'Solid Link (--) ' },
                 { value: '..', label: 'Dashed Link (..)' }
             ]},
-            { key: 'label', label: 'Relationship Label / Multiplicity', type: 'text', value: r.label || '' },
-            { key: 'color', label: 'Line & Arrow Color', type: 'color', value: rColor },
-            { key: 'width', label: 'Line Thickness', type: 'select', value: rWidth, options: [
-                { value: '1', label: 'Thin (1px)' },
-                { value: '1.5', label: 'Medium (1.5px - Default)' },
-                { value: '2.2', label: 'Thick (2.2px)' },
-                { value: '3', label: 'Heavy (3px)' }
-            ]},
-            { key: 'connector', label: 'Connector / Line Routing', type: 'select', value: connStyle, options: Utils.CONNECTOR_OPTIONS }
+            { key: 'color', label: Utils.FIELD_LABELS.lineColor, type: 'color', value: rColor },
+            { key: 'width', label: Utils.FIELD_LABELS.lineWidth, type: 'select', value: rWidth, options: Utils.widthOptions(['1', '1.5', '2.2', '3'], '1.5') },
+            { key: 'connector', label: Utils.FIELD_LABELS.connector, type: 'select', value: connStyle, options: Utils.CONNECTOR_OPTIONS }
           ],
           onSave: (vals) => {
             MultiDiagramVisualizer.setColor(linkKey, vals.color);
@@ -5892,9 +5929,9 @@ MultiDiagramVisualizer.register('classdiagram', function(code, nodesLayer, edges
           title: cls.name,
           fields: [
             { key: 'name', label: 'Class Name', type: 'text', value: cls.name },
-            { key: 'font', label: '1. Font / Text Color', type: 'color', value: fontColor },
-            { key: 'fill', label: '2. Node Fill Color', type: 'color', value: fillColor },
-            { key: 'border', label: '3. Node Border / Stroke Color', type: 'color', value: borderColor }
+            { key: 'font', label: Utils.FIELD_LABELS.font, type: 'color', value: fontColor },
+            { key: 'fill', label: Utils.FIELD_LABELS.fill, type: 'color', value: fillColor },
+            { key: 'border', label: Utils.FIELD_LABELS.border, type: 'color', value: borderColor }
           ],
           onSave: (vals) => {
             MultiDiagramVisualizer.setColor(cls.name, vals.fill);
@@ -6308,10 +6345,10 @@ MultiDiagramVisualizer.register('erdiagram', function(code, nodesLayer, edgesLay
           type: 'ER Relationship Link',
           title: relTitle,
           fields: [
-            { key: 'src', label: 'Entity 1 (From)', type: 'select', value: rel.src, options: allEntityOptions },
-            { key: 'tgt', label: 'Entity 2 (To)', type: 'select', value: rel.tgt, options: allEntityOptions },
-            { key: 'label', label: 'Relationship Verb / Label', type: 'text', value: rel.label },
-            { key: 'card', label: 'Cardinality', type: 'select', value: rel.card, options: [
+            { key: 'src', label: 'From (Source Entity)', type: 'select', value: rel.src, options: allEntityOptions },
+            { key: 'tgt', label: 'To (Target Entity)', type: 'select', value: rel.tgt, options: allEntityOptions },
+            { key: 'label', label: Utils.FIELD_LABELS.linkLabel, type: 'text', value: rel.label },
+            { key: 'card', label: `${Utils.FIELD_LABELS.linkType} (Cardinality)`, type: 'select', value: rel.card, options: [
                 { value: '||--o{', label: 'One to Zero-or-More (||--o{)' },
                 { value: '||--|{', label: 'One to One-or-More (||--|{)' },
                 { value: '||--||', label: 'One to One (||--||)' },
@@ -6319,14 +6356,9 @@ MultiDiagramVisualizer.register('erdiagram', function(code, nodesLayer, edgesLay
                 { value: '}|--o{', label: 'Many to Zero-or-More (}|--o{)' },
                 { value: 'o|--o{', label: 'Zero-or-One to Zero-or-More (o|--o{)' }
             ]},
-            { key: 'color', label: '1. Line & Marker Color', type: 'color', value: rColor },
-            { key: 'width', label: '2. Line Thickness', type: 'select', value: rWidth, options: [
-                { value: '1.2', label: 'Thin (1.2px)' },
-                { value: '1.4', label: 'Medium (1.4px - Default)' },
-                { value: '2', label: 'Thick (2px)' },
-                { value: '3', label: 'Heavy (3px)' }
-            ]},
-            { key: 'connector', label: '3. Connector / Line Routing', type: 'select', value: connStyle, options: Utils.CONNECTOR_OPTIONS }
+            { key: 'color', label: Utils.FIELD_LABELS.lineColor, type: 'color', value: rColor },
+            { key: 'width', label: Utils.FIELD_LABELS.lineWidth, type: 'select', value: rWidth, options: Utils.widthOptions(['1.2', '1.4', '2', '3'], '1.4') },
+            { key: 'connector', label: Utils.FIELD_LABELS.connector, type: 'select', value: connStyle, options: Utils.CONNECTOR_OPTIONS }
           ],
           onSave: (vals) => {
             const newSrc = vals.src || rel.src;
@@ -6521,9 +6553,9 @@ MultiDiagramVisualizer.register('erdiagram', function(code, nodesLayer, edgesLay
           fields: [
             { key: 'name', label: 'Entity / Table Name', type: 'text', value: e.name },
             { key: 'attributes', label: 'Attributes (type name [PK/FK/UK] ["comment"])', type: 'textarea', rows: 6, value: attrLines },
-            { key: 'font', label: '1. Font / Header Text Color', type: 'color', value: e.fontColor },
-            { key: 'fill', label: '2. Header Fill Color', type: 'color', value: e.fillColor },
-            { key: 'border', label: '3. Border & Grid Stroke Color', type: 'color', value: e.borderColor }
+            { key: 'font', label: Utils.FIELD_LABELS.font, type: 'color', value: e.fontColor },
+            { key: 'fill', label: Utils.FIELD_LABELS.fill, type: 'color', value: e.fillColor },
+            { key: 'border', label: Utils.FIELD_LABELS.border, type: 'color', value: e.borderColor }
           ],
           onSave: (vals) => {
             MultiDiagramVisualizer.setColor(vals.name, vals.fill);
@@ -6984,20 +7016,11 @@ MultiDiagramVisualizer.register('gantt', function(code, nodesLayer, edgesLayer, 
             type: 'Timeline Marker',
             title: 'Today Highlight',
             fields: [
-              { key: 'color', label: '1. Marker & Line Color', type: 'color', value: todayColor },
-              { key: 'width', label: '2. Line Thickness', type: 'select', value: todayWidth, options: [
-                  { value: '1.5', label: 'Thin (1.5px)' },
-                  { value: '2', label: 'Medium (2px - Default)' },
-                  { value: '3', label: 'Thick (3px)' },
-                  { value: '4', label: 'Heavy (4px)' }
-              ]},
-              { key: 'style', label: '3. Line Style', type: 'select', value: todayStyle, options: [
-                  { value: 'dashed', label: 'Dashed (– – – –)' },
-                  { value: 'solid', label: 'Solid (──────)' },
-                  { value: 'dotted', label: 'Dotted (········)' }
-              ]},
-              { key: 'badgeBg', label: '4. Badge Background', type: 'color', value: todayBadgeBg },
-              { key: 'badgeFont', label: '5. Badge Text Color', type: 'color', value: todayBadgeFont }
+              { key: 'color', label: Utils.FIELD_LABELS.lineColor, type: 'color', value: todayColor },
+              { key: 'width', label: Utils.FIELD_LABELS.lineWidth, type: 'select', value: todayWidth, options: Utils.widthOptions(['1.5', '2', '3', '4'], '2') },
+              { key: 'style', label: Utils.FIELD_LABELS.lineDash, type: 'select', value: todayStyle, options: Utils.DASH_OPTIONS },
+              { key: 'badgeFont', label: Utils.FIELD_LABELS.labelText, type: 'color', value: todayBadgeFont },
+              { key: 'badgeBg', label: Utils.FIELD_LABELS.labelBg, type: 'color', value: todayBadgeBg }
             ],
             onSave: (vals) => {
               MultiDiagramVisualizer.setColor('today_marker', vals.color);
@@ -7131,9 +7154,9 @@ MultiDiagramVisualizer.register('gantt', function(code, nodesLayer, edgesLayer, 
               { key: 'startDate', label: 'Start Date (YYYY-MM-DD)', type: 'date', value: t.startDate || '' },
               { key: 'dur', label: 'Duration (# of Days)', type: 'number', min: 1, step: 1, value: t.dur },
               { key: 'endDate', label: 'End Date (YYYY-MM-DD)', type: 'date', value: t.endDate || '' },
-              { key: 'font', label: '1. Font / Text Color', type: 'color', value: t.fontColor },
-              { key: 'fill', label: '2. Node / Bar Fill Color', type: 'color', value: t.fillColor },
-              { key: 'border', label: '3. Node / Bar Border Color', type: 'color', value: t.borderColor }
+              { key: 'font', label: Utils.FIELD_LABELS.font, type: 'color', value: t.fontColor },
+              { key: 'fill', label: Utils.FIELD_LABELS.fill, type: 'color', value: t.fillColor },
+              { key: 'border', label: Utils.FIELD_LABELS.border, type: 'color', value: t.borderColor }
             ],
             onSave: (vals) => {
               MultiDiagramVisualizer.setColor(vals.name, vals.fill);
@@ -7393,14 +7416,9 @@ MultiDiagramVisualizer.register('gitgraph', function(code, nodesLayer, edgesLaye
                     // are shown for orientation rather than as reconnect controls.
                     { key: 'from', label: 'From (Previous Commit)', type: 'select', value: prevId, options: [{ value: prevId, label: prevId }] },
                     { key: 'to', label: 'To (This Commit)', type: 'select', value: c.id, options: [{ value: c.id, label: c.id }] },
-                    { key: 'color', label: 'Connector Color', type: 'color', value: connColor },
-                    { key: 'width', label: 'Line Thickness', type: 'select', value: connWidth, options: [
-                        { value: '1.5', label: 'Thin (1.5px)' },
-                        { value: '3', label: 'Medium (3px - Default)' },
-                        { value: '4', label: 'Thick (4px)' },
-                        { value: '5', label: 'Heavy (5px)' }
-                    ]},
-                    { key: 'connector', label: 'Connector / Line Routing', type: 'select', value: connStyle, options: Utils.CONNECTOR_OPTIONS }
+                    { key: 'color', label: Utils.FIELD_LABELS.lineColor, type: 'color', value: connColor },
+                    { key: 'width', label: Utils.FIELD_LABELS.lineWidth, type: 'select', value: connWidth, options: Utils.widthOptions(['1.5', '3', '4', '5'], '3') },
+                    { key: 'connector', label: Utils.FIELD_LABELS.connector, type: 'select', value: connStyle, options: Utils.CONNECTOR_OPTIONS }
                   ],
                   onSave: (vals) => {
                     MultiDiagramVisualizer.setColor(connKey, vals.color);
@@ -7457,14 +7475,9 @@ MultiDiagramVisualizer.register('gitgraph', function(code, nodesLayer, edgesLaye
                     fields: [
                       { key: 'from', label: 'From (Merged Branch)', type: 'select', value: c.mergeFrom, options: branchOptions },
                       { key: 'to', label: 'To (Target Branch)', type: 'select', value: c.branch, options: branchOptions },
-                      { key: 'color', label: 'Merge Line Color', type: 'color', value: mergeColor },
-                      { key: 'width', label: 'Line Thickness', type: 'select', value: mergeWidth, options: [
-                          { value: '1.5', label: 'Thin (1.5px)' },
-                          { value: '2.5', label: 'Medium (2.5px - Default)' },
-                          { value: '3.5', label: 'Thick (3.5px)' },
-                          { value: '4.5', label: 'Heavy (4.5px)' }
-                      ]},
-                      { key: 'connector', label: 'Connector / Line Routing', type: 'select', value: mergeStyle, options: Utils.CONNECTOR_OPTIONS }
+                      { key: 'color', label: Utils.FIELD_LABELS.lineColor, type: 'color', value: mergeColor },
+                      { key: 'width', label: Utils.FIELD_LABELS.lineWidth, type: 'select', value: mergeWidth, options: Utils.widthOptions(['1.5', '2.5', '3.5', '4.5'], '2.5') },
+                      { key: 'connector', label: Utils.FIELD_LABELS.connector, type: 'select', value: mergeStyle, options: Utils.CONNECTOR_OPTIONS }
                     ],
                     onSave: (vals) => {
                       const newFrom = vals.from || c.mergeFrom;
@@ -7580,17 +7593,15 @@ MultiDiagramVisualizer.register('gitgraph', function(code, nodesLayer, edgesLaye
                 fields: [
                   { key: 'id', label: 'Commit Message / ID', type: 'text', value: c.id },
                   { key: 'tag', label: 'Release Tag (Optional)', type: 'text', value: c.tag || '' },
-                  { key: 'color', label: 'Commit Base Color', type: 'color', value: c.color },
-                  { key: 'font', label: '1. Label Font Color', type: 'color', value: c.fontColor || textColor },
-                  { key: 'fill', label: '2. Node Fill Color (Pastel)', type: 'color', value: commitFill },
-                  { key: 'border', label: '3. Node Border / Stroke Color', type: 'color', value: commitBorder }
+                  { key: 'font', label: Utils.FIELD_LABELS.font, type: 'color', value: c.fontColor || textColor },
+                  { key: 'fill', label: Utils.FIELD_LABELS.fill, type: 'color', value: commitFill },
+                  { key: 'border', label: Utils.FIELD_LABELS.border, type: 'color', value: commitBorder }
                 ],
                 onSave: (vals) => {
-                  MultiDiagramVisualizer.setColor(vals.id, vals.color);
                   MultiDiagramVisualizer.setColor(`${vals.id}_font`, vals.font);
                   MultiDiagramVisualizer.setColor(`${vals.id}_fill`, vals.fill);
                   MultiDiagramVisualizer.setColor(`${vals.id}_border`, vals.border);
-                  MultiDiagramVisualizer.syncColorToCode(vals.id, vals.color);
+                  MultiDiagramVisualizer.syncColorToCode(`${vals.id}_font`, vals.font);
                   MultiDiagramVisualizer.syncColorToCode(`${vals.id}_fill`, vals.fill);
                   MultiDiagramVisualizer.syncColorToCode(`${vals.id}_border`, vals.border);
                   MultiDiagramVisualizer.updateCodeLine((curCode) => {
@@ -7751,7 +7762,7 @@ MultiDiagramVisualizer.register('journey', function(code, nodesLayer, edgesLayer
                   type: 'Journey Touchpoint',
                   title: t.name,
                   fields: [
-                    { key: 'name', label: 'Task / Step Name', type: 'text', value: t.name },
+                    { key: 'name', label: 'Task Name', type: 'text', value: t.name },
                     { key: 'score', label: 'Satisfaction Score (1-5)', type: 'select', options: [
                       { value: 5, label: '5 - 😄 Great' },
                       { value: 4, label: '4 - 🙂 Good' },
@@ -7760,9 +7771,9 @@ MultiDiagramVisualizer.register('journey', function(code, nodesLayer, edgesLayer
                       { value: 1, label: '1 - 😡 Bad' }
                     ], value: t.score },
                     { key: 'actor', label: 'Involved Actor(s)', type: 'text', value: t.actor },
-                    { key: 'font', label: '1. Font / Text Color', type: 'color', value: t.fontColor },
-                    { key: 'fill', label: '2. Node / Card Fill Color', type: 'color', value: t.fillColor },
-                    { key: 'border', label: '3. Node / Card Border Color', type: 'color', value: t.borderColor }
+                    { key: 'font', label: Utils.FIELD_LABELS.font, type: 'color', value: t.fontColor },
+                    { key: 'fill', label: Utils.FIELD_LABELS.fill, type: 'color', value: t.fillColor },
+                    { key: 'border', label: Utils.FIELD_LABELS.border, type: 'color', value: t.borderColor }
                   ],
                   onSave: (vals) => {
                     MultiDiagramVisualizer.setColor(vals.name, vals.fill);
@@ -8059,7 +8070,7 @@ MultiDiagramVisualizer.register('mindmap', function(code, nodesLayer, edgesLayer
         type: 'Mindmap Root',
         title: rootNode.text,
         fields: [
-          { key: 'text', label: 'Central Topic', type: 'text', value: rootNode.text },
+          { key: 'text', label: 'Topic Name', type: 'text', value: rootNode.text },
           { key: 'shape', label: 'Root Shape', type: 'select', value: rootNode.shape || 'circle', options: [
             { value: 'circle', label: 'Circle ((Root))' },
             { value: 'rounded', label: 'Rounded (Root)' },
@@ -8067,9 +8078,9 @@ MultiDiagramVisualizer.register('mindmap', function(code, nodesLayer, edgesLayer
             { value: 'hexagon', label: 'Hexagon {{Root}}' },
             { value: 'cloud', label: 'Cloud )Root(' }
           ]},
-          { key: 'font', label: '1. Font / Text Color', type: 'color', value: rFont },
-          { key: 'fill', label: '2. Node Fill Color', type: 'color', value: rFill },
-          { key: 'border', label: '3. Node Border / Stroke Color', type: 'color', value: rBorder }
+          { key: 'font', label: Utils.FIELD_LABELS.font, type: 'color', value: rFont },
+          { key: 'fill', label: Utils.FIELD_LABELS.fill, type: 'color', value: rFill },
+          { key: 'border', label: Utils.FIELD_LABELS.border, type: 'color', value: rBorder }
         ],
         onSave: (vals) => {
           MultiDiagramVisualizer.setColor('root', vals.fill);
@@ -8163,19 +8174,10 @@ MultiDiagramVisualizer.register('mindmap', function(code, nodesLayer, edgesLayer
             fields: [
               { key: 'from', label: 'From (Parent Topic)', type: 'select', value: parentNode.text, options: allTopicOptions },
               { key: 'to', label: 'To (Child Topic)', type: 'select', value: node.text, options: allTopicOptions },
-              { key: 'color', label: '1. Branch Line Color', type: 'color', value: lColor },
-              { key: 'width', label: '2. Line Thickness', type: 'select', value: lWidth, options: [
-                  { value: '1.2', label: 'Thin (1.2px)' },
-                  { value: '1.6', label: 'Medium (1.6px)' },
-                  { value: '2.2', label: 'Thick (2.2px - Default)' },
-                  { value: '3.2', label: 'Heavy (3.2px)' }
-              ]},
-              { key: 'routing', label: '3. Connector / Line Routing', type: 'select', value: lRouting, options: Utils.CONNECTOR_OPTIONS },
-              { key: 'style', label: '4. Line Dash Style', type: 'select', value: lStyle, options: [
-                  { value: 'solid', label: 'Solid (──────)' },
-                  { value: 'dashed', label: 'Dashed (– – – –)' },
-                  { value: 'dotted', label: 'Dotted (········)' }
-              ]}
+              { key: 'color', label: Utils.FIELD_LABELS.lineColor, type: 'color', value: lColor },
+              { key: 'width', label: Utils.FIELD_LABELS.lineWidth, type: 'select', value: lWidth, options: Utils.widthOptions(['1.2', '1.6', '2.2', '3.2'], '2.2') },
+              { key: 'routing', label: Utils.FIELD_LABELS.connector, type: 'select', value: lRouting, options: Utils.CONNECTOR_OPTIONS },
+              { key: 'style', label: Utils.FIELD_LABELS.lineDash, type: 'select', value: lStyle, options: Utils.DASH_OPTIONS }
             ],
             onSave: (vals) => {
               const newParent = vals.from || parentNode.text;
@@ -8265,7 +8267,7 @@ MultiDiagramVisualizer.register('mindmap', function(code, nodesLayer, edgesLayer
           type: `Mindmap Tier ${node.level}`,
           title: node.text,
           fields: [
-            { key: 'text', label: 'Branch Topic', type: 'text', value: node.text },
+            { key: 'text', label: 'Topic Name', type: 'text', value: node.text },
             { key: 'shape', label: 'Node Shape', type: 'select', value: node.shape || 'rounded', options: [
               { value: 'rounded', label: 'Rounded (Topic)' },
               { value: 'rectangle', label: 'Rectangle [Topic]' },
@@ -8273,9 +8275,9 @@ MultiDiagramVisualizer.register('mindmap', function(code, nodesLayer, edgesLayer
               { value: 'hexagon', label: 'Hexagon {{Topic}}' },
               { value: 'cloud', label: 'Cloud )Topic(' }
             ]},
-            { key: 'font', label: '1. Font / Text Color', type: 'color', value: nodeFont },
-            { key: 'fill', label: '2. Node Fill Color', type: 'color', value: nodeFill },
-            { key: 'border', label: '3. Node Border / Stroke Color', type: 'color', value: nodeBorder }
+            { key: 'font', label: Utils.FIELD_LABELS.font, type: 'color', value: nodeFont },
+            { key: 'fill', label: Utils.FIELD_LABELS.fill, type: 'color', value: nodeFill },
+            { key: 'border', label: Utils.FIELD_LABELS.border, type: 'color', value: nodeBorder }
           ],
           onSave: (vals) => {
             MultiDiagramVisualizer.setColor(vals.text, vals.fill);
@@ -9493,7 +9495,7 @@ MultiDiagramVisualizer.register('mindmap', function(code, nodesLayer, edgesLayer
 
           <!-- 1. Font Color -->
           <div class="prop-group">
-            <label>1. Font / Text Color</label>
+            <label>Font / Text Color</label>
             <div style="display:flex; align-items:center; gap:8px;">
               <input type="color" id="prop-node-font" style="width:32px; height:26px; border:none; border-radius:3px; cursor:pointer;">
               <span id="prop-node-font-val" style="font-size:11px; font-family:var(--code-font);">#0D47A1</span>
@@ -9513,7 +9515,7 @@ MultiDiagramVisualizer.register('mindmap', function(code, nodesLayer, edgesLayer
 
           <!-- 2. Node Fill Color -->
           <div class="prop-group">
-            <label>2. Node Fill Color</label>
+            <label>Node Fill Color</label>
             <div style="display:flex; align-items:center; gap:8px;">
               <input type="color" id="prop-node-fill" style="width:32px; height:26px; border:none; border-radius:3px; cursor:pointer;">
               <span id="prop-node-fill-val" style="font-size:11px; font-family:var(--code-font);">#E3F2FD</span>
@@ -9533,7 +9535,7 @@ MultiDiagramVisualizer.register('mindmap', function(code, nodesLayer, edgesLayer
 
           <!-- 3. Node Border Color -->
           <div class="prop-group">
-            <label>3. Node Border / Stroke Color</label>
+            <label>Node Border / Stroke Color</label>
             <div style="display:flex; align-items:center; gap:8px;">
               <input type="color" id="prop-node-border" style="width:32px; height:26px; border:none; border-radius:3px; cursor:pointer;">
               <span id="prop-node-border-val" style="font-size:11px; font-family:var(--code-font);">#1976D2</span>
@@ -9581,11 +9583,11 @@ MultiDiagramVisualizer.register('mindmap', function(code, nodesLayer, edgesLayer
           </div>
 
           <div class="prop-group">
-            <label>Edge Label</label>
+            <label>Link Label</label>
             <input type="text" id="prop-edge-label" class="prop-input" placeholder="e.g. Yes / Action">
           </div>
           <div class="prop-group">
-            <label>Arrow Head / End Style (Includes Bi-directional)</label>
+            <label>Link Type (Includes Bi-directional)</label>
             <select id="prop-edge-type" class="prop-input">
               <option value="-->">Forward Solid Arrow (--&gt;)</option>
               <option value="<--">Reverse Solid Arrow (&lt;--)</option>
@@ -9602,16 +9604,7 @@ MultiDiagramVisualizer.register('mindmap', function(code, nodesLayer, edgesLayer
           </div>
 
           <div class="prop-group">
-            <label>Connector Curve / Routing Style</label>
-            <select id="prop-edge-curve" class="prop-input">
-              <option value="basis">Smooth Curve (Bezier / basis)</option>
-              <option value="linear">Straight Line (linear)</option>
-              <option value="step">Orthogonal Step (90° Corners / step)</option>
-            </select>
-          </div>
-
-          <div class="prop-group">
-            <label>Link Color</label>
+            <label>Line Color</label>
             <div style="display:flex; align-items:center; gap:8px;">
               <input type="color" id="prop-edge-color" style="width:32px; height:26px; border:none; border-radius:3px; cursor:pointer;">
               <span id="prop-edge-color-val" style="font-size:11px; font-family:var(--code-font);">#616161</span>
@@ -9637,8 +9630,20 @@ MultiDiagramVisualizer.register('mindmap', function(code, nodesLayer, edgesLayer
             </select>
           </div>
 
+          <!-- Values stay basis/linear/step: they round-trip into the Mermaid
+               %%{init}%% curve directive. Utils.normalizeConnector maps them onto the
+               shared curve/straight/step vocabulary used by every other diagram. -->
           <div class="prop-group">
-            <label>Label Font Color</label>
+            <label>Connector / Line Routing</label>
+            <select id="prop-edge-curve" class="prop-input">
+              <option value="basis">Curved (Bezier)</option>
+              <option value="linear">Straight Line</option>
+              <option value="step">Orthogonal Step (90° Corners)</option>
+            </select>
+          </div>
+
+          <div class="prop-group">
+            <label>Label Text Color</label>
             <div style="display:flex; align-items:center; gap:8px;">
               <input type="color" id="prop-edge-text-color" style="width:32px; height:26px; border:none; border-radius:3px; cursor:pointer;" value="#212121">
               <span id="prop-edge-text-color-val" style="font-size:11px; font-family:var(--code-font);">#212121</span>
@@ -9936,23 +9941,24 @@ MultiDiagramVisualizer.register('mindmap', function(code, nodesLayer, edgesLayer
             <option value="trapezoid_alt">Trapezoid Alt [\Manual Task/]</option>
           </select>
         </div>
+        <!-- Same names and order as the Inspector's node panel. -->
         <div class="color-row">
           <div class="form-group">
-            <label>Fill Color</label>
+            <label>Font / Text Color</label>
+            <div class="color-input-wrapper">
+              <input type="color" id="nm-font" value="#0D47A1">
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Node Fill Color</label>
             <div class="color-input-wrapper">
               <input type="color" id="nm-fill" value="#E3F2FD">
             </div>
           </div>
           <div class="form-group">
-            <label>Border Color</label>
+            <label>Node Border / Stroke Color</label>
             <div class="color-input-wrapper">
               <input type="color" id="nm-border" value="#1976D2">
-            </div>
-          </div>
-          <div class="form-group">
-            <label>Font Color</label>
-            <div class="color-input-wrapper">
-              <input type="color" id="nm-font" value="#0D47A1">
             </div>
           </div>
         </div>
@@ -9974,20 +9980,20 @@ MultiDiagramVisualizer.register('mindmap', function(code, nodesLayer, edgesLayer
       <div class="modal-body">
         <div class="form-row">
           <div class="form-group">
-            <label>Source Node</label>
+            <label>From (Source)</label>
             <select id="lm-source" class="form-control"></select>
           </div>
           <div class="form-group">
-            <label>Target Node</label>
+            <label>To (Target)</label>
             <select id="lm-target" class="form-control"></select>
           </div>
         </div>
         <div class="form-group">
-          <label>Edge Label (Optional)</label>
+          <label>Link Label (Optional)</label>
           <input type="text" id="lm-label" class="form-control" placeholder="e.g. Yes / No / Action">
         </div>
         <div class="form-group">
-          <label>Arrow Type</label>
+          <label>Link Type</label>
           <select id="lm-type" class="form-control">
             <option value="-->">Solid Arrow (--&gt;)</option>
             <option value="--->">Long / Solid (---&gt;)</option>
@@ -10290,11 +10296,11 @@ MultiDiagramVisualizer.register('pie', function(code, nodesLayer, edgesLayer, is
                   type: 'Pie Slice',
                   title: d.label,
                   fields: [
-                    { key: 'label', label: 'Slice Label', type: 'text', value: d.label },
+                    { key: 'label', label: 'Slice Name', type: 'text', value: d.label },
                     { key: 'val', label: 'Value / Proportion', type: 'number', step: 1, min: 0, value: d.val },
-                    { key: 'font', label: '1. Font / Legend Color', type: 'color', value: d.fontColor },
-                    { key: 'fill', label: '2. Node / Slice Fill Color', type: 'color', value: d.fillColor },
-                    { key: 'border', label: '3. Node / Slice Border Color', type: 'color', value: d.borderColor }
+                    { key: 'font', label: Utils.FIELD_LABELS.font, type: 'color', value: d.fontColor },
+                    { key: 'fill', label: Utils.FIELD_LABELS.fill, type: 'color', value: d.fillColor },
+                    { key: 'border', label: Utils.FIELD_LABELS.border, type: 'color', value: d.borderColor }
                   ],
                   onSave: (vals) => {
                     MultiDiagramVisualizer.setColor(vals.label, vals.fill);
@@ -10541,10 +10547,11 @@ MultiDiagramVisualizer.register('quadrant', function(code, nodesLayer, edgesLaye
           if (isSelQuad) circle.style.filter = selGlow;
           itemG.appendChild(circle);
 
+          const dotFont = MultiDiagramVisualizer.getColor(`${it.name}_font`, textColor);
           const txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
           txt.setAttribute('x', `${px + 12}`);
           txt.setAttribute('y', `${py + 4}`);
-          txt.setAttribute('fill', textColor);
+          txt.setAttribute('fill', dotFont);
           txt.setAttribute('font-size', '11px');
           txt.setAttribute('font-weight', '500');
           txt.textContent = it.name;
@@ -10561,15 +10568,15 @@ MultiDiagramVisualizer.register('quadrant', function(code, nodesLayer, edgesLaye
                   { key: 'name', label: 'Item Name', type: 'text', value: it.name },
                   { key: 'x', label: 'X Axis (0.0 - 1.0)', type: 'number', step: 0.05, min: 0, max: 1, value: it.x },
                   { key: 'y', label: 'Y Axis (0.0 - 1.0)', type: 'number', step: 0.05, min: 0, max: 1, value: it.y },
-                  { key: 'color', label: '1. Point Base Color', type: 'color', value: it.color },
-                  { key: 'fill', label: '2. Node Fill Color (Pastel)', type: 'color', value: dotFill },
-                  { key: 'border', label: '3. Node Border / Stroke Color', type: 'color', value: dotBorder }
+                  { key: 'font', label: Utils.FIELD_LABELS.font, type: 'color', value: dotFont },
+                  { key: 'fill', label: Utils.FIELD_LABELS.fill, type: 'color', value: dotFill },
+                  { key: 'border', label: Utils.FIELD_LABELS.border, type: 'color', value: dotBorder }
                 ],
                 onSave: (vals) => {
-                  MultiDiagramVisualizer.setColor(vals.name, vals.color);
+                  MultiDiagramVisualizer.setColor(`${vals.name}_font`, vals.font);
                   MultiDiagramVisualizer.setColor(`${vals.name}_fill`, vals.fill);
                   MultiDiagramVisualizer.setColor(`${vals.name}_border`, vals.border);
-                  MultiDiagramVisualizer.syncColorToCode(vals.name, vals.color);
+                  MultiDiagramVisualizer.syncColorToCode(`${vals.name}_font`, vals.font);
                   MultiDiagramVisualizer.syncColorToCode(`${vals.name}_fill`, vals.fill);
                   MultiDiagramVisualizer.syncColorToCode(`${vals.name}_border`, vals.border);
                   MultiDiagramVisualizer.updateCodeLine((curCode) => {
@@ -10681,10 +10688,10 @@ MultiDiagramVisualizer.register('sankey', function(code, nodesLayer, edgesLayer,
           type: 'Sankey Node',
           title: name,
           fields: [
-            { key: 'name', label: 'Node Label', type: 'text', value: name },
-            { key: 'font', label: '1. Font / Text Color', type: 'color', value: fontColor },
-            { key: 'fill', label: '2. Node Fill Color', type: 'color', value: fillColor },
-            { key: 'border', label: '3. Node Border / Stroke Color', type: 'color', value: borderColor }
+            { key: 'name', label: 'Node Name', type: 'text', value: name },
+            { key: 'font', label: Utils.FIELD_LABELS.font, type: 'color', value: fontColor },
+            { key: 'fill', label: Utils.FIELD_LABELS.fill, type: 'color', value: fillColor },
+            { key: 'border', label: Utils.FIELD_LABELS.border, type: 'color', value: borderColor }
           ],
           onSave: (vals) => {
             MultiDiagramVisualizer.setColor(vals.name, vals.fill);
@@ -10763,11 +10770,11 @@ MultiDiagramVisualizer.register('sankey', function(code, nodesLayer, edgesLayer,
           type: 'Sankey Flow',
           title: `${f.src} → ${f.tgt}`,
           fields: [
-            { key: 'src', label: 'Source Node', type: 'select', value: f.src, options: allNodeOptions },
-            { key: 'tgt', label: 'Target Node', type: 'select', value: f.tgt, options: allNodeOptions },
+            { key: 'src', label: 'From (Source Node)', type: 'select', value: f.src, options: allNodeOptions },
+            { key: 'tgt', label: 'To (Target Node)', type: 'select', value: f.tgt, options: allNodeOptions },
             { key: 'val', label: 'Flow Volume / Value', type: 'number', min: 1, step: 10, value: f.val },
-            { key: 'color', label: 'Flow Band Color', type: 'color', value: flowColor },
-            { key: 'connector', label: 'Connector / Line Routing', type: 'select', value: connStyle, options: Utils.CONNECTOR_OPTIONS }
+            { key: 'color', label: Utils.FIELD_LABELS.lineColor, type: 'color', value: flowColor },
+            { key: 'connector', label: Utils.FIELD_LABELS.connector, type: 'select', value: connStyle, options: Utils.CONNECTOR_OPTIONS }
           ],
           onSave: (vals) => {
             const newFlowKey = `${vals.src}->${vals.tgt}`;
@@ -11194,8 +11201,8 @@ MultiDiagramVisualizer.register('sequence', function(code, nodesLayer, edgesLaye
           fields: [
             { key: 'src', label: 'From (Sender)', type: 'select', value: msg.src, options: allPartOptions },
             { key: 'tgt', label: 'To (Receiver)', type: 'select', value: msg.tgt, options: allPartOptions },
-            { key: 'label', label: 'Message Label', type: 'text', value: msg.label },
-            { key: 'arrow', label: 'Arrowhead Style (Includes Bi-directional)', type: 'select', value: msg.arrow || (msg.isDashed ? '-->>' : '->>'), options: [
+            { key: 'label', label: Utils.FIELD_LABELS.linkLabel, type: 'text', value: msg.label },
+            { key: 'arrow', label: `${Utils.FIELD_LABELS.linkType} (Includes Bi-directional)`, type: 'select', value: msg.arrow || (msg.isDashed ? '-->>' : '->>'), options: [
                 { value: '->>', label: 'Forward Solid Synchronous (->>)' },
                 { value: '-->>', label: 'Forward Dashed Return (-->>)' },
                 { value: '->', label: 'Forward Open Async (->)' },
@@ -11203,14 +11210,9 @@ MultiDiagramVisualizer.register('sequence', function(code, nodesLayer, edgesLaye
                 { value: '<->', label: 'Bidirectional Open (<->)' },
                 { value: '<->>', label: 'Bidirectional Solid (<->>)' }
             ]},
-            { key: 'color', label: 'Line / Arrow Color', type: 'color', value: msgColor },
-            { key: 'width', label: 'Line Thickness', type: 'select', value: msgWidth, options: [
-                { value: '1', label: 'Thin (1px)' },
-                { value: '1.4', label: 'Medium (1.4px - Default)' },
-                { value: '2.2', label: 'Thick (2.2px)' },
-                { value: '3', label: 'Heavy (3px)' }
-            ]},
-            { key: 'connector', label: 'Connector / Line Routing', type: 'select', value: connStyle, options: Utils.CONNECTOR_OPTIONS }
+            { key: 'color', label: Utils.FIELD_LABELS.lineColor, type: 'color', value: msgColor },
+            { key: 'width', label: Utils.FIELD_LABELS.lineWidth, type: 'select', value: msgWidth, options: Utils.widthOptions(['1', '1.4', '2.2', '3'], '1.4') },
+            { key: 'connector', label: Utils.FIELD_LABELS.connector, type: 'select', value: connStyle, options: Utils.CONNECTOR_OPTIONS }
           ],
           onSave: (vals) => {
             const newMsgKey = `${vals.src || msg.src}->${vals.tgt || msg.tgt}:${vals.label !== undefined ? vals.label : msg.label}`;
@@ -11349,9 +11351,9 @@ MultiDiagramVisualizer.register('sequence', function(code, nodesLayer, edgesLaye
             title: p.label,
             fields: [
               { key: 'name', label: 'Participant Name', type: 'text', value: p.label },
-              { key: 'font', label: '1. Font / Text Color', type: 'color', value: fontColor },
-              { key: 'fill', label: '2. Node Fill Color', type: 'color', value: fillColor },
-              { key: 'border', label: '3. Node Border / Stroke Color', type: 'color', value: borderColor }
+              { key: 'font', label: Utils.FIELD_LABELS.font, type: 'color', value: fontColor },
+              { key: 'fill', label: Utils.FIELD_LABELS.fill, type: 'color', value: fillColor },
+              { key: 'border', label: Utils.FIELD_LABELS.border, type: 'color', value: borderColor }
             ],
             onSave: (vals) => {
               MultiDiagramVisualizer.setColor(p.id, vals.fill);
@@ -11677,9 +11679,9 @@ MultiDiagramVisualizer.register('statediagram', function(code, nodesLayer, edges
           title: compositeNode.label,
           fields: [
             { key: 'label', label: 'State Name', type: 'text', value: compositeNode.label },
-            { key: 'font', label: '1. Font / Text Color', type: 'color', value: fontColor },
-            { key: 'fill', label: '2. Node Fill Color', type: 'color', value: fillColor },
-            { key: 'border', label: '3. Node Border / Stroke Color', type: 'color', value: borderColor }
+            { key: 'font', label: Utils.FIELD_LABELS.font, type: 'color', value: fontColor },
+            { key: 'fill', label: Utils.FIELD_LABELS.fill, type: 'color', value: fillColor },
+            { key: 'border', label: Utils.FIELD_LABELS.border, type: 'color', value: borderColor }
           ],
           onSave: (vals) => {
             MultiDiagramVisualizer.setColor(compositeNode.id, vals.fill);
@@ -11900,31 +11902,22 @@ MultiDiagramVisualizer.register('statediagram', function(code, nodesLayer, edges
           type: 'State Transition Link',
           title: trTitle,
           fields: [
-            { key: 'src', label: 'From State', type: 'select', value: sName, options: uniqueStateOptions },
-            { key: 'tgt', label: 'To State', type: 'select', value: tName, options: uniqueStateOptions },
-            { key: 'label', label: 'Condition / Action Label', type: 'text', value: tr.label || '' },
-            { key: 'type', label: 'Transition Style (Includes Bi-directional)', type: 'select', value: '-->', options: [
+            { key: 'src', label: 'From (Source State)', type: 'select', value: sName, options: uniqueStateOptions },
+            { key: 'tgt', label: 'To (Target State)', type: 'select', value: tName, options: uniqueStateOptions },
+            { key: 'label', label: Utils.FIELD_LABELS.linkLabel, type: 'text', value: tr.label || '' },
+            { key: 'type', label: `${Utils.FIELD_LABELS.linkType} (Includes Bi-directional)`, type: 'select', value: '-->', options: [
                 { value: '-->', label: 'Forward Transition (-->)' },
                 { value: '<--', label: 'Reverse Transition (<--)' },
                 { value: '<-->', label: 'Bidirectional Transition (<-->)' },
                 { value: '-.->', label: 'Dotted Transition (-.->)' },
                 { value: '---', label: 'Open Line (---)' }
             ]},
-            { key: 'color', label: '1. Line & Arrow Color', type: 'color', value: trColor },
-            { key: 'width', label: '2. Line Thickness', type: 'select', value: trWidth, options: [
-                { value: '1.2', label: 'Thin (1.2px)' },
-                { value: '1.8', label: 'Medium (1.8px - Default)' },
-                { value: '2.5', label: 'Thick (2.5px)' },
-                { value: '3.5', label: 'Heavy (3.5px)' }
-            ]},
-            { key: 'style', label: '3. Line Dash Style', type: 'select', value: trStyle, options: [
-                { value: 'solid', label: 'Solid (──────)' },
-                { value: 'dashed', label: 'Dashed (– – – –)' },
-                { value: 'dotted', label: 'Dotted (········)' }
-            ]},
-            { key: 'connector', label: '4. Connector / Line Routing', type: 'select', value: connStyle, options: Utils.CONNECTOR_OPTIONS },
-            { key: 'font', label: '5. Label Text Color', type: 'color', value: trFont },
-            { key: 'bg', label: '6. Label Badge Background', type: 'color', value: trBg }
+            { key: 'color', label: Utils.FIELD_LABELS.lineColor, type: 'color', value: trColor },
+            { key: 'width', label: Utils.FIELD_LABELS.lineWidth, type: 'select', value: trWidth, options: Utils.widthOptions(['1.2', '1.8', '2.5', '3.5'], '1.8') },
+            { key: 'connector', label: Utils.FIELD_LABELS.connector, type: 'select', value: connStyle, options: Utils.CONNECTOR_OPTIONS },
+            { key: 'style', label: Utils.FIELD_LABELS.lineDash, type: 'select', value: trStyle, options: Utils.DASH_OPTIONS },
+            { key: 'font', label: Utils.FIELD_LABELS.labelText, type: 'color', value: trFont },
+            { key: 'bg', label: Utils.FIELD_LABELS.labelBg, type: 'color', value: trBg }
           ],
           onSave: (vals) => {
             MultiDiagramVisualizer.setColor(trKey, vals.color);
@@ -12044,9 +12037,9 @@ MultiDiagramVisualizer.register('statediagram', function(code, nodesLayer, edges
           title: s.label,
           fields: [
             { key: 'label', label: 'State Name', type: 'text', value: s.label },
-            { key: 'font', label: '1. Font / Text Color', type: 'color', value: fontColor },
-            { key: 'fill', label: '2. Node Fill Color', type: 'color', value: fillColor },
-            { key: 'border', label: '3. Node Border / Stroke Color', type: 'color', value: borderColor }
+            { key: 'font', label: Utils.FIELD_LABELS.font, type: 'color', value: fontColor },
+            { key: 'fill', label: Utils.FIELD_LABELS.fill, type: 'color', value: fillColor },
+            { key: 'border', label: Utils.FIELD_LABELS.border, type: 'color', value: borderColor }
           ],
           onSave: (vals) => {
             MultiDiagramVisualizer.setColor(s.id, vals.fill);
@@ -12200,9 +12193,9 @@ MultiDiagramVisualizer.register('timeline', function(code, nodesLayer, edgesLaye
                 fields: [
                   { key: 'era', label: 'Era / Year', type: 'text', value: ev.era },
                   { key: 'items', label: 'Milestone Events (Comma Separated)', type: 'textarea', rows: 2, value: ev.items.join(', ') },
-                  { key: 'font', label: '1. Font / Text Color', type: 'color', value: ev.fontColor },
-                  { key: 'fill', label: '2. Node / Card Fill Color', type: 'color', value: ev.fillColor },
-                  { key: 'border', label: '3. Node Border / Accent Color', type: 'color', value: ev.borderColor }
+                  { key: 'font', label: Utils.FIELD_LABELS.font, type: 'color', value: ev.fontColor },
+                  { key: 'fill', label: Utils.FIELD_LABELS.fill, type: 'color', value: ev.fillColor },
+                  { key: 'border', label: Utils.FIELD_LABELS.border, type: 'color', value: ev.borderColor }
                 ],
                 onSave: (vals) => {
                   MultiDiagramVisualizer.setColor(vals.era, vals.fill);
@@ -12464,9 +12457,9 @@ MultiDiagramVisualizer.register('treemap', function(code, nodesLayer, edgesLayer
           title: g.name,
           fields: [
             { key: 'name', label: 'Category Name', type: 'text', value: g.name },
-            { key: 'font', label: '1. Font / Text Color', type: 'color', value: gFont },
-            { key: 'fill', label: '2. Node Fill Color', type: 'color', value: gFill },
-            { key: 'border', label: '3. Node Border / Stroke Color', type: 'color', value: gBorder }
+            { key: 'font', label: Utils.FIELD_LABELS.font, type: 'color', value: gFont },
+            { key: 'fill', label: Utils.FIELD_LABELS.fill, type: 'color', value: gFill },
+            { key: 'border', label: Utils.FIELD_LABELS.border, type: 'color', value: gBorder }
           ],
           onSave: (vals) => {
             MultiDiagramVisualizer.setColor(g.name, vals.fill);
@@ -12617,9 +12610,9 @@ MultiDiagramVisualizer.register('treemap', function(code, nodesLayer, edgesLayer
             fields: [
               { key: 'name', label: 'Item Name', type: 'text', value: item.name },
               { key: 'value', label: 'Value / Amount', type: 'number', min: 1, step: 10, value: item.value },
-              { key: 'font', label: '1. Font / Text Color', type: 'color', value: itemFont },
-              { key: 'fill', label: '2. Node Fill Color', type: 'color', value: itemFill },
-              { key: 'border', label: '3. Node Border / Stroke Color', type: 'color', value: itemBorder }
+              { key: 'font', label: Utils.FIELD_LABELS.font, type: 'color', value: itemFont },
+              { key: 'fill', label: Utils.FIELD_LABELS.fill, type: 'color', value: itemFill },
+              { key: 'border', label: Utils.FIELD_LABELS.border, type: 'color', value: itemBorder }
             ],
             onSave: (vals) => {
               MultiDiagramVisualizer.setColor(item.name, vals.fill);

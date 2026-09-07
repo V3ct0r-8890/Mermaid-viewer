@@ -131,9 +131,9 @@ MultiDiagramVisualizer.register('timeline', function(code, nodesLayer, edgesLaye
                 fields: [
                   { key: 'era', label: 'Era / Year', type: 'text', value: ev.era },
                   { key: 'items', label: 'Milestone Events (Comma Separated)', type: 'textarea', rows: 2, value: ev.items.join(', ') },
-                  { key: 'font', label: '1. Font / Text Color', type: 'color', value: ev.fontColor },
-                  { key: 'fill', label: '2. Node / Card Fill Color', type: 'color', value: ev.fillColor },
-                  { key: 'border', label: '3. Node Border / Accent Color', type: 'color', value: ev.borderColor }
+                  { key: 'font', label: Utils.FIELD_LABELS.font, type: 'color', value: ev.fontColor },
+                  { key: 'fill', label: Utils.FIELD_LABELS.fill, type: 'color', value: ev.fillColor },
+                  { key: 'border', label: Utils.FIELD_LABELS.border, type: 'color', value: ev.borderColor }
                 ],
                 onSave: (vals) => {
                   MultiDiagramVisualizer.setColor(vals.era, vals.fill);

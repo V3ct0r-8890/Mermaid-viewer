@@ -418,20 +418,11 @@ MultiDiagramVisualizer.register('gantt', function(code, nodesLayer, edgesLayer, 
             type: 'Timeline Marker',
             title: 'Today Highlight',
             fields: [
-              { key: 'color', label: '1. Marker & Line Color', type: 'color', value: todayColor },
-              { key: 'width', label: '2. Line Thickness', type: 'select', value: todayWidth, options: [
-                  { value: '1.5', label: 'Thin (1.5px)' },
-                  { value: '2', label: 'Medium (2px - Default)' },
-                  { value: '3', label: 'Thick (3px)' },
-                  { value: '4', label: 'Heavy (4px)' }
-              ]},
-              { key: 'style', label: '3. Line Style', type: 'select', value: todayStyle, options: [
-                  { value: 'dashed', label: 'Dashed (– – – –)' },
-                  { value: 'solid', label: 'Solid (──────)' },
-                  { value: 'dotted', label: 'Dotted (········)' }
-              ]},
-              { key: 'badgeBg', label: '4. Badge Background', type: 'color', value: todayBadgeBg },
-              { key: 'badgeFont', label: '5. Badge Text Color', type: 'color', value: todayBadgeFont }
+              { key: 'color', label: Utils.FIELD_LABELS.lineColor, type: 'color', value: todayColor },
+              { key: 'width', label: Utils.FIELD_LABELS.lineWidth, type: 'select', value: todayWidth, options: Utils.widthOptions(['1.5', '2', '3', '4'], '2') },
+              { key: 'style', label: Utils.FIELD_LABELS.lineDash, type: 'select', value: todayStyle, options: Utils.DASH_OPTIONS },
+              { key: 'badgeFont', label: Utils.FIELD_LABELS.labelText, type: 'color', value: todayBadgeFont },
+              { key: 'badgeBg', label: Utils.FIELD_LABELS.labelBg, type: 'color', value: todayBadgeBg }
             ],
             onSave: (vals) => {
               MultiDiagramVisualizer.setColor('today_marker', vals.color);
@@ -565,9 +556,9 @@ MultiDiagramVisualizer.register('gantt', function(code, nodesLayer, edgesLayer, 
               { key: 'startDate', label: 'Start Date (YYYY-MM-DD)', type: 'date', value: t.startDate || '' },
               { key: 'dur', label: 'Duration (# of Days)', type: 'number', min: 1, step: 1, value: t.dur },
               { key: 'endDate', label: 'End Date (YYYY-MM-DD)', type: 'date', value: t.endDate || '' },
-              { key: 'font', label: '1. Font / Text Color', type: 'color', value: t.fontColor },
-              { key: 'fill', label: '2. Node / Bar Fill Color', type: 'color', value: t.fillColor },
-              { key: 'border', label: '3. Node / Bar Border Color', type: 'color', value: t.borderColor }
+              { key: 'font', label: Utils.FIELD_LABELS.font, type: 'color', value: t.fontColor },
+              { key: 'fill', label: Utils.FIELD_LABELS.fill, type: 'color', value: t.fillColor },
+              { key: 'border', label: Utils.FIELD_LABELS.border, type: 'color', value: t.borderColor }
             ],
             onSave: (vals) => {
               MultiDiagramVisualizer.setColor(vals.name, vals.fill);

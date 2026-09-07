@@ -129,7 +129,7 @@ MultiDiagramVisualizer.register('journey', function(code, nodesLayer, edgesLayer
                   type: 'Journey Touchpoint',
                   title: t.name,
                   fields: [
-                    { key: 'name', label: 'Task / Step Name', type: 'text', value: t.name },
+                    { key: 'name', label: 'Task Name', type: 'text', value: t.name },
                     { key: 'score', label: 'Satisfaction Score (1-5)', type: 'select', options: [
                       { value: 5, label: '5 - 😄 Great' },
                       { value: 4, label: '4 - 🙂 Good' },
@@ -138,9 +138,9 @@ MultiDiagramVisualizer.register('journey', function(code, nodesLayer, edgesLayer
                       { value: 1, label: '1 - 😡 Bad' }
                     ], value: t.score },
                     { key: 'actor', label: 'Involved Actor(s)', type: 'text', value: t.actor },
-                    { key: 'font', label: '1. Font / Text Color', type: 'color', value: t.fontColor },
-                    { key: 'fill', label: '2. Node / Card Fill Color', type: 'color', value: t.fillColor },
-                    { key: 'border', label: '3. Node / Card Border Color', type: 'color', value: t.borderColor }
+                    { key: 'font', label: Utils.FIELD_LABELS.font, type: 'color', value: t.fontColor },
+                    { key: 'fill', label: Utils.FIELD_LABELS.fill, type: 'color', value: t.fillColor },
+                    { key: 'border', label: Utils.FIELD_LABELS.border, type: 'color', value: t.borderColor }
                   ],
                   onSave: (vals) => {
                     MultiDiagramVisualizer.setColor(vals.name, vals.fill);

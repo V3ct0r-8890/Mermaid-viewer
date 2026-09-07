@@ -264,7 +264,7 @@ MultiDiagramVisualizer.register('mindmap', function(code, nodesLayer, edgesLayer
         type: 'Mindmap Root',
         title: rootNode.text,
         fields: [
-          { key: 'text', label: 'Central Topic', type: 'text', value: rootNode.text },
+          { key: 'text', label: 'Topic Name', type: 'text', value: rootNode.text },
           { key: 'shape', label: 'Root Shape', type: 'select', value: rootNode.shape || 'circle', options: [
             { value: 'circle', label: 'Circle ((Root))' },
             { value: 'rounded', label: 'Rounded (Root)' },
@@ -272,9 +272,9 @@ MultiDiagramVisualizer.register('mindmap', function(code, nodesLayer, edgesLayer
             { value: 'hexagon', label: 'Hexagon {{Root}}' },
             { value: 'cloud', label: 'Cloud )Root(' }
           ]},
-          { key: 'font', label: '1. Font / Text Color', type: 'color', value: rFont },
-          { key: 'fill', label: '2. Node Fill Color', type: 'color', value: rFill },
-          { key: 'border', label: '3. Node Border / Stroke Color', type: 'color', value: rBorder }
+          { key: 'font', label: Utils.FIELD_LABELS.font, type: 'color', value: rFont },
+          { key: 'fill', label: Utils.FIELD_LABELS.fill, type: 'color', value: rFill },
+          { key: 'border', label: Utils.FIELD_LABELS.border, type: 'color', value: rBorder }
         ],
         onSave: (vals) => {
           MultiDiagramVisualizer.setColor('root', vals.fill);
@@ -368,19 +368,10 @@ MultiDiagramVisualizer.register('mindmap', function(code, nodesLayer, edgesLayer
             fields: [
               { key: 'from', label: 'From (Parent Topic)', type: 'select', value: parentNode.text, options: allTopicOptions },
               { key: 'to', label: 'To (Child Topic)', type: 'select', value: node.text, options: allTopicOptions },
-              { key: 'color', label: '1. Branch Line Color', type: 'color', value: lColor },
-              { key: 'width', label: '2. Line Thickness', type: 'select', value: lWidth, options: [
-                  { value: '1.2', label: 'Thin (1.2px)' },
-                  { value: '1.6', label: 'Medium (1.6px)' },
-                  { value: '2.2', label: 'Thick (2.2px - Default)' },
-                  { value: '3.2', label: 'Heavy (3.2px)' }
-              ]},
-              { key: 'routing', label: '3. Connector / Line Routing', type: 'select', value: lRouting, options: Utils.CONNECTOR_OPTIONS },
-              { key: 'style', label: '4. Line Dash Style', type: 'select', value: lStyle, options: [
-                  { value: 'solid', label: 'Solid (──────)' },
-                  { value: 'dashed', label: 'Dashed (– – – –)' },
-                  { value: 'dotted', label: 'Dotted (········)' }
-              ]}
+              { key: 'color', label: Utils.FIELD_LABELS.lineColor, type: 'color', value: lColor },
+              { key: 'width', label: Utils.FIELD_LABELS.lineWidth, type: 'select', value: lWidth, options: Utils.widthOptions(['1.2', '1.6', '2.2', '3.2'], '2.2') },
+              { key: 'routing', label: Utils.FIELD_LABELS.connector, type: 'select', value: lRouting, options: Utils.CONNECTOR_OPTIONS },
+              { key: 'style', label: Utils.FIELD_LABELS.lineDash, type: 'select', value: lStyle, options: Utils.DASH_OPTIONS }
             ],
             onSave: (vals) => {
               const newParent = vals.from || parentNode.text;
@@ -470,7 +461,7 @@ MultiDiagramVisualizer.register('mindmap', function(code, nodesLayer, edgesLayer
           type: `Mindmap Tier ${node.level}`,
           title: node.text,
           fields: [
-            { key: 'text', label: 'Branch Topic', type: 'text', value: node.text },
+            { key: 'text', label: 'Topic Name', type: 'text', value: node.text },
             { key: 'shape', label: 'Node Shape', type: 'select', value: node.shape || 'rounded', options: [
               { value: 'rounded', label: 'Rounded (Topic)' },
               { value: 'rectangle', label: 'Rectangle [Topic]' },
@@ -478,9 +469,9 @@ MultiDiagramVisualizer.register('mindmap', function(code, nodesLayer, edgesLayer
               { value: 'hexagon', label: 'Hexagon {{Topic}}' },
               { value: 'cloud', label: 'Cloud )Topic(' }
             ]},
-            { key: 'font', label: '1. Font / Text Color', type: 'color', value: nodeFont },
-            { key: 'fill', label: '2. Node Fill Color', type: 'color', value: nodeFill },
-            { key: 'border', label: '3. Node Border / Stroke Color', type: 'color', value: nodeBorder }
+            { key: 'font', label: Utils.FIELD_LABELS.font, type: 'color', value: nodeFont },
+            { key: 'fill', label: Utils.FIELD_LABELS.fill, type: 'color', value: nodeFill },
+            { key: 'border', label: Utils.FIELD_LABELS.border, type: 'color', value: nodeBorder }
           ],
           onSave: (vals) => {
             MultiDiagramVisualizer.setColor(vals.text, vals.fill);

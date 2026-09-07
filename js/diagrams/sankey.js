@@ -86,10 +86,10 @@ MultiDiagramVisualizer.register('sankey', function(code, nodesLayer, edgesLayer,
           type: 'Sankey Node',
           title: name,
           fields: [
-            { key: 'name', label: 'Node Label', type: 'text', value: name },
-            { key: 'font', label: '1. Font / Text Color', type: 'color', value: fontColor },
-            { key: 'fill', label: '2. Node Fill Color', type: 'color', value: fillColor },
-            { key: 'border', label: '3. Node Border / Stroke Color', type: 'color', value: borderColor }
+            { key: 'name', label: 'Node Name', type: 'text', value: name },
+            { key: 'font', label: Utils.FIELD_LABELS.font, type: 'color', value: fontColor },
+            { key: 'fill', label: Utils.FIELD_LABELS.fill, type: 'color', value: fillColor },
+            { key: 'border', label: Utils.FIELD_LABELS.border, type: 'color', value: borderColor }
           ],
           onSave: (vals) => {
             MultiDiagramVisualizer.setColor(vals.name, vals.fill);
@@ -168,11 +168,11 @@ MultiDiagramVisualizer.register('sankey', function(code, nodesLayer, edgesLayer,
           type: 'Sankey Flow',
           title: `${f.src} → ${f.tgt}`,
           fields: [
-            { key: 'src', label: 'Source Node', type: 'select', value: f.src, options: allNodeOptions },
-            { key: 'tgt', label: 'Target Node', type: 'select', value: f.tgt, options: allNodeOptions },
+            { key: 'src', label: 'From (Source Node)', type: 'select', value: f.src, options: allNodeOptions },
+            { key: 'tgt', label: 'To (Target Node)', type: 'select', value: f.tgt, options: allNodeOptions },
             { key: 'val', label: 'Flow Volume / Value', type: 'number', min: 1, step: 10, value: f.val },
-            { key: 'color', label: 'Flow Band Color', type: 'color', value: flowColor },
-            { key: 'connector', label: 'Connector / Line Routing', type: 'select', value: connStyle, options: Utils.CONNECTOR_OPTIONS }
+            { key: 'color', label: Utils.FIELD_LABELS.lineColor, type: 'color', value: flowColor },
+            { key: 'connector', label: Utils.FIELD_LABELS.connector, type: 'select', value: connStyle, options: Utils.CONNECTOR_OPTIONS }
           ],
           onSave: (vals) => {
             const newFlowKey = `${vals.src}->${vals.tgt}`;

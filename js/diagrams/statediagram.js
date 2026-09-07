@@ -300,9 +300,9 @@ MultiDiagramVisualizer.register('statediagram', function(code, nodesLayer, edges
           title: compositeNode.label,
           fields: [
             { key: 'label', label: 'State Name', type: 'text', value: compositeNode.label },
-            { key: 'font', label: '1. Font / Text Color', type: 'color', value: fontColor },
-            { key: 'fill', label: '2. Node Fill Color', type: 'color', value: fillColor },
-            { key: 'border', label: '3. Node Border / Stroke Color', type: 'color', value: borderColor }
+            { key: 'font', label: Utils.FIELD_LABELS.font, type: 'color', value: fontColor },
+            { key: 'fill', label: Utils.FIELD_LABELS.fill, type: 'color', value: fillColor },
+            { key: 'border', label: Utils.FIELD_LABELS.border, type: 'color', value: borderColor }
           ],
           onSave: (vals) => {
             MultiDiagramVisualizer.setColor(compositeNode.id, vals.fill);
@@ -523,31 +523,22 @@ MultiDiagramVisualizer.register('statediagram', function(code, nodesLayer, edges
           type: 'State Transition Link',
           title: trTitle,
           fields: [
-            { key: 'src', label: 'From State', type: 'select', value: sName, options: uniqueStateOptions },
-            { key: 'tgt', label: 'To State', type: 'select', value: tName, options: uniqueStateOptions },
-            { key: 'label', label: 'Condition / Action Label', type: 'text', value: tr.label || '' },
-            { key: 'type', label: 'Transition Style (Includes Bi-directional)', type: 'select', value: '-->', options: [
+            { key: 'src', label: 'From (Source State)', type: 'select', value: sName, options: uniqueStateOptions },
+            { key: 'tgt', label: 'To (Target State)', type: 'select', value: tName, options: uniqueStateOptions },
+            { key: 'label', label: Utils.FIELD_LABELS.linkLabel, type: 'text', value: tr.label || '' },
+            { key: 'type', label: `${Utils.FIELD_LABELS.linkType} (Includes Bi-directional)`, type: 'select', value: '-->', options: [
                 { value: '-->', label: 'Forward Transition (-->)' },
                 { value: '<--', label: 'Reverse Transition (<--)' },
                 { value: '<-->', label: 'Bidirectional Transition (<-->)' },
                 { value: '-.->', label: 'Dotted Transition (-.->)' },
                 { value: '---', label: 'Open Line (---)' }
             ]},
-            { key: 'color', label: '1. Line & Arrow Color', type: 'color', value: trColor },
-            { key: 'width', label: '2. Line Thickness', type: 'select', value: trWidth, options: [
-                { value: '1.2', label: 'Thin (1.2px)' },
-                { value: '1.8', label: 'Medium (1.8px - Default)' },
-                { value: '2.5', label: 'Thick (2.5px)' },
-                { value: '3.5', label: 'Heavy (3.5px)' }
-            ]},
-            { key: 'style', label: '3. Line Dash Style', type: 'select', value: trStyle, options: [
-                { value: 'solid', label: 'Solid (──────)' },
-                { value: 'dashed', label: 'Dashed (– – – –)' },
-                { value: 'dotted', label: 'Dotted (········)' }
-            ]},
-            { key: 'connector', label: '4. Connector / Line Routing', type: 'select', value: connStyle, options: Utils.CONNECTOR_OPTIONS },
-            { key: 'font', label: '5. Label Text Color', type: 'color', value: trFont },
-            { key: 'bg', label: '6. Label Badge Background', type: 'color', value: trBg }
+            { key: 'color', label: Utils.FIELD_LABELS.lineColor, type: 'color', value: trColor },
+            { key: 'width', label: Utils.FIELD_LABELS.lineWidth, type: 'select', value: trWidth, options: Utils.widthOptions(['1.2', '1.8', '2.5', '3.5'], '1.8') },
+            { key: 'connector', label: Utils.FIELD_LABELS.connector, type: 'select', value: connStyle, options: Utils.CONNECTOR_OPTIONS },
+            { key: 'style', label: Utils.FIELD_LABELS.lineDash, type: 'select', value: trStyle, options: Utils.DASH_OPTIONS },
+            { key: 'font', label: Utils.FIELD_LABELS.labelText, type: 'color', value: trFont },
+            { key: 'bg', label: Utils.FIELD_LABELS.labelBg, type: 'color', value: trBg }
           ],
           onSave: (vals) => {
             MultiDiagramVisualizer.setColor(trKey, vals.color);
@@ -667,9 +658,9 @@ MultiDiagramVisualizer.register('statediagram', function(code, nodesLayer, edges
           title: s.label,
           fields: [
             { key: 'label', label: 'State Name', type: 'text', value: s.label },
-            { key: 'font', label: '1. Font / Text Color', type: 'color', value: fontColor },
-            { key: 'fill', label: '2. Node Fill Color', type: 'color', value: fillColor },
-            { key: 'border', label: '3. Node Border / Stroke Color', type: 'color', value: borderColor }
+            { key: 'font', label: Utils.FIELD_LABELS.font, type: 'color', value: fontColor },
+            { key: 'fill', label: Utils.FIELD_LABELS.fill, type: 'color', value: fillColor },
+            { key: 'border', label: Utils.FIELD_LABELS.border, type: 'color', value: borderColor }
           ],
           onSave: (vals) => {
             MultiDiagramVisualizer.setColor(s.id, vals.fill);

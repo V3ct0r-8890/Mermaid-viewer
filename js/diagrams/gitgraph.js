@@ -183,14 +183,9 @@ MultiDiagramVisualizer.register('gitgraph', function(code, nodesLayer, edgesLaye
                     // are shown for orientation rather than as reconnect controls.
                     { key: 'from', label: 'From (Previous Commit)', type: 'select', value: prevId, options: [{ value: prevId, label: prevId }] },
                     { key: 'to', label: 'To (This Commit)', type: 'select', value: c.id, options: [{ value: c.id, label: c.id }] },
-                    { key: 'color', label: 'Connector Color', type: 'color', value: connColor },
-                    { key: 'width', label: 'Line Thickness', type: 'select', value: connWidth, options: [
-                        { value: '1.5', label: 'Thin (1.5px)' },
-                        { value: '3', label: 'Medium (3px - Default)' },
-                        { value: '4', label: 'Thick (4px)' },
-                        { value: '5', label: 'Heavy (5px)' }
-                    ]},
-                    { key: 'connector', label: 'Connector / Line Routing', type: 'select', value: connStyle, options: Utils.CONNECTOR_OPTIONS }
+                    { key: 'color', label: Utils.FIELD_LABELS.lineColor, type: 'color', value: connColor },
+                    { key: 'width', label: Utils.FIELD_LABELS.lineWidth, type: 'select', value: connWidth, options: Utils.widthOptions(['1.5', '3', '4', '5'], '3') },
+                    { key: 'connector', label: Utils.FIELD_LABELS.connector, type: 'select', value: connStyle, options: Utils.CONNECTOR_OPTIONS }
                   ],
                   onSave: (vals) => {
                     MultiDiagramVisualizer.setColor(connKey, vals.color);
@@ -247,14 +242,9 @@ MultiDiagramVisualizer.register('gitgraph', function(code, nodesLayer, edgesLaye
                     fields: [
                       { key: 'from', label: 'From (Merged Branch)', type: 'select', value: c.mergeFrom, options: branchOptions },
                       { key: 'to', label: 'To (Target Branch)', type: 'select', value: c.branch, options: branchOptions },
-                      { key: 'color', label: 'Merge Line Color', type: 'color', value: mergeColor },
-                      { key: 'width', label: 'Line Thickness', type: 'select', value: mergeWidth, options: [
-                          { value: '1.5', label: 'Thin (1.5px)' },
-                          { value: '2.5', label: 'Medium (2.5px - Default)' },
-                          { value: '3.5', label: 'Thick (3.5px)' },
-                          { value: '4.5', label: 'Heavy (4.5px)' }
-                      ]},
-                      { key: 'connector', label: 'Connector / Line Routing', type: 'select', value: mergeStyle, options: Utils.CONNECTOR_OPTIONS }
+                      { key: 'color', label: Utils.FIELD_LABELS.lineColor, type: 'color', value: mergeColor },
+                      { key: 'width', label: Utils.FIELD_LABELS.lineWidth, type: 'select', value: mergeWidth, options: Utils.widthOptions(['1.5', '2.5', '3.5', '4.5'], '2.5') },
+                      { key: 'connector', label: Utils.FIELD_LABELS.connector, type: 'select', value: mergeStyle, options: Utils.CONNECTOR_OPTIONS }
                     ],
                     onSave: (vals) => {
                       const newFrom = vals.from || c.mergeFrom;
@@ -370,17 +360,15 @@ MultiDiagramVisualizer.register('gitgraph', function(code, nodesLayer, edgesLaye
                 fields: [
                   { key: 'id', label: 'Commit Message / ID', type: 'text', value: c.id },
                   { key: 'tag', label: 'Release Tag (Optional)', type: 'text', value: c.tag || '' },
-                  { key: 'color', label: 'Commit Base Color', type: 'color', value: c.color },
-                  { key: 'font', label: '1. Label Font Color', type: 'color', value: c.fontColor || textColor },
-                  { key: 'fill', label: '2. Node Fill Color (Pastel)', type: 'color', value: commitFill },
-                  { key: 'border', label: '3. Node Border / Stroke Color', type: 'color', value: commitBorder }
+                  { key: 'font', label: Utils.FIELD_LABELS.font, type: 'color', value: c.fontColor || textColor },
+                  { key: 'fill', label: Utils.FIELD_LABELS.fill, type: 'color', value: commitFill },
+                  { key: 'border', label: Utils.FIELD_LABELS.border, type: 'color', value: commitBorder }
                 ],
                 onSave: (vals) => {
-                  MultiDiagramVisualizer.setColor(vals.id, vals.color);
                   MultiDiagramVisualizer.setColor(`${vals.id}_font`, vals.font);
                   MultiDiagramVisualizer.setColor(`${vals.id}_fill`, vals.fill);
                   MultiDiagramVisualizer.setColor(`${vals.id}_border`, vals.border);
-                  MultiDiagramVisualizer.syncColorToCode(vals.id, vals.color);
+                  MultiDiagramVisualizer.syncColorToCode(`${vals.id}_font`, vals.font);
                   MultiDiagramVisualizer.syncColorToCode(`${vals.id}_fill`, vals.fill);
                   MultiDiagramVisualizer.syncColorToCode(`${vals.id}_border`, vals.border);
                   MultiDiagramVisualizer.updateCodeLine((curCode) => {

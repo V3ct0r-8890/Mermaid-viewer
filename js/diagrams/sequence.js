@@ -393,8 +393,8 @@ MultiDiagramVisualizer.register('sequence', function(code, nodesLayer, edgesLaye
           fields: [
             { key: 'src', label: 'From (Sender)', type: 'select', value: msg.src, options: allPartOptions },
             { key: 'tgt', label: 'To (Receiver)', type: 'select', value: msg.tgt, options: allPartOptions },
-            { key: 'label', label: 'Message Label', type: 'text', value: msg.label },
-            { key: 'arrow', label: 'Arrowhead Style (Includes Bi-directional)', type: 'select', value: msg.arrow || (msg.isDashed ? '-->>' : '->>'), options: [
+            { key: 'label', label: Utils.FIELD_LABELS.linkLabel, type: 'text', value: msg.label },
+            { key: 'arrow', label: `${Utils.FIELD_LABELS.linkType} (Includes Bi-directional)`, type: 'select', value: msg.arrow || (msg.isDashed ? '-->>' : '->>'), options: [
                 { value: '->>', label: 'Forward Solid Synchronous (->>)' },
                 { value: '-->>', label: 'Forward Dashed Return (-->>)' },
                 { value: '->', label: 'Forward Open Async (->)' },
@@ -402,14 +402,9 @@ MultiDiagramVisualizer.register('sequence', function(code, nodesLayer, edgesLaye
                 { value: '<->', label: 'Bidirectional Open (<->)' },
                 { value: '<->>', label: 'Bidirectional Solid (<->>)' }
             ]},
-            { key: 'color', label: 'Line / Arrow Color', type: 'color', value: msgColor },
-            { key: 'width', label: 'Line Thickness', type: 'select', value: msgWidth, options: [
-                { value: '1', label: 'Thin (1px)' },
-                { value: '1.4', label: 'Medium (1.4px - Default)' },
-                { value: '2.2', label: 'Thick (2.2px)' },
-                { value: '3', label: 'Heavy (3px)' }
-            ]},
-            { key: 'connector', label: 'Connector / Line Routing', type: 'select', value: connStyle, options: Utils.CONNECTOR_OPTIONS }
+            { key: 'color', label: Utils.FIELD_LABELS.lineColor, type: 'color', value: msgColor },
+            { key: 'width', label: Utils.FIELD_LABELS.lineWidth, type: 'select', value: msgWidth, options: Utils.widthOptions(['1', '1.4', '2.2', '3'], '1.4') },
+            { key: 'connector', label: Utils.FIELD_LABELS.connector, type: 'select', value: connStyle, options: Utils.CONNECTOR_OPTIONS }
           ],
           onSave: (vals) => {
             const newMsgKey = `${vals.src || msg.src}->${vals.tgt || msg.tgt}:${vals.label !== undefined ? vals.label : msg.label}`;
@@ -548,9 +543,9 @@ MultiDiagramVisualizer.register('sequence', function(code, nodesLayer, edgesLaye
             title: p.label,
             fields: [
               { key: 'name', label: 'Participant Name', type: 'text', value: p.label },
-              { key: 'font', label: '1. Font / Text Color', type: 'color', value: fontColor },
-              { key: 'fill', label: '2. Node Fill Color', type: 'color', value: fillColor },
-              { key: 'border', label: '3. Node Border / Stroke Color', type: 'color', value: borderColor }
+              { key: 'font', label: Utils.FIELD_LABELS.font, type: 'color', value: fontColor },
+              { key: 'fill', label: Utils.FIELD_LABELS.fill, type: 'color', value: fillColor },
+              { key: 'border', label: Utils.FIELD_LABELS.border, type: 'color', value: borderColor }
             ],
             onSave: (vals) => {
               MultiDiagramVisualizer.setColor(p.id, vals.fill);

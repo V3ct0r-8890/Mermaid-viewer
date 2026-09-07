@@ -114,11 +114,11 @@ MultiDiagramVisualizer.register('pie', function(code, nodesLayer, edgesLayer, is
                   type: 'Pie Slice',
                   title: d.label,
                   fields: [
-                    { key: 'label', label: 'Slice Label', type: 'text', value: d.label },
+                    { key: 'label', label: 'Slice Name', type: 'text', value: d.label },
                     { key: 'val', label: 'Value / Proportion', type: 'number', step: 1, min: 0, value: d.val },
-                    { key: 'font', label: '1. Font / Legend Color', type: 'color', value: d.fontColor },
-                    { key: 'fill', label: '2. Node / Slice Fill Color', type: 'color', value: d.fillColor },
-                    { key: 'border', label: '3. Node / Slice Border Color', type: 'color', value: d.borderColor }
+                    { key: 'font', label: Utils.FIELD_LABELS.font, type: 'color', value: d.fontColor },
+                    { key: 'fill', label: Utils.FIELD_LABELS.fill, type: 'color', value: d.fillColor },
+                    { key: 'border', label: Utils.FIELD_LABELS.border, type: 'color', value: d.borderColor }
                   ],
                   onSave: (vals) => {
                     MultiDiagramVisualizer.setColor(vals.label, vals.fill);

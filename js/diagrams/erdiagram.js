@@ -392,10 +392,10 @@ MultiDiagramVisualizer.register('erdiagram', function(code, nodesLayer, edgesLay
           type: 'ER Relationship Link',
           title: relTitle,
           fields: [
-            { key: 'src', label: 'Entity 1 (From)', type: 'select', value: rel.src, options: allEntityOptions },
-            { key: 'tgt', label: 'Entity 2 (To)', type: 'select', value: rel.tgt, options: allEntityOptions },
-            { key: 'label', label: 'Relationship Verb / Label', type: 'text', value: rel.label },
-            { key: 'card', label: 'Cardinality', type: 'select', value: rel.card, options: [
+            { key: 'src', label: 'From (Source Entity)', type: 'select', value: rel.src, options: allEntityOptions },
+            { key: 'tgt', label: 'To (Target Entity)', type: 'select', value: rel.tgt, options: allEntityOptions },
+            { key: 'label', label: Utils.FIELD_LABELS.linkLabel, type: 'text', value: rel.label },
+            { key: 'card', label: `${Utils.FIELD_LABELS.linkType} (Cardinality)`, type: 'select', value: rel.card, options: [
                 { value: '||--o{', label: 'One to Zero-or-More (||--o{)' },
                 { value: '||--|{', label: 'One to One-or-More (||--|{)' },
                 { value: '||--||', label: 'One to One (||--||)' },
@@ -403,14 +403,9 @@ MultiDiagramVisualizer.register('erdiagram', function(code, nodesLayer, edgesLay
                 { value: '}|--o{', label: 'Many to Zero-or-More (}|--o{)' },
                 { value: 'o|--o{', label: 'Zero-or-One to Zero-or-More (o|--o{)' }
             ]},
-            { key: 'color', label: '1. Line & Marker Color', type: 'color', value: rColor },
-            { key: 'width', label: '2. Line Thickness', type: 'select', value: rWidth, options: [
-                { value: '1.2', label: 'Thin (1.2px)' },
-                { value: '1.4', label: 'Medium (1.4px - Default)' },
-                { value: '2', label: 'Thick (2px)' },
-                { value: '3', label: 'Heavy (3px)' }
-            ]},
-            { key: 'connector', label: '3. Connector / Line Routing', type: 'select', value: connStyle, options: Utils.CONNECTOR_OPTIONS }
+            { key: 'color', label: Utils.FIELD_LABELS.lineColor, type: 'color', value: rColor },
+            { key: 'width', label: Utils.FIELD_LABELS.lineWidth, type: 'select', value: rWidth, options: Utils.widthOptions(['1.2', '1.4', '2', '3'], '1.4') },
+            { key: 'connector', label: Utils.FIELD_LABELS.connector, type: 'select', value: connStyle, options: Utils.CONNECTOR_OPTIONS }
           ],
           onSave: (vals) => {
             const newSrc = vals.src || rel.src;
@@ -605,9 +600,9 @@ MultiDiagramVisualizer.register('erdiagram', function(code, nodesLayer, edgesLay
           fields: [
             { key: 'name', label: 'Entity / Table Name', type: 'text', value: e.name },
             { key: 'attributes', label: 'Attributes (type name [PK/FK/UK] ["comment"])', type: 'textarea', rows: 6, value: attrLines },
-            { key: 'font', label: '1. Font / Header Text Color', type: 'color', value: e.fontColor },
-            { key: 'fill', label: '2. Header Fill Color', type: 'color', value: e.fillColor },
-            { key: 'border', label: '3. Border & Grid Stroke Color', type: 'color', value: e.borderColor }
+            { key: 'font', label: Utils.FIELD_LABELS.font, type: 'color', value: e.fontColor },
+            { key: 'fill', label: Utils.FIELD_LABELS.fill, type: 'color', value: e.fillColor },
+            { key: 'border', label: Utils.FIELD_LABELS.border, type: 'color', value: e.borderColor }
           ],
           onSave: (vals) => {
             MultiDiagramVisualizer.setColor(vals.name, vals.fill);

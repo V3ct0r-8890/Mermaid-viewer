@@ -172,7 +172,7 @@
 
           <!-- 1. Font Color -->
           <div class="prop-group">
-            <label>1. Font / Text Color</label>
+            <label>Font / Text Color</label>
             <div style="display:flex; align-items:center; gap:8px;">
               <input type="color" id="prop-node-font" style="width:32px; height:26px; border:none; border-radius:3px; cursor:pointer;">
               <span id="prop-node-font-val" style="font-size:11px; font-family:var(--code-font);">#0D47A1</span>
@@ -192,7 +192,7 @@
 
           <!-- 2. Node Fill Color -->
           <div class="prop-group">
-            <label>2. Node Fill Color</label>
+            <label>Node Fill Color</label>
             <div style="display:flex; align-items:center; gap:8px;">
               <input type="color" id="prop-node-fill" style="width:32px; height:26px; border:none; border-radius:3px; cursor:pointer;">
               <span id="prop-node-fill-val" style="font-size:11px; font-family:var(--code-font);">#E3F2FD</span>
@@ -212,7 +212,7 @@
 
           <!-- 3. Node Border Color -->
           <div class="prop-group">
-            <label>3. Node Border / Stroke Color</label>
+            <label>Node Border / Stroke Color</label>
             <div style="display:flex; align-items:center; gap:8px;">
               <input type="color" id="prop-node-border" style="width:32px; height:26px; border:none; border-radius:3px; cursor:pointer;">
               <span id="prop-node-border-val" style="font-size:11px; font-family:var(--code-font);">#1976D2</span>
@@ -260,11 +260,11 @@
           </div>
 
           <div class="prop-group">
-            <label>Edge Label</label>
+            <label>Link Label</label>
             <input type="text" id="prop-edge-label" class="prop-input" placeholder="e.g. Yes / Action">
           </div>
           <div class="prop-group">
-            <label>Arrow Head / End Style (Includes Bi-directional)</label>
+            <label>Link Type (Includes Bi-directional)</label>
             <select id="prop-edge-type" class="prop-input">
               <option value="-->">Forward Solid Arrow (--&gt;)</option>
               <option value="<--">Reverse Solid Arrow (&lt;--)</option>
@@ -281,16 +281,7 @@
           </div>
 
           <div class="prop-group">
-            <label>Connector Curve / Routing Style</label>
-            <select id="prop-edge-curve" class="prop-input">
-              <option value="basis">Smooth Curve (Bezier / basis)</option>
-              <option value="linear">Straight Line (linear)</option>
-              <option value="step">Orthogonal Step (90° Corners / step)</option>
-            </select>
-          </div>
-
-          <div class="prop-group">
-            <label>Link Color</label>
+            <label>Line Color</label>
             <div style="display:flex; align-items:center; gap:8px;">
               <input type="color" id="prop-edge-color" style="width:32px; height:26px; border:none; border-radius:3px; cursor:pointer;">
               <span id="prop-edge-color-val" style="font-size:11px; font-family:var(--code-font);">#616161</span>
@@ -316,8 +307,20 @@
             </select>
           </div>
 
+          <!-- Values stay basis/linear/step: they round-trip into the Mermaid
+               %%{init}%% curve directive. Utils.normalizeConnector maps them onto the
+               shared curve/straight/step vocabulary used by every other diagram. -->
           <div class="prop-group">
-            <label>Label Font Color</label>
+            <label>Connector / Line Routing</label>
+            <select id="prop-edge-curve" class="prop-input">
+              <option value="basis">Curved (Bezier)</option>
+              <option value="linear">Straight Line</option>
+              <option value="step">Orthogonal Step (90° Corners)</option>
+            </select>
+          </div>
+
+          <div class="prop-group">
+            <label>Label Text Color</label>
             <div style="display:flex; align-items:center; gap:8px;">
               <input type="color" id="prop-edge-text-color" style="width:32px; height:26px; border:none; border-radius:3px; cursor:pointer;" value="#212121">
               <span id="prop-edge-text-color-val" style="font-size:11px; font-family:var(--code-font);">#212121</span>
@@ -615,23 +618,24 @@
             <option value="trapezoid_alt">Trapezoid Alt [\Manual Task/]</option>
           </select>
         </div>
+        <!-- Same names and order as the Inspector's node panel. -->
         <div class="color-row">
           <div class="form-group">
-            <label>Fill Color</label>
+            <label>Font / Text Color</label>
+            <div class="color-input-wrapper">
+              <input type="color" id="nm-font" value="#0D47A1">
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Node Fill Color</label>
             <div class="color-input-wrapper">
               <input type="color" id="nm-fill" value="#E3F2FD">
             </div>
           </div>
           <div class="form-group">
-            <label>Border Color</label>
+            <label>Node Border / Stroke Color</label>
             <div class="color-input-wrapper">
               <input type="color" id="nm-border" value="#1976D2">
-            </div>
-          </div>
-          <div class="form-group">
-            <label>Font Color</label>
-            <div class="color-input-wrapper">
-              <input type="color" id="nm-font" value="#0D47A1">
             </div>
           </div>
         </div>
@@ -653,20 +657,20 @@
       <div class="modal-body">
         <div class="form-row">
           <div class="form-group">
-            <label>Source Node</label>
+            <label>From (Source)</label>
             <select id="lm-source" class="form-control"></select>
           </div>
           <div class="form-group">
-            <label>Target Node</label>
+            <label>To (Target)</label>
             <select id="lm-target" class="form-control"></select>
           </div>
         </div>
         <div class="form-group">
-          <label>Edge Label (Optional)</label>
+          <label>Link Label (Optional)</label>
           <input type="text" id="lm-label" class="form-control" placeholder="e.g. Yes / No / Action">
         </div>
         <div class="form-group">
-          <label>Arrow Type</label>
+          <label>Link Type</label>
           <select id="lm-type" class="form-control">
             <option value="-->">Solid Arrow (--&gt;)</option>
             <option value="--->">Long / Solid (---&gt;)</option>
