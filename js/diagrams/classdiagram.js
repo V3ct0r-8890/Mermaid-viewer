@@ -215,6 +215,13 @@ MultiDiagramVisualizer.register('classdiagram', function(code, nodesLayer, edges
     });
   });
 
+  const nodeObstacles = allClasses.map(cls => {
+    const dim = classDimensions.get(cls.name);
+    const pos = MultiDiagramVisualizer.getPosition(cls.name, dim.x, dim.y);
+    return { x: pos.x, y: pos.y, width: dim.w, height: dim.h };
+  });
+  const placedLabelRects = [];
+
   // 3. RENDER ALL RELATIONS & CONNECTORS (WITH ACCURATE UML ARROWHEAD ORIENTATIONS)
   relations.forEach((r, rIdx) => {
     const srcDim = classDimensions.get(r.src);
@@ -367,8 +374,11 @@ MultiDiagramVisualizer.register('classdiagram', function(code, nodesLayer, edges
 
     // Optional Label
     if (r.label) {
-      const midLabelX = (sCenterX + tCenterX) / 2;
-      const midLabelY = (sCenterY + tCenterY) / 2;
+      const labelW = r.label.length * 6.5 + 16;
+      const labelH = 16;
+      const { x: midLabelX, y: midLabelY } = Utils.findClearLabelPosition((sCenterX + tCenterX) / 2, (sCenterY + tCenterY) / 2, labelW, labelH, [...nodeObstacles, ...placedLabelRects]);
+      placedLabelRects.push({ x: midLabelX - labelW / 2, y: midLabelY - labelH / 2, width: labelW, height: labelH });
+
       const lbl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
       lbl.setAttribute('x', `${midLabelX}`);
       lbl.setAttribute('y', `${midLabelY}`);

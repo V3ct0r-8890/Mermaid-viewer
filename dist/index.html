@@ -2225,6 +2225,44 @@ treemap-beta
         setTimeout(() => {
           toast.className = '';
         }, 2800);
+      },
+      // Axis-aligned rect overlap test. Rects are {x, y, width, height} (x,y = top-left).
+      rectsOverlap(a, b, padding = 0) {
+        return (
+          a.x - padding < b.x + b.width + padding &&
+          a.x + a.width + padding > b.x - padding &&
+          a.y - padding < b.y + b.height + padding &&
+          a.y + a.height + padding > b.y - padding
+        );
+      },
+      // Finds the nearest point (to the desired center cx,cy) whose w x h label rect
+      // clears every obstacle rect. Searches expanding rings around the desired point;
+      // falls back to the original point (best effort) if the search budget runs out.
+      findClearLabelPosition(cx, cy, w, h, obstacles, opts = {}) {
+        const padding = opts.padding ?? 3;
+        const maxRings = opts.maxRings ?? 6;
+        const anglesPerRing = opts.anglesPerRing ?? 8;
+        const step = opts.step ?? (Math.max(w, h) * 0.6 + padding);
+
+        const rectAt = (x, y) => ({ x: x - w / 2, y: y - h / 2, width: w, height: h });
+        const isClear = (x, y) => {
+          const rect = rectAt(x, y);
+          return !obstacles.some(o => Utils.rectsOverlap(rect, o, padding));
+        };
+
+        if (isClear(cx, cy)) return { x: cx, y: cy };
+
+        for (let ring = 1; ring <= maxRings; ring++) {
+          const radius = step * ring;
+          const angleOffset = (ring % 2) * (Math.PI / anglesPerRing);
+          for (let i = 0; i < anglesPerRing; i++) {
+            const angle = (i / anglesPerRing) * Math.PI * 2 + angleOffset;
+            const x = cx + Math.cos(angle) * radius;
+            const y = cy + Math.sin(angle) * radius;
+            if (isClear(x, y)) return { x, y };
+          }
+        }
+        return { x: cx, y: cy };
       }
     };
 
@@ -4750,6 +4788,8 @@ MultiDiagramVisualizer.register('c4context', function(code, nodesLayer, edgesLay
         });
 
         // Draw Relationships with 28px Invisible Hitbox & Staggered 2-Line Badges
+        const nodeObstacles = Array.from(nodes.values()).map(n => ({ x: n.x, y: n.y, width: n.width, height: n.height }));
+        const placedLabelRects = [];
         relationships.forEach((rel, rIdx) => {
           const sNode = nodes.get(rel.from);
           const tNode = nodes.get(rel.to);
@@ -4828,8 +4868,14 @@ MultiDiagramVisualizer.register('c4context', function(code, nodesLayer, edgesLay
           }
 
           const omt = 1 - t;
-          const bx = omt*omt*omt*sx + 3*omt*omt*t*cx1 + 3*omt*t*t*cx2 + t*t*t*tx;
-          const by = omt*omt*omt*sy + 3*omt*omt*t*cy1 + 3*omt*t*t*cy2 + t*t*t*ty;
+          const rawBx = omt*omt*omt*sx + 3*omt*omt*t*cx1 + 3*omt*t*t*cx2 + t*t*t*tx;
+          const rawBy = omt*omt*omt*sy + 3*omt*omt*t*cy1 + 3*omt*t*t*cy2 + t*t*t*ty;
+
+          const cleanLabel = rel.label.length > 28 ? rel.label.substring(0, 25) + '...' : rel.label;
+          const badgeW = Math.max(125, Math.min(185, Math.max(cleanLabel.length * 6.2 + 20, (rel.tech ? rel.tech.length * 6.5 + 24 : 0))));
+          const badgeH = rel.tech ? 34 : 22;
+          const { x: bx, y: by } = Utils.findClearLabelPosition(rawBx, rawBy, badgeW, badgeH, [...nodeObstacles, ...placedLabelRects]);
+          placedLabelRects.push({ x: bx - badgeW / 2, y: by - badgeH / 2, width: badgeW, height: badgeH });
 
           const relG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
           relG.style.cursor = 'pointer';
@@ -4883,10 +4929,6 @@ MultiDiagramVisualizer.register('c4context', function(code, nodesLayer, edgesLay
           }
 
           // Compact 2-Line Badge
-          const cleanLabel = rel.label.length > 28 ? rel.label.substring(0, 25) + '...' : rel.label;
-          const badgeW = Math.max(125, Math.min(185, Math.max(cleanLabel.length * 6.2 + 20, (rel.tech ? rel.tech.length * 6.5 + 24 : 0))));
-          const badgeH = rel.tech ? 34 : 22;
-
           const badgeRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
           badgeRect.setAttribute('x', `${bx - badgeW / 2}`);
           badgeRect.setAttribute('y', `${by - badgeH / 2}`);
@@ -5346,6 +5388,13 @@ MultiDiagramVisualizer.register('classdiagram', function(code, nodesLayer, edges
     });
   });
 
+  const nodeObstacles = allClasses.map(cls => {
+    const dim = classDimensions.get(cls.name);
+    const pos = MultiDiagramVisualizer.getPosition(cls.name, dim.x, dim.y);
+    return { x: pos.x, y: pos.y, width: dim.w, height: dim.h };
+  });
+  const placedLabelRects = [];
+
   // 3. RENDER ALL RELATIONS & CONNECTORS (WITH ACCURATE UML ARROWHEAD ORIENTATIONS)
   relations.forEach((r, rIdx) => {
     const srcDim = classDimensions.get(r.src);
@@ -5498,8 +5547,11 @@ MultiDiagramVisualizer.register('classdiagram', function(code, nodesLayer, edges
 
     // Optional Label
     if (r.label) {
-      const midLabelX = (sCenterX + tCenterX) / 2;
-      const midLabelY = (sCenterY + tCenterY) / 2;
+      const labelW = r.label.length * 6.5 + 16;
+      const labelH = 16;
+      const { x: midLabelX, y: midLabelY } = Utils.findClearLabelPosition((sCenterX + tCenterX) / 2, (sCenterY + tCenterY) / 2, labelW, labelH, [...nodeObstacles, ...placedLabelRects]);
+      placedLabelRects.push({ x: midLabelX - labelW / 2, y: midLabelY - labelH / 2, width: labelW, height: labelH });
+
       const lbl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
       lbl.setAttribute('x', `${midLabelX}`);
       lbl.setAttribute('y', `${midLabelY}`);
@@ -5824,6 +5876,12 @@ MultiDiagramVisualizer.register('erdiagram', function(code, nodesLayer, edgesLay
     e.borderColor = MultiDiagramVisualizer.getColor(`${e.name}_border`, cardBorder);
   });
 
+  const nodeObstacles = entityArray.map(e => {
+    const pos = MultiDiagramVisualizer.getPosition(e.name, e.defaultX, e.defaultY);
+    return { x: pos.x, y: pos.y, width: e.width, height: e.height };
+  });
+  const placedLabelRects = [];
+
   // 1. DRAW RELATIONSHIP CONNECTORS & CROW'S FOOT ENDPOINTS (in edgesLayer)
   relationships.forEach(rel => {
     const srcEnt = entities.get(rel.src);
@@ -6022,10 +6080,15 @@ MultiDiagramVisualizer.register('erdiagram', function(code, nodesLayer, edgesLay
 
     // Relationship Label Text
     if (rel.label) {
+      const textLen = rel.label.length * 6.5 + 16;
+      const nudged = Utils.findClearLabelPosition(labelX, labelY, textLen, 18, [...nodeObstacles, ...placedLabelRects]);
+      labelX = nudged.x;
+      labelY = nudged.y;
+      placedLabelRects.push({ x: labelX - textLen / 2, y: labelY - 9, width: textLen, height: 18 });
+
       const lblG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
       lblG.setAttribute('transform', `translate(${labelX}, ${labelY})`);
 
-      const textLen = rel.label.length * 6.5 + 16;
       const lblBg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
       lblBg.setAttribute('x', `${-textLen / 2}`);
       lblBg.setAttribute('y', '-9');
@@ -10459,11 +10522,13 @@ MultiDiagramVisualizer.register('sequence', function(code, nodesLayer, edgesLaye
   const partPositions = new Map();
   const baseSpacing = 270;
   const startX = 100;
+  const partCardW = 160;
+  const partCardH = 50;
 
   participants.forEach((p, idx) => {
     const defaultX = startX + idx * baseSpacing;
     const pos = MultiDiagramVisualizer.getPosition(p.id, defaultX, 40);
-    partPositions.set(p.id, { x: pos.x, y: 40, isActor: p.isActor, label: p.label, id: p.id });
+    partPositions.set(p.id, { x: pos.x, y: 40, isActor: p.isActor, label: p.label, id: p.id, width: partCardW, height: partCardH });
   });
 
   let curY = 190;
@@ -10621,6 +10686,9 @@ MultiDiagramVisualizer.register('sequence', function(code, nodesLayer, edgesLaye
   }
 
   // 6. RENDER MESSAGES & AUTONUMBER BADGES
+  const nodeObstacles = Array.from(partPositions.values()).map(p => ({ x: p.x - p.width / 2, y: p.y - p.height / 2, width: p.width, height: p.height }));
+  const placedLabelRects = [];
+
   messageLayouts.forEach(msg => {
     const sPos = partPositions.get(msg.src);
     const tPos = partPositions.get(msg.tgt);
@@ -10692,9 +10760,14 @@ MultiDiagramVisualizer.register('sequence', function(code, nodesLayer, edgesLaye
       msgG.appendChild(badgeG);
     }
 
+    const labelW = msg.label.length * 6.5 + 8;
+    const labelH = 16;
+    const { x: labelX, y: labelY } = Utils.findClearLabelPosition((x1 + x2) / 2, y - 9, labelW, labelH, [...nodeObstacles, ...placedLabelRects]);
+    placedLabelRects.push({ x: labelX - labelW / 2, y: labelY - labelH / 2, width: labelW, height: labelH });
+
     const textEl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-    textEl.setAttribute('x', `${(x1 + x2) / 2}`);
-    textEl.setAttribute('y', `${y - 9}`);
+    textEl.setAttribute('x', `${labelX}`);
+    textEl.setAttribute('y', `${labelY}`);
     textEl.setAttribute('text-anchor', 'middle');
     textEl.setAttribute('fill', primaryText);
     textEl.setAttribute('font-size', '13.5px');
@@ -11214,6 +11287,12 @@ MultiDiagramVisualizer.register('statediagram', function(code, nodesLayer, edges
   }
 
   // 4. RENDER ALL STEPPED TRANSITIONS (in edgesLayer on top of container)
+  const nodeObstacles = stateDefs.filter(s => s.type !== 'composite').map(s => {
+    const pos = MultiDiagramVisualizer.getPosition(s.id, s.defaultX, s.defaultY);
+    return { x: pos.x, y: pos.y, width: s.w, height: s.h };
+  });
+  const placedLabelRects = [];
+
   transitions.forEach(tr => {
     const sDef = stateDefs.find(s => s.id === tr.from);
     const tDef = stateDefs.find(s => s.id === tr.to);
@@ -11335,11 +11414,16 @@ MultiDiagramVisualizer.register('statediagram', function(code, nodesLayer, edges
 
     // Condition Badge & Label
     if (tr.label) {
+      const padW = tr.label.length * 6.8 + 14;
+      const nudged = Utils.findClearLabelPosition(labelX, labelY, padW, 20, [...nodeObstacles, ...placedLabelRects]);
+      labelX = nudged.x;
+      labelY = nudged.y;
+      placedLabelRects.push({ x: labelX - padW / 2, y: labelY - 10, width: padW, height: 20 });
+
       const lblG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
       lblG.setAttribute('transform', `translate(${labelX}, ${labelY})`);
       lblG.style.cursor = 'pointer';
 
-      const padW = tr.label.length * 6.8 + 14;
       const lblBg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
       lblBg.setAttribute('x', `${-padW / 2}`);
       lblBg.setAttribute('y', '-10');
@@ -12989,6 +13073,9 @@ MultiDiagramVisualizer.register('treemap-beta', MultiDiagramVisualizer.renderers
       renderEdges() {
         this.edgesLayer.innerHTML = '';
 
+        const nodeObstacles = this.graph.nodes.map(n => ({ x: n.x, y: n.y, width: n.width, height: n.height }));
+        const placedLabelRects = [];
+
         this.graph.edges.forEach(edge => {
           const src = this.graph.getNode(edge.source);
           const tgt = this.graph.getNode(edge.target);
@@ -13094,8 +13181,13 @@ MultiDiagramVisualizer.register('treemap-beta', MultiDiagramVisualizer.renderers
           g.appendChild(path);
 
           if (edge.label) {
-            const midX = (sx + tx) / 2;
-            const midY = (sy + ty) / 2;
+            const textWidth = edge.label.length * 6.5 + 16;
+            const textHeight = 20;
+
+            const desiredX = (sx + tx) / 2;
+            const desiredY = (sy + ty) / 2;
+            const { x: midX, y: midY } = Utils.findClearLabelPosition(desiredX, desiredY, textWidth, textHeight, [...nodeObstacles, ...placedLabelRects]);
+            placedLabelRects.push({ x: midX - textWidth / 2, y: midY - textHeight / 2, width: textWidth, height: textHeight });
 
             const labelG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
             labelG.setAttribute('transform', `translate(${midX}, ${midY})`);
@@ -13108,9 +13200,6 @@ MultiDiagramVisualizer.register('treemap-beta', MultiDiagramVisualizer.renderers
             }
             labelText.textContent = edge.label;
             labelG.appendChild(labelText);
-
-            const textWidth = edge.label.length * 6.5 + 16;
-            const textHeight = 20;
 
             const labelBg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
             labelBg.setAttribute('class', 'edge-label-bg');

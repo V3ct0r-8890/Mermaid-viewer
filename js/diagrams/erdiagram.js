@@ -132,6 +132,12 @@ MultiDiagramVisualizer.register('erdiagram', function(code, nodesLayer, edgesLay
     e.borderColor = MultiDiagramVisualizer.getColor(`${e.name}_border`, cardBorder);
   });
 
+  const nodeObstacles = entityArray.map(e => {
+    const pos = MultiDiagramVisualizer.getPosition(e.name, e.defaultX, e.defaultY);
+    return { x: pos.x, y: pos.y, width: e.width, height: e.height };
+  });
+  const placedLabelRects = [];
+
   // 1. DRAW RELATIONSHIP CONNECTORS & CROW'S FOOT ENDPOINTS (in edgesLayer)
   relationships.forEach(rel => {
     const srcEnt = entities.get(rel.src);
@@ -330,10 +336,15 @@ MultiDiagramVisualizer.register('erdiagram', function(code, nodesLayer, edgesLay
 
     // Relationship Label Text
     if (rel.label) {
+      const textLen = rel.label.length * 6.5 + 16;
+      const nudged = Utils.findClearLabelPosition(labelX, labelY, textLen, 18, [...nodeObstacles, ...placedLabelRects]);
+      labelX = nudged.x;
+      labelY = nudged.y;
+      placedLabelRects.push({ x: labelX - textLen / 2, y: labelY - 9, width: textLen, height: 18 });
+
       const lblG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
       lblG.setAttribute('transform', `translate(${labelX}, ${labelY})`);
 
-      const textLen = rel.label.length * 6.5 + 16;
       const lblBg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
       lblBg.setAttribute('x', `${-textLen / 2}`);
       lblBg.setAttribute('y', '-9');

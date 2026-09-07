@@ -320,6 +320,12 @@ MultiDiagramVisualizer.register('statediagram', function(code, nodesLayer, edges
   }
 
   // 4. RENDER ALL STEPPED TRANSITIONS (in edgesLayer on top of container)
+  const nodeObstacles = stateDefs.filter(s => s.type !== 'composite').map(s => {
+    const pos = MultiDiagramVisualizer.getPosition(s.id, s.defaultX, s.defaultY);
+    return { x: pos.x, y: pos.y, width: s.w, height: s.h };
+  });
+  const placedLabelRects = [];
+
   transitions.forEach(tr => {
     const sDef = stateDefs.find(s => s.id === tr.from);
     const tDef = stateDefs.find(s => s.id === tr.to);
@@ -441,11 +447,16 @@ MultiDiagramVisualizer.register('statediagram', function(code, nodesLayer, edges
 
     // Condition Badge & Label
     if (tr.label) {
+      const padW = tr.label.length * 6.8 + 14;
+      const nudged = Utils.findClearLabelPosition(labelX, labelY, padW, 20, [...nodeObstacles, ...placedLabelRects]);
+      labelX = nudged.x;
+      labelY = nudged.y;
+      placedLabelRects.push({ x: labelX - padW / 2, y: labelY - 10, width: padW, height: 20 });
+
       const lblG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
       lblG.setAttribute('transform', `translate(${labelX}, ${labelY})`);
       lblG.style.cursor = 'pointer';
 
-      const padW = tr.label.length * 6.8 + 14;
       const lblBg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
       lblBg.setAttribute('x', `${-padW / 2}`);
       lblBg.setAttribute('y', '-10');

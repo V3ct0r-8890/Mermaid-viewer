@@ -20,6 +20,44 @@
         setTimeout(() => {
           toast.className = '';
         }, 2800);
+      },
+      // Axis-aligned rect overlap test. Rects are {x, y, width, height} (x,y = top-left).
+      rectsOverlap(a, b, padding = 0) {
+        return (
+          a.x - padding < b.x + b.width + padding &&
+          a.x + a.width + padding > b.x - padding &&
+          a.y - padding < b.y + b.height + padding &&
+          a.y + a.height + padding > b.y - padding
+        );
+      },
+      // Finds the nearest point (to the desired center cx,cy) whose w x h label rect
+      // clears every obstacle rect. Searches expanding rings around the desired point;
+      // falls back to the original point (best effort) if the search budget runs out.
+      findClearLabelPosition(cx, cy, w, h, obstacles, opts = {}) {
+        const padding = opts.padding ?? 3;
+        const maxRings = opts.maxRings ?? 6;
+        const anglesPerRing = opts.anglesPerRing ?? 8;
+        const step = opts.step ?? (Math.max(w, h) * 0.6 + padding);
+
+        const rectAt = (x, y) => ({ x: x - w / 2, y: y - h / 2, width: w, height: h });
+        const isClear = (x, y) => {
+          const rect = rectAt(x, y);
+          return !obstacles.some(o => Utils.rectsOverlap(rect, o, padding));
+        };
+
+        if (isClear(cx, cy)) return { x: cx, y: cy };
+
+        for (let ring = 1; ring <= maxRings; ring++) {
+          const radius = step * ring;
+          const angleOffset = (ring % 2) * (Math.PI / anglesPerRing);
+          for (let i = 0; i < anglesPerRing; i++) {
+            const angle = (i / anglesPerRing) * Math.PI * 2 + angleOffset;
+            const x = cx + Math.cos(angle) * radius;
+            const y = cy + Math.sin(angle) * radius;
+            if (isClear(x, y)) return { x, y };
+          }
+        }
+        return { x: cx, y: cy };
       }
     };
 

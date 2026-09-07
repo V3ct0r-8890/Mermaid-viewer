@@ -112,11 +112,13 @@ MultiDiagramVisualizer.register('sequence', function(code, nodesLayer, edgesLaye
   const partPositions = new Map();
   const baseSpacing = 270;
   const startX = 100;
+  const partCardW = 160;
+  const partCardH = 50;
 
   participants.forEach((p, idx) => {
     const defaultX = startX + idx * baseSpacing;
     const pos = MultiDiagramVisualizer.getPosition(p.id, defaultX, 40);
-    partPositions.set(p.id, { x: pos.x, y: 40, isActor: p.isActor, label: p.label, id: p.id });
+    partPositions.set(p.id, { x: pos.x, y: 40, isActor: p.isActor, label: p.label, id: p.id, width: partCardW, height: partCardH });
   });
 
   let curY = 190;
@@ -274,6 +276,9 @@ MultiDiagramVisualizer.register('sequence', function(code, nodesLayer, edgesLaye
   }
 
   // 6. RENDER MESSAGES & AUTONUMBER BADGES
+  const nodeObstacles = Array.from(partPositions.values()).map(p => ({ x: p.x - p.width / 2, y: p.y - p.height / 2, width: p.width, height: p.height }));
+  const placedLabelRects = [];
+
   messageLayouts.forEach(msg => {
     const sPos = partPositions.get(msg.src);
     const tPos = partPositions.get(msg.tgt);
@@ -345,9 +350,14 @@ MultiDiagramVisualizer.register('sequence', function(code, nodesLayer, edgesLaye
       msgG.appendChild(badgeG);
     }
 
+    const labelW = msg.label.length * 6.5 + 8;
+    const labelH = 16;
+    const { x: labelX, y: labelY } = Utils.findClearLabelPosition((x1 + x2) / 2, y - 9, labelW, labelH, [...nodeObstacles, ...placedLabelRects]);
+    placedLabelRects.push({ x: labelX - labelW / 2, y: labelY - labelH / 2, width: labelW, height: labelH });
+
     const textEl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-    textEl.setAttribute('x', `${(x1 + x2) / 2}`);
-    textEl.setAttribute('y', `${y - 9}`);
+    textEl.setAttribute('x', `${labelX}`);
+    textEl.setAttribute('y', `${labelY}`);
     textEl.setAttribute('text-anchor', 'middle');
     textEl.setAttribute('fill', primaryText);
     textEl.setAttribute('font-size', '13.5px');

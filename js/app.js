@@ -366,6 +366,9 @@
       renderEdges() {
         this.edgesLayer.innerHTML = '';
 
+        const nodeObstacles = this.graph.nodes.map(n => ({ x: n.x, y: n.y, width: n.width, height: n.height }));
+        const placedLabelRects = [];
+
         this.graph.edges.forEach(edge => {
           const src = this.graph.getNode(edge.source);
           const tgt = this.graph.getNode(edge.target);
@@ -471,8 +474,13 @@
           g.appendChild(path);
 
           if (edge.label) {
-            const midX = (sx + tx) / 2;
-            const midY = (sy + ty) / 2;
+            const textWidth = edge.label.length * 6.5 + 16;
+            const textHeight = 20;
+
+            const desiredX = (sx + tx) / 2;
+            const desiredY = (sy + ty) / 2;
+            const { x: midX, y: midY } = Utils.findClearLabelPosition(desiredX, desiredY, textWidth, textHeight, [...nodeObstacles, ...placedLabelRects]);
+            placedLabelRects.push({ x: midX - textWidth / 2, y: midY - textHeight / 2, width: textWidth, height: textHeight });
 
             const labelG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
             labelG.setAttribute('transform', `translate(${midX}, ${midY})`);
@@ -485,9 +493,6 @@
             }
             labelText.textContent = edge.label;
             labelG.appendChild(labelText);
-
-            const textWidth = edge.label.length * 6.5 + 16;
-            const textHeight = 20;
 
             const labelBg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
             labelBg.setAttribute('class', 'edge-label-bg');

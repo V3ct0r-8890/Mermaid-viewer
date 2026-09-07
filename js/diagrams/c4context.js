@@ -125,6 +125,8 @@ MultiDiagramVisualizer.register('c4context', function(code, nodesLayer, edgesLay
         });
 
         // Draw Relationships with 28px Invisible Hitbox & Staggered 2-Line Badges
+        const nodeObstacles = Array.from(nodes.values()).map(n => ({ x: n.x, y: n.y, width: n.width, height: n.height }));
+        const placedLabelRects = [];
         relationships.forEach((rel, rIdx) => {
           const sNode = nodes.get(rel.from);
           const tNode = nodes.get(rel.to);
@@ -203,8 +205,14 @@ MultiDiagramVisualizer.register('c4context', function(code, nodesLayer, edgesLay
           }
 
           const omt = 1 - t;
-          const bx = omt*omt*omt*sx + 3*omt*omt*t*cx1 + 3*omt*t*t*cx2 + t*t*t*tx;
-          const by = omt*omt*omt*sy + 3*omt*omt*t*cy1 + 3*omt*t*t*cy2 + t*t*t*ty;
+          const rawBx = omt*omt*omt*sx + 3*omt*omt*t*cx1 + 3*omt*t*t*cx2 + t*t*t*tx;
+          const rawBy = omt*omt*omt*sy + 3*omt*omt*t*cy1 + 3*omt*t*t*cy2 + t*t*t*ty;
+
+          const cleanLabel = rel.label.length > 28 ? rel.label.substring(0, 25) + '...' : rel.label;
+          const badgeW = Math.max(125, Math.min(185, Math.max(cleanLabel.length * 6.2 + 20, (rel.tech ? rel.tech.length * 6.5 + 24 : 0))));
+          const badgeH = rel.tech ? 34 : 22;
+          const { x: bx, y: by } = Utils.findClearLabelPosition(rawBx, rawBy, badgeW, badgeH, [...nodeObstacles, ...placedLabelRects]);
+          placedLabelRects.push({ x: bx - badgeW / 2, y: by - badgeH / 2, width: badgeW, height: badgeH });
 
           const relG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
           relG.style.cursor = 'pointer';
@@ -258,10 +266,6 @@ MultiDiagramVisualizer.register('c4context', function(code, nodesLayer, edgesLay
           }
 
           // Compact 2-Line Badge
-          const cleanLabel = rel.label.length > 28 ? rel.label.substring(0, 25) + '...' : rel.label;
-          const badgeW = Math.max(125, Math.min(185, Math.max(cleanLabel.length * 6.2 + 20, (rel.tech ? rel.tech.length * 6.5 + 24 : 0))));
-          const badgeH = rel.tech ? 34 : 22;
-
           const badgeRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
           badgeRect.setAttribute('x', `${bx - badgeW / 2}`);
           badgeRect.setAttribute('y', `${by - badgeH / 2}`);
