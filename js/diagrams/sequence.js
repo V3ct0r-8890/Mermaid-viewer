@@ -118,7 +118,8 @@ MultiDiagramVisualizer.register('sequence', function(code, nodesLayer, edgesLaye
   participants.forEach((p, idx) => {
     const defaultX = startX + idx * baseSpacing;
     const pos = MultiDiagramVisualizer.getPosition(p.id, defaultX, 40);
-    partPositions.set(p.id, { x: pos.x, y: 40, isActor: p.isActor, label: p.label, id: p.id, width: partCardW, height: partCardH });
+    const size = MultiDiagramVisualizer.getSize(p.id, partCardW, partCardH);
+    partPositions.set(p.id, { x: pos.x, y: 40, isActor: p.isActor, label: p.label, id: p.id, width: size.width, height: size.height });
   });
 
   let curY = 190;
@@ -442,7 +443,12 @@ MultiDiagramVisualizer.register('sequence', function(code, nodesLayer, edgesLaye
 
     const renderHeaderOrFooter = (yPos, isTop = true) => {
       const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-      g.setAttribute('transform', `translate(${pPos.x}, ${yPos})`);
+      // A service participant is a box that takes its size directly; an actor is a
+      // stick figure, so it is scaled by the same ratio instead.
+      const actorScale = p.isActor
+        ? ` scale(${pPos.width / partCardW}, ${pPos.height / partCardH})`
+        : '';
+      g.setAttribute('transform', `translate(${pPos.x}, ${yPos})${actorScale}`);
       g.style.cursor = 'grab';
 
       if (p.isActor) {
@@ -502,8 +508,8 @@ MultiDiagramVisualizer.register('sequence', function(code, nodesLayer, edgesLaye
         txt.textContent = p.label;
         g.appendChild(txt);
       } else {
-        const cardW = 160;
-        const cardH = 50;
+        const cardW = pPos.width;
+        const cardH = pPos.height;
 
         const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
         rect.setAttribute('x', `${-cardW / 2}`);
@@ -543,11 +549,13 @@ MultiDiagramVisualizer.register('sequence', function(code, nodesLayer, edgesLaye
             title: p.label,
             fields: [
               { key: 'name', label: 'Participant Name', type: 'text', value: p.label },
+              ...Utils.sizeFields(pPos.width, pPos.height),
               { key: 'font', label: Utils.FIELD_LABELS.font, type: 'color', value: fontColor },
               { key: 'fill', label: Utils.FIELD_LABELS.fill, type: 'color', value: fillColor },
               { key: 'border', label: Utils.FIELD_LABELS.border, type: 'color', value: borderColor }
             ],
             onSave: (vals) => {
+              MultiDiagramVisualizer.setSize(p.id, vals.nodeW, vals.nodeH);
               MultiDiagramVisualizer.setColor(p.id, vals.fill);
               MultiDiagramVisualizer.setColor(`${p.id}_font`, vals.font);
               MultiDiagramVisualizer.setColor(`${p.id}_border`, vals.border);

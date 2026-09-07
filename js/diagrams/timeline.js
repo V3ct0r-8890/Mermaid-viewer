@@ -95,8 +95,9 @@ MultiDiagramVisualizer.register('timeline', function(code, nodesLayer, edgesLaye
 
           const cardG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
           cardG.style.cursor = 'pointer';
-          const cardW = 140;
-          const cardH = Math.max(40, ev.items.length * 26 + 14);
+          const cardSize = MultiDiagramVisualizer.getSize(ev.era, 140, Math.max(40, ev.items.length * 26 + 14));
+          const cardW = cardSize.width;
+          const cardH = cardSize.height;
 
           const cardRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
           cardRect.setAttribute('x', `${ex - cardW / 2}`);
@@ -131,11 +132,13 @@ MultiDiagramVisualizer.register('timeline', function(code, nodesLayer, edgesLaye
                 fields: [
                   { key: 'era', label: 'Era / Year', type: 'text', value: ev.era },
                   { key: 'items', label: 'Milestone Events (Comma Separated)', type: 'textarea', rows: 2, value: ev.items.join(', ') },
+                  ...Utils.sizeFields(cardW, cardH),
                   { key: 'font', label: Utils.FIELD_LABELS.font, type: 'color', value: ev.fontColor },
                   { key: 'fill', label: Utils.FIELD_LABELS.fill, type: 'color', value: ev.fillColor },
                   { key: 'border', label: Utils.FIELD_LABELS.border, type: 'color', value: ev.borderColor }
                 ],
                 onSave: (vals) => {
+                  MultiDiagramVisualizer.setSize(vals.era, vals.nodeW, vals.nodeH);
                   MultiDiagramVisualizer.setColor(vals.era, vals.fill);
                   MultiDiagramVisualizer.setColor(`${vals.era}_font`, vals.font);
                   MultiDiagramVisualizer.setColor(`${vals.era}_border`, vals.border);

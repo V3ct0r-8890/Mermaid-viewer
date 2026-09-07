@@ -204,11 +204,13 @@ MultiDiagramVisualizer.register('classdiagram', function(code, nodesLayer, edges
     const methH = Math.max(28, cls.methods.length * 22 + 10);
     const totalH = headerH + attrH + methH;
 
+    // Content-derived size, overridable from the Inspector.
+    const sized = MultiDiagramVisualizer.getSize(cls.name, cardW, totalH);
     classDimensions.set(cls.name, {
       x: defPos.x,
       y: defPos.y,
-      w: cardW,
-      h: totalH,
+      w: sized.width,
+      h: sized.height,
       headerH,
       attrH,
       methH
@@ -565,11 +567,13 @@ MultiDiagramVisualizer.register('classdiagram', function(code, nodesLayer, edges
           title: cls.name,
           fields: [
             { key: 'name', label: 'Class Name', type: 'text', value: cls.name },
+            ...Utils.sizeFields(dim.w, dim.h),
             { key: 'font', label: Utils.FIELD_LABELS.font, type: 'color', value: fontColor },
             { key: 'fill', label: Utils.FIELD_LABELS.fill, type: 'color', value: fillColor },
             { key: 'border', label: Utils.FIELD_LABELS.border, type: 'color', value: borderColor }
           ],
           onSave: (vals) => {
+            MultiDiagramVisualizer.setSize(cls.name, vals.nodeW, vals.nodeH);
             MultiDiagramVisualizer.setColor(cls.name, vals.fill);
             MultiDiagramVisualizer.setColor(`${cls.name}_font`, vals.font);
             MultiDiagramVisualizer.setColor(`${cls.name}_border`, vals.border);

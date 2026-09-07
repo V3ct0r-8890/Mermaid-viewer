@@ -118,10 +118,16 @@ MultiDiagramVisualizer.register('erdiagram', function(code, nodesLayer, edgesLay
     e.colWidths = { typeColW, nameColW, keyColW, commentColW };
     e.hasComment = hasComment;
     e.hasKey = hasKey;
-    e.width = typeColW + nameColW + keyColW + commentColW;
     e.rowHeight = 28;
     e.headerHeight = 32;
-    e.height = e.headerHeight + Math.max(1, e.attributes.length) * e.rowHeight;
+    // Content-derived size, overridable from the Inspector.
+    const sized = MultiDiagramVisualizer.getSize(
+      e.name,
+      typeColW + nameColW + keyColW + commentColW,
+      e.headerHeight + Math.max(1, e.attributes.length) * e.rowHeight
+    );
+    e.width = sized.width;
+    e.height = sized.height;
 
     const defPos = defaultPositions[e.name] || { x: 60 + (idx % 3) * 320, y: 60 + Math.floor(idx / 3) * 240 };
     e.defaultX = defPos.x;
@@ -600,11 +606,13 @@ MultiDiagramVisualizer.register('erdiagram', function(code, nodesLayer, edgesLay
           fields: [
             { key: 'name', label: 'Entity / Table Name', type: 'text', value: e.name },
             { key: 'attributes', label: 'Attributes (type name [PK/FK/UK] ["comment"])', type: 'textarea', rows: 6, value: attrLines },
+            ...Utils.sizeFields(e.width, e.height),
             { key: 'font', label: Utils.FIELD_LABELS.font, type: 'color', value: e.fontColor },
             { key: 'fill', label: Utils.FIELD_LABELS.fill, type: 'color', value: e.fillColor },
             { key: 'border', label: Utils.FIELD_LABELS.border, type: 'color', value: e.borderColor }
           ],
           onSave: (vals) => {
+            MultiDiagramVisualizer.setSize(vals.name, vals.nodeW, vals.nodeH);
             MultiDiagramVisualizer.setColor(vals.name, vals.fill);
             MultiDiagramVisualizer.setColor(`${vals.name}_font`, vals.font);
             MultiDiagramVisualizer.setColor(`${vals.name}_border`, vals.border);

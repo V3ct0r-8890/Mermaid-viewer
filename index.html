@@ -148,26 +148,22 @@
             </select>
           </div>
 
-          <div class="prop-row">
-            <div class="prop-group" style="margin-bottom:0;">
-              <label>Width</label>
-              <input type="number" id="prop-node-w" class="prop-input" min="60" max="400" step="10">
-            </div>
-            <div class="prop-group" style="margin-bottom:0;">
-              <label>Height</label>
-              <input type="number" id="prop-node-h" class="prop-input" min="30" max="250" step="5">
-            </div>
+          <div class="prop-group">
+            <label>Node Width (px)</label>
+            <input type="number" id="prop-node-w" class="prop-input" min="60" max="400" step="10">
+          </div>
+          <div class="prop-group">
+            <label>Node Height (px)</label>
+            <input type="number" id="prop-node-h" class="prop-input" min="30" max="250" step="5">
           </div>
 
-          <div class="prop-row">
-            <div class="prop-group" style="margin-bottom:0;">
-              <label>Pos X</label>
-              <input type="number" id="prop-node-x" class="prop-input" step="10">
-            </div>
-            <div class="prop-group" style="margin-bottom:0;">
-              <label>Pos Y</label>
-              <input type="number" id="prop-node-y" class="prop-input" step="10">
-            </div>
+          <div class="prop-group">
+            <label>Position X</label>
+            <input type="number" id="prop-node-x" class="prop-input" step="10">
+          </div>
+          <div class="prop-group">
+            <label>Position Y</label>
+            <input type="number" id="prop-node-y" class="prop-input" step="10">
           </div>
 
           <!-- 1. Font Color -->
@@ -248,15 +244,15 @@
         <div id="edge-props-form" style="display:none;">
           <h4 style="font-size:11px; text-transform:uppercase; color:var(--text-muted); margin-bottom:12px;">Link Properties</h4>
           
-          <div style="display:flex; gap:8px;">
-            <div class="prop-group" style="flex:1;">
-              <label>From (Source)</label>
-              <select id="prop-edge-source" class="prop-input"></select>
-            </div>
-            <div class="prop-group" style="flex:1;">
-              <label>To (Target)</label>
-              <select id="prop-edge-target" class="prop-input"></select>
-            </div>
+          <!-- One field per line, matching the generic Inspector used by every other
+               diagram type. -->
+          <div class="prop-group">
+            <label>From (Source)</label>
+            <select id="prop-edge-source" class="prop-input"></select>
+          </div>
+          <div class="prop-group">
+            <label>To (Target)</label>
+            <select id="prop-edge-target" class="prop-input"></select>
           </div>
 
           <div class="prop-group">

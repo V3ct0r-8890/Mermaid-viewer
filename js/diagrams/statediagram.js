@@ -237,6 +237,13 @@ MultiDiagramVisualizer.register('statediagram', function(code, nodesLayer, edges
     });
   });
 
+  // Apply any Inspector size overrides before anything measures or routes to a state.
+  stateDefs.forEach(s => {
+    const sized = MultiDiagramVisualizer.getSize(s.id, s.w, s.h);
+    s.w = sized.width;
+    s.h = sized.height;
+  });
+
   const compositeNode = stateDefs.find(s => s.type === 'composite');
   const normalNodes = stateDefs.filter(s => s.type !== 'composite');
 
@@ -300,11 +307,13 @@ MultiDiagramVisualizer.register('statediagram', function(code, nodesLayer, edges
           title: compositeNode.label,
           fields: [
             { key: 'label', label: 'State Name', type: 'text', value: compositeNode.label },
+            ...Utils.sizeFields(compositeNode.w, compositeNode.h),
             { key: 'font', label: Utils.FIELD_LABELS.font, type: 'color', value: fontColor },
             { key: 'fill', label: Utils.FIELD_LABELS.fill, type: 'color', value: fillColor },
             { key: 'border', label: Utils.FIELD_LABELS.border, type: 'color', value: borderColor }
           ],
           onSave: (vals) => {
+            MultiDiagramVisualizer.setSize(compositeNode.id, vals.nodeW, vals.nodeH);
             MultiDiagramVisualizer.setColor(compositeNode.id, vals.fill);
             MultiDiagramVisualizer.setColor(`${compositeNode.id}_font`, vals.font);
             MultiDiagramVisualizer.setColor(`${compositeNode.id}_border`, vals.border);
@@ -537,19 +546,19 @@ MultiDiagramVisualizer.register('statediagram', function(code, nodesLayer, edges
             { key: 'width', label: Utils.FIELD_LABELS.lineWidth, type: 'select', value: trWidth, options: Utils.widthOptions(['1.2', '1.8', '2.5', '3.5'], '1.8') },
             { key: 'connector', label: Utils.FIELD_LABELS.connector, type: 'select', value: connStyle, options: Utils.CONNECTOR_OPTIONS },
             { key: 'style', label: Utils.FIELD_LABELS.lineDash, type: 'select', value: trStyle, options: Utils.DASH_OPTIONS },
-            { key: 'font', label: Utils.FIELD_LABELS.labelText, type: 'color', value: trFont },
-            { key: 'bg', label: Utils.FIELD_LABELS.labelBg, type: 'color', value: trBg }
+            { key: 'labelFont', label: Utils.FIELD_LABELS.labelText, type: 'color', value: trFont },
+            { key: 'labelBg', label: Utils.FIELD_LABELS.labelBg, type: 'color', value: trBg }
           ],
           onSave: (vals) => {
             MultiDiagramVisualizer.setColor(trKey, vals.color);
             MultiDiagramVisualizer.setColor(`${trKey}_width`, vals.width);
             MultiDiagramVisualizer.setColor(`${trKey}_style`, vals.style);
             MultiDiagramVisualizer.setColor(`${trKey}_conn`, vals.connector);
-            MultiDiagramVisualizer.setColor(`${trKey}_font`, vals.font);
-            MultiDiagramVisualizer.setColor(`${trKey}_bg`, vals.bg);
+            MultiDiagramVisualizer.setColor(`${trKey}_font`, vals.labelFont);
+            MultiDiagramVisualizer.setColor(`${trKey}_bg`, vals.labelBg);
             MultiDiagramVisualizer.syncColorToCode(trKey, vals.color);
-            MultiDiagramVisualizer.syncColorToCode(`${trKey}_font`, vals.font);
-            MultiDiagramVisualizer.syncColorToCode(`${trKey}_bg`, vals.bg);
+            MultiDiagramVisualizer.syncColorToCode(`${trKey}_font`, vals.labelFont);
+            MultiDiagramVisualizer.syncColorToCode(`${trKey}_bg`, vals.labelBg);
             MultiDiagramVisualizer.updateCodeLine((curCode) => {
               const lines = curCode.split('\n');
               for (let i = 0; i < lines.length; i++) {
@@ -584,11 +593,14 @@ MultiDiagramVisualizer.register('statediagram', function(code, nodesLayer, edges
     nodeG.setAttribute('transform', `translate(${pos.x}, ${pos.y})`);
     nodeG.style.cursor = 'grab';
 
+    // Start/end markers stay circular, so a resized one uses its smaller side.
+    const markerR = Math.min(s.w, s.h) / 2;
+
     if (s.type === 'start') {
       const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
       circle.setAttribute('cx', `${s.w / 2}`);
       circle.setAttribute('cy', `${s.h / 2}`);
-      circle.setAttribute('r', `${s.w / 2}`);
+      circle.setAttribute('r', `${markerR}`);
       circle.setAttribute('fill', fillColor);
       circle.setAttribute('stroke', isSelected ? 'var(--selection-color)' : borderColor);
       circle.setAttribute('stroke-width', isSelected ? '2.5' : '1');
@@ -598,7 +610,7 @@ MultiDiagramVisualizer.register('statediagram', function(code, nodesLayer, edges
       const outerRing = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
       outerRing.setAttribute('cx', `${s.w / 2}`);
       outerRing.setAttribute('cy', `${s.h / 2}`);
-      outerRing.setAttribute('r', `${s.w / 2}`);
+      outerRing.setAttribute('r', `${markerR}`);
       outerRing.setAttribute('fill', cardBg);
       outerRing.setAttribute('stroke', isSelected ? 'var(--selection-color)' : borderColor);
       outerRing.setAttribute('stroke-width', isSelected ? '2.5' : '1.8');
@@ -608,7 +620,7 @@ MultiDiagramVisualizer.register('statediagram', function(code, nodesLayer, edges
       const innerCore = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
       innerCore.setAttribute('cx', `${s.w / 2}`);
       innerCore.setAttribute('cy', `${s.h / 2}`);
-      innerCore.setAttribute('r', `${s.w / 2 - 5}`);
+      innerCore.setAttribute('r', `${Math.max(2, markerR - 5)}`);
       innerCore.setAttribute('fill', fillColor);
       nodeG.appendChild(innerCore);
     } else if (s.type === 'choice') {
@@ -658,11 +670,13 @@ MultiDiagramVisualizer.register('statediagram', function(code, nodesLayer, edges
           title: s.label,
           fields: [
             { key: 'label', label: 'State Name', type: 'text', value: s.label },
+            ...Utils.sizeFields(s.w, s.h),
             { key: 'font', label: Utils.FIELD_LABELS.font, type: 'color', value: fontColor },
             { key: 'fill', label: Utils.FIELD_LABELS.fill, type: 'color', value: fillColor },
             { key: 'border', label: Utils.FIELD_LABELS.border, type: 'color', value: borderColor }
           ],
           onSave: (vals) => {
+            MultiDiagramVisualizer.setSize(s.id, vals.nodeW, vals.nodeH);
             MultiDiagramVisualizer.setColor(s.id, vals.fill);
             MultiDiagramVisualizer.setColor(`${s.id}_font`, vals.font);
             MultiDiagramVisualizer.setColor(`${s.id}_border`, vals.border);

@@ -17,6 +17,8 @@
 
 Every diagram type that has links exposes the same three link controls in the Inspector — **From**, **To**, and **Connector / Line Routing** (Curved / Straight / Orthogonal Step) — plus colour and thickness. Diagrams marked *no link concept* have no relationship syntax in Mermaid, so only their node properties are editable.
 
+Every node panel exposes **Node Width (px)** / **Node Height (px)**, stored via `MultiDiagramVisualizer.getSize`/`setSize` (the same override mechanism as node positions; a blank or zero value falls back to the diagram's computed size). The exceptions are Gantt, Pie and Treemap, where node size *is* the data — bar length is the duration, slice angle and tile area are the value — so an override would make the chart misreport its own numbers; resize those by editing the value instead.
+
 | Category | Diagram Type | Key Visual Features | Inspector Capabilities |
 |---|---|---|---|
 | **Flowcharts** | `flowchart TD`, `flowchart LR` | Node dragging, shapes, curves, labels | From/To reconnect, connector routing, bidirectional arrows, colors |

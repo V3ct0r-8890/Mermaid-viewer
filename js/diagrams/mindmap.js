@@ -118,6 +118,13 @@ MultiDiagramVisualizer.register('mindmap', function(code, nodesLayer, edgesLayer
   collectTopics(rootNode);
   const allTopicOptions = allTopics.map(n => ({ value: n.text, label: n.level === 0 ? `${n.text} (root)` : n.text }));
 
+  // Topic boxes are sized from their text; the Inspector can override either side.
+  allTopics.forEach(n => {
+    const sized = MultiDiagramVisualizer.getSize(n.text, n.width, n.height);
+    n.width = sized.width;
+    n.height = sized.height;
+  });
+
   // Text of a mindmap source line, mirroring how the parser above strips shape
   // wrappers and ::icon() so a topic can be matched back to the line that defines it.
   const lineTopicText = (line) => {
@@ -272,11 +279,13 @@ MultiDiagramVisualizer.register('mindmap', function(code, nodesLayer, edgesLayer
             { value: 'hexagon', label: 'Hexagon {{Root}}' },
             { value: 'cloud', label: 'Cloud )Root(' }
           ]},
+          ...Utils.sizeFields(rootNode.width, rootNode.height),
           { key: 'font', label: Utils.FIELD_LABELS.font, type: 'color', value: rFont },
           { key: 'fill', label: Utils.FIELD_LABELS.fill, type: 'color', value: rFill },
           { key: 'border', label: Utils.FIELD_LABELS.border, type: 'color', value: rBorder }
         ],
         onSave: (vals) => {
+          MultiDiagramVisualizer.setSize(vals.text, vals.nodeW, vals.nodeH);
           MultiDiagramVisualizer.setColor('root', vals.fill);
           MultiDiagramVisualizer.setColor('root_font', vals.font);
           MultiDiagramVisualizer.setColor('root_border', vals.border);
@@ -469,11 +478,13 @@ MultiDiagramVisualizer.register('mindmap', function(code, nodesLayer, edgesLayer
               { value: 'hexagon', label: 'Hexagon {{Topic}}' },
               { value: 'cloud', label: 'Cloud )Topic(' }
             ]},
+            ...Utils.sizeFields(node.width, node.height),
             { key: 'font', label: Utils.FIELD_LABELS.font, type: 'color', value: nodeFont },
             { key: 'fill', label: Utils.FIELD_LABELS.fill, type: 'color', value: nodeFill },
             { key: 'border', label: Utils.FIELD_LABELS.border, type: 'color', value: nodeBorder }
           ],
           onSave: (vals) => {
+            MultiDiagramVisualizer.setSize(vals.text, vals.nodeW, vals.nodeH);
             MultiDiagramVisualizer.setColor(vals.text, vals.fill);
             MultiDiagramVisualizer.setColor(`${vals.text}_font`, vals.font);
             MultiDiagramVisualizer.setColor(`${vals.text}_border`, vals.border);

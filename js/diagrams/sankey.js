@@ -43,7 +43,11 @@ MultiDiagramVisualizer.register('sankey', function(code, nodesLayer, edgesLayer,
   const midYMap = new Map();
   const rightYMap = new Map();
 
+  const boxW = 130;
+  const boxH = 45;
+
   const drawBox = (name, x, y, defaultColor) => {
+    const size = MultiDiagramVisualizer.getSize(name, boxW, boxH);
     // House rule: the node fill is a pastel tint of its band colour, while the border
     // keeps that colour at full strength (as do the flow bands themselves).
     const fillColor = MultiDiagramVisualizer.getColor(name, Utils.toPastel(defaultColor, isDark));
@@ -56,8 +60,8 @@ MultiDiagramVisualizer.register('sankey', function(code, nodesLayer, edgesLayer,
     const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
     rect.setAttribute('x', `${x}`);
     rect.setAttribute('y', `${y}`);
-    rect.setAttribute('width', '130');
-    rect.setAttribute('height', '45');
+    rect.setAttribute('width', `${size.width}`);
+    rect.setAttribute('height', `${size.height}`);
     rect.setAttribute('rx', '4');
     const isSelSankey = (name === selTitle);
     rect.setAttribute('fill', fillColor);
@@ -68,8 +72,8 @@ MultiDiagramVisualizer.register('sankey', function(code, nodesLayer, edgesLayer,
     g.appendChild(rect);
 
     const txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-    txt.setAttribute('x', `${x + 65}`);
-    txt.setAttribute('y', `${y + 22}`);
+    txt.setAttribute('x', `${x + size.width / 2}`);
+    txt.setAttribute('y', `${y + size.height / 2}`);
     txt.setAttribute('text-anchor', 'middle');
     txt.setAttribute('dominant-baseline', 'central');
     txt.setAttribute('fill', fontColor);
@@ -87,11 +91,13 @@ MultiDiagramVisualizer.register('sankey', function(code, nodesLayer, edgesLayer,
           title: name,
           fields: [
             { key: 'name', label: 'Node Name', type: 'text', value: name },
+            ...Utils.sizeFields(size.width, size.height),
             { key: 'font', label: Utils.FIELD_LABELS.font, type: 'color', value: fontColor },
             { key: 'fill', label: Utils.FIELD_LABELS.fill, type: 'color', value: fillColor },
             { key: 'border', label: Utils.FIELD_LABELS.border, type: 'color', value: borderColor }
           ],
           onSave: (vals) => {
+            MultiDiagramVisualizer.setSize(vals.name, vals.nodeW, vals.nodeH);
             MultiDiagramVisualizer.setColor(vals.name, vals.fill);
             MultiDiagramVisualizer.setColor(`${vals.name}_font`, vals.font);
             MultiDiagramVisualizer.setColor(`${vals.name}_border`, vals.border);

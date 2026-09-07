@@ -168,10 +168,14 @@ MultiDiagramVisualizer.register('quadrant', function(code, nodesLayer, edgesLaye
           const itemG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
           itemG.style.cursor = 'pointer';
 
-          const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+          // Drawn as an ellipse so the Inspector's width and height both apply; the
+          // default is the round plot point it has always been.
+          const dotSize = MultiDiagramVisualizer.getSize(it.name, 16, 16);
+          const circle = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
           circle.setAttribute('cx', `${px}`);
           circle.setAttribute('cy', `${py}`);
-          circle.setAttribute('r', '8');
+          circle.setAttribute('rx', `${dotSize.width / 2}`);
+          circle.setAttribute('ry', `${dotSize.height / 2}`);
           const isSelQuad = (it.name === selTitle);
           // Pastel fill with the point's own colour as the border.
           const dotFill = MultiDiagramVisualizer.getColor(`${it.name}_fill`, Utils.toPastel(it.color, isDark));
@@ -184,7 +188,7 @@ MultiDiagramVisualizer.register('quadrant', function(code, nodesLayer, edgesLaye
 
           const dotFont = MultiDiagramVisualizer.getColor(`${it.name}_font`, textColor);
           const txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-          txt.setAttribute('x', `${px + 12}`);
+          txt.setAttribute('x', `${px + dotSize.width / 2 + 4}`);
           txt.setAttribute('y', `${py + 4}`);
           txt.setAttribute('fill', dotFont);
           txt.setAttribute('font-size', '11px');
@@ -203,11 +207,13 @@ MultiDiagramVisualizer.register('quadrant', function(code, nodesLayer, edgesLaye
                   { key: 'name', label: 'Item Name', type: 'text', value: it.name },
                   { key: 'x', label: 'X Axis (0.0 - 1.0)', type: 'number', step: 0.05, min: 0, max: 1, value: it.x },
                   { key: 'y', label: 'Y Axis (0.0 - 1.0)', type: 'number', step: 0.05, min: 0, max: 1, value: it.y },
+                  ...Utils.sizeFields(dotSize.width, dotSize.height),
                   { key: 'font', label: Utils.FIELD_LABELS.font, type: 'color', value: dotFont },
                   { key: 'fill', label: Utils.FIELD_LABELS.fill, type: 'color', value: dotFill },
                   { key: 'border', label: Utils.FIELD_LABELS.border, type: 'color', value: dotBorder }
                 ],
                 onSave: (vals) => {
+                  MultiDiagramVisualizer.setSize(vals.name, vals.nodeW, vals.nodeH);
                   MultiDiagramVisualizer.setColor(`${vals.name}_font`, vals.font);
                   MultiDiagramVisualizer.setColor(`${vals.name}_fill`, vals.fill);
                   MultiDiagramVisualizer.setColor(`${vals.name}_border`, vals.border);

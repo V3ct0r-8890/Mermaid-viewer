@@ -2,6 +2,7 @@
 class MultiDiagramVisualizer {
   static customColors = new Map();
   static nodePositions = new Map();
+  static nodeSizes = new Map();
   static renderers = new Map();
 
   static register(type, rendererFn) {
@@ -37,6 +38,32 @@ class MultiDiagramVisualizer {
       const cleanKey = String(key).replace(/^["']|["']$/g, '').trim();
       MultiDiagramVisualizer.nodePositions.set(cleanKey, { x, y });
     }
+  }
+
+  // Node size overrides, mirroring getPosition/setPosition. Diagrams size their nodes
+  // from their content by default; this lets the Inspector override either dimension
+  // (the Flowchart canvas has always had this — these give every other diagram the
+  // same control). An override of 0/blank falls back to the computed default.
+  static getSize(key, defaultW, defaultH) {
+    if (!key) return { width: defaultW, height: defaultH };
+    const cleanKey = String(key).replace(/^["']|["']$/g, '').trim();
+    const stored = MultiDiagramVisualizer.nodeSizes.get(cleanKey);
+    if (!stored) return { width: defaultW, height: defaultH };
+    return {
+      width: stored.width > 0 ? stored.width : defaultW,
+      height: stored.height > 0 ? stored.height : defaultH
+    };
+  }
+
+  static setSize(key, width, height) {
+    if (!key) return;
+    const cleanKey = String(key).replace(/^["']|["']$/g, '').trim();
+    const w = parseFloat(width);
+    const h = parseFloat(height);
+    MultiDiagramVisualizer.nodeSizes.set(cleanKey, {
+      width: isNaN(w) ? 0 : w,
+      height: isNaN(h) ? 0 : h
+    });
   }
 
   static parseColorDirectives(code) {

@@ -130,9 +130,22 @@
         lineDash: 'Line Dash Style',
         labelText: 'Label Text Color',
         labelBg: 'Label Background Color',
+        nodeW: 'Node Width (px)',
+        nodeH: 'Node Height (px)',
+        nodeSize: 'Node Size (px)',
         font: 'Font / Text Color',
         fill: 'Node Fill Color',
         border: 'Node Border / Stroke Color'
+      },
+      // Size fields for a node panel, placed just before the colour trio. Diagrams
+      // whose node size is derived from data (Gantt bar length, Pie slice angle,
+      // Treemap tile area) deliberately don't get these — an override there would
+      // make the chart misreport its own numbers.
+      sizeFields(width, height) {
+        return [
+          { key: 'nodeW', label: Utils.FIELD_LABELS.nodeW, type: 'number', min: 20, step: 10, value: Math.round(width) },
+          { key: 'nodeH', label: Utils.FIELD_LABELS.nodeH, type: 'number', min: 16, step: 5, value: Math.round(height) }
+        ];
       },
       DASH_OPTIONS: [
         { value: 'solid', label: 'Solid (──────)' },

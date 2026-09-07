@@ -120,8 +120,9 @@ MultiDiagramVisualizer.register('c4context', function(code, nodesLayer, edgesLay
           const savedPos = MultiDiagramVisualizer.getPosition(n.alias, defPos.x, defPos.y);
           n.x = savedPos.x;
           n.y = savedPos.y;
-          n.width = cardW;
-          n.height = cardH;
+          const savedSize = MultiDiagramVisualizer.getSize(n.alias, cardW, cardH);
+          n.width = savedSize.width;
+          n.height = savedSize.height;
         });
 
         // Draw Relationships with 28px Invisible Hitbox & Staggered 2-Line Badges
@@ -484,11 +485,13 @@ MultiDiagramVisualizer.register('c4context', function(code, nodesLayer, edgesLay
                       { value: 'Component', label: 'Component' }
                   ]},
                   { key: 'desc', label: 'Description', type: 'textarea', rows: 3, value: n.desc || '' },
+                  ...Utils.sizeFields(n.width, n.height),
                   { key: 'font', label: Utils.FIELD_LABELS.font, type: 'color', value: n.fontColor },
                   { key: 'fill', label: Utils.FIELD_LABELS.fill, type: 'color', value: n.fillColor },
                   { key: 'border', label: Utils.FIELD_LABELS.border, type: 'color', value: n.borderColor }
                 ],
                 onSave: (vals) => {
+                  MultiDiagramVisualizer.setSize(n.alias, vals.nodeW, vals.nodeH);
                   MultiDiagramVisualizer.setColor(n.alias, vals.fill);
                   MultiDiagramVisualizer.setColor(`${n.alias}_font`, vals.font);
                   MultiDiagramVisualizer.setColor(`${n.alias}_border`, vals.border);

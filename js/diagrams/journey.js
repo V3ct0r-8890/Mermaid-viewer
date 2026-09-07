@@ -81,11 +81,12 @@ MultiDiagramVisualizer.register('journey', function(code, nodesLayer, edgesLayer
             const cardG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
             cardG.style.cursor = 'pointer';
 
+            const cardSize = MultiDiagramVisualizer.getSize(t.name, 155, 80);
             const card = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
             card.setAttribute('x', `${x}`);
             card.setAttribute('y', `${ty}`);
-            card.setAttribute('width', '155');
-            card.setAttribute('height', '80');
+            card.setAttribute('width', `${cardSize.width}`);
+            card.setAttribute('height', `${cardSize.height}`);
             card.setAttribute('rx', '8');
             const isSelJ = (t.name === selTitle);
             card.setAttribute('fill', t.fillColor);
@@ -138,11 +139,13 @@ MultiDiagramVisualizer.register('journey', function(code, nodesLayer, edgesLayer
                       { value: 1, label: '1 - 😡 Bad' }
                     ], value: t.score },
                     { key: 'actor', label: 'Involved Actor(s)', type: 'text', value: t.actor },
+                    ...Utils.sizeFields(cardSize.width, cardSize.height),
                     { key: 'font', label: Utils.FIELD_LABELS.font, type: 'color', value: t.fontColor },
                     { key: 'fill', label: Utils.FIELD_LABELS.fill, type: 'color', value: t.fillColor },
                     { key: 'border', label: Utils.FIELD_LABELS.border, type: 'color', value: t.borderColor }
                   ],
                   onSave: (vals) => {
+                    MultiDiagramVisualizer.setSize(vals.name, vals.nodeW, vals.nodeH);
                     MultiDiagramVisualizer.setColor(vals.name, vals.fill);
                     MultiDiagramVisualizer.setColor(`${vals.name}_font`, vals.font);
                     MultiDiagramVisualizer.setColor(`${vals.name}_border`, vals.border);

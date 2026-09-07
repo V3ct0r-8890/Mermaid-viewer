@@ -291,10 +291,15 @@ MultiDiagramVisualizer.register('gitgraph', function(code, nodesLayer, edgesLaye
           const commitG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
           commitG.style.cursor = 'pointer';
 
-          const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+          // Drawn as an ellipse so the Inspector's width and height both apply; the
+          // default is the round commit dot it has always been.
+          const dotDefault = c.isMerge ? 24 : 20;
+          const commitSize = MultiDiagramVisualizer.getSize(c.id, dotDefault, dotDefault);
+          const circle = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
           circle.setAttribute('cx', `${x}`);
           circle.setAttribute('cy', `${y}`);
-          circle.setAttribute('r', c.isMerge ? '12' : '10');
+          circle.setAttribute('rx', `${commitSize.width / 2}`);
+          circle.setAttribute('ry', `${commitSize.height / 2}`);
           const isSelGit = (c.id === selTitle);
           // Pastel body, full-strength branch colour on the rim.
           const commitFill = MultiDiagramVisualizer.getColor(`${c.id}_fill`, Utils.toPastel(c.color, isDark));
@@ -306,10 +311,11 @@ MultiDiagramVisualizer.register('gitgraph', function(code, nodesLayer, edgesLaye
           commitG.appendChild(circle);
 
           if (c.isMerge) {
-            const innerC = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            const innerC = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
             innerC.setAttribute('cx', `${x}`);
             innerC.setAttribute('cy', `${y}`);
-            innerC.setAttribute('r', '5');
+            innerC.setAttribute('rx', `${commitSize.width / 4.8}`);
+            innerC.setAttribute('ry', `${commitSize.height / 4.8}`);
             innerC.setAttribute('fill', commitBorder);
             commitG.appendChild(innerC);
           }
@@ -360,11 +366,13 @@ MultiDiagramVisualizer.register('gitgraph', function(code, nodesLayer, edgesLaye
                 fields: [
                   { key: 'id', label: 'Commit Message / ID', type: 'text', value: c.id },
                   { key: 'tag', label: 'Release Tag (Optional)', type: 'text', value: c.tag || '' },
+                  ...Utils.sizeFields(commitSize.width, commitSize.height),
                   { key: 'font', label: Utils.FIELD_LABELS.font, type: 'color', value: c.fontColor || textColor },
                   { key: 'fill', label: Utils.FIELD_LABELS.fill, type: 'color', value: commitFill },
                   { key: 'border', label: Utils.FIELD_LABELS.border, type: 'color', value: commitBorder }
                 ],
                 onSave: (vals) => {
+                  MultiDiagramVisualizer.setSize(vals.id, vals.nodeW, vals.nodeH);
                   MultiDiagramVisualizer.setColor(`${vals.id}_font`, vals.font);
                   MultiDiagramVisualizer.setColor(`${vals.id}_fill`, vals.fill);
                   MultiDiagramVisualizer.setColor(`${vals.id}_border`, vals.border);

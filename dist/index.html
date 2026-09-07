@@ -1174,26 +1174,22 @@
             </select>
           </div>
 
-          <div class="prop-row">
-            <div class="prop-group" style="margin-bottom:0;">
-              <label>Width</label>
-              <input type="number" id="prop-node-w" class="prop-input" min="60" max="400" step="10">
-            </div>
-            <div class="prop-group" style="margin-bottom:0;">
-              <label>Height</label>
-              <input type="number" id="prop-node-h" class="prop-input" min="30" max="250" step="5">
-            </div>
+          <div class="prop-group">
+            <label>Node Width (px)</label>
+            <input type="number" id="prop-node-w" class="prop-input" min="60" max="400" step="10">
+          </div>
+          <div class="prop-group">
+            <label>Node Height (px)</label>
+            <input type="number" id="prop-node-h" class="prop-input" min="30" max="250" step="5">
           </div>
 
-          <div class="prop-row">
-            <div class="prop-group" style="margin-bottom:0;">
-              <label>Pos X</label>
-              <input type="number" id="prop-node-x" class="prop-input" step="10">
-            </div>
-            <div class="prop-group" style="margin-bottom:0;">
-              <label>Pos Y</label>
-              <input type="number" id="prop-node-y" class="prop-input" step="10">
-            </div>
+          <div class="prop-group">
+            <label>Position X</label>
+            <input type="number" id="prop-node-x" class="prop-input" step="10">
+          </div>
+          <div class="prop-group">
+            <label>Position Y</label>
+            <input type="number" id="prop-node-y" class="prop-input" step="10">
           </div>
 
           <!-- 1. Font Color -->
@@ -1274,15 +1270,15 @@
         <div id="edge-props-form" style="display:none;">
           <h4 style="font-size:11px; text-transform:uppercase; color:var(--text-muted); margin-bottom:12px;">Link Properties</h4>
           
-          <div style="display:flex; gap:8px;">
-            <div class="prop-group" style="flex:1;">
-              <label>From (Source)</label>
-              <select id="prop-edge-source" class="prop-input"></select>
-            </div>
-            <div class="prop-group" style="flex:1;">
-              <label>To (Target)</label>
-              <select id="prop-edge-target" class="prop-input"></select>
-            </div>
+          <!-- One field per line, matching the generic Inspector used by every other
+               diagram type. -->
+          <div class="prop-group">
+            <label>From (Source)</label>
+            <select id="prop-edge-source" class="prop-input"></select>
+          </div>
+          <div class="prop-group">
+            <label>To (Target)</label>
+            <select id="prop-edge-target" class="prop-input"></select>
           </div>
 
           <div class="prop-group">
@@ -2340,9 +2336,22 @@ treemap-beta
         lineDash: 'Line Dash Style',
         labelText: 'Label Text Color',
         labelBg: 'Label Background Color',
+        nodeW: 'Node Width (px)',
+        nodeH: 'Node Height (px)',
+        nodeSize: 'Node Size (px)',
         font: 'Font / Text Color',
         fill: 'Node Fill Color',
         border: 'Node Border / Stroke Color'
+      },
+      // Size fields for a node panel, placed just before the colour trio. Diagrams
+      // whose node size is derived from data (Gantt bar length, Pie slice angle,
+      // Treemap tile area) deliberately don't get these — an override there would
+      // make the chart misreport its own numbers.
+      sizeFields(width, height) {
+        return [
+          { key: 'nodeW', label: Utils.FIELD_LABELS.nodeW, type: 'number', min: 20, step: 10, value: Math.round(width) },
+          { key: 'nodeH', label: Utils.FIELD_LABELS.nodeH, type: 'number', min: 16, step: 5, value: Math.round(height) }
+        ];
       },
       DASH_OPTIONS: [
         { value: 'solid', label: 'Solid (──────)' },
@@ -2810,6 +2819,7 @@ treemap-beta
 class MultiDiagramVisualizer {
   static customColors = new Map();
   static nodePositions = new Map();
+  static nodeSizes = new Map();
   static renderers = new Map();
 
   static register(type, rendererFn) {
@@ -2845,6 +2855,32 @@ class MultiDiagramVisualizer {
       const cleanKey = String(key).replace(/^["']|["']$/g, '').trim();
       MultiDiagramVisualizer.nodePositions.set(cleanKey, { x, y });
     }
+  }
+
+  // Node size overrides, mirroring getPosition/setPosition. Diagrams size their nodes
+  // from their content by default; this lets the Inspector override either dimension
+  // (the Flowchart canvas has always had this — these give every other diagram the
+  // same control). An override of 0/blank falls back to the computed default.
+  static getSize(key, defaultW, defaultH) {
+    if (!key) return { width: defaultW, height: defaultH };
+    const cleanKey = String(key).replace(/^["']|["']$/g, '').trim();
+    const stored = MultiDiagramVisualizer.nodeSizes.get(cleanKey);
+    if (!stored) return { width: defaultW, height: defaultH };
+    return {
+      width: stored.width > 0 ? stored.width : defaultW,
+      height: stored.height > 0 ? stored.height : defaultH
+    };
+  }
+
+  static setSize(key, width, height) {
+    if (!key) return;
+    const cleanKey = String(key).replace(/^["']|["']$/g, '').trim();
+    const w = parseFloat(width);
+    const h = parseFloat(height);
+    MultiDiagramVisualizer.nodeSizes.set(cleanKey, {
+      width: isNaN(w) ? 0 : w,
+      height: isNaN(h) ? 0 : h
+    });
   }
 
   static parseColorDirectives(code) {
@@ -4040,26 +4076,22 @@ class MultiDiagramVisualizer {
             </select>
           </div>
 
-          <div class="prop-row">
-            <div class="prop-group" style="margin-bottom:0;">
-              <label>Width</label>
-              <input type="number" id="prop-node-w" class="prop-input" min="60" max="400" step="10">
-            </div>
-            <div class="prop-group" style="margin-bottom:0;">
-              <label>Height</label>
-              <input type="number" id="prop-node-h" class="prop-input" min="30" max="250" step="5">
-            </div>
+          <div class="prop-group">
+            <label>Node Width (px)</label>
+            <input type="number" id="prop-node-w" class="prop-input" min="60" max="400" step="10">
+          </div>
+          <div class="prop-group">
+            <label>Node Height (px)</label>
+            <input type="number" id="prop-node-h" class="prop-input" min="30" max="250" step="5">
           </div>
 
-          <div class="prop-row">
-            <div class="prop-group" style="margin-bottom:0;">
-              <label>Pos X</label>
-              <input type="number" id="prop-node-x" class="prop-input" step="10">
-            </div>
-            <div class="prop-group" style="margin-bottom:0;">
-              <label>Pos Y</label>
-              <input type="number" id="prop-node-y" class="prop-input" step="10">
-            </div>
+          <div class="prop-group">
+            <label>Position X</label>
+            <input type="number" id="prop-node-x" class="prop-input" step="10">
+          </div>
+          <div class="prop-group">
+            <label>Position Y</label>
+            <input type="number" id="prop-node-y" class="prop-input" step="10">
           </div>
 
           <!-- 1. Font Color -->
@@ -4140,15 +4172,15 @@ class MultiDiagramVisualizer {
         <div id="edge-props-form" style="display:none;">
           <h4 style="font-size:11px; text-transform:uppercase; color:var(--text-muted); margin-bottom:12px;">Link Properties</h4>
           
-          <div style="display:flex; gap:8px;">
-            <div class="prop-group" style="flex:1;">
-              <label>From (Source)</label>
-              <select id="prop-edge-source" class="prop-input"></select>
-            </div>
-            <div class="prop-group" style="flex:1;">
-              <label>To (Target)</label>
-              <select id="prop-edge-target" class="prop-input"></select>
-            </div>
+          <!-- One field per line, matching the generic Inspector used by every other
+               diagram type. -->
+          <div class="prop-group">
+            <label>From (Source)</label>
+            <select id="prop-edge-source" class="prop-input"></select>
+          </div>
+          <div class="prop-group">
+            <label>To (Target)</label>
+            <select id="prop-edge-target" class="prop-input"></select>
           </div>
 
           <div class="prop-group">
@@ -4959,8 +4991,9 @@ MultiDiagramVisualizer.register('c4context', function(code, nodesLayer, edgesLay
           const savedPos = MultiDiagramVisualizer.getPosition(n.alias, defPos.x, defPos.y);
           n.x = savedPos.x;
           n.y = savedPos.y;
-          n.width = cardW;
-          n.height = cardH;
+          const savedSize = MultiDiagramVisualizer.getSize(n.alias, cardW, cardH);
+          n.width = savedSize.width;
+          n.height = savedSize.height;
         });
 
         // Draw Relationships with 28px Invisible Hitbox & Staggered 2-Line Badges
@@ -5323,11 +5356,13 @@ MultiDiagramVisualizer.register('c4context', function(code, nodesLayer, edgesLay
                       { value: 'Component', label: 'Component' }
                   ]},
                   { key: 'desc', label: 'Description', type: 'textarea', rows: 3, value: n.desc || '' },
+                  ...Utils.sizeFields(n.width, n.height),
                   { key: 'font', label: Utils.FIELD_LABELS.font, type: 'color', value: n.fontColor },
                   { key: 'fill', label: Utils.FIELD_LABELS.fill, type: 'color', value: n.fillColor },
                   { key: 'border', label: Utils.FIELD_LABELS.border, type: 'color', value: n.borderColor }
                 ],
                 onSave: (vals) => {
+                  MultiDiagramVisualizer.setSize(n.alias, vals.nodeW, vals.nodeH);
                   MultiDiagramVisualizer.setColor(n.alias, vals.fill);
                   MultiDiagramVisualizer.setColor(`${n.alias}_font`, vals.font);
                   MultiDiagramVisualizer.setColor(`${n.alias}_border`, vals.border);
@@ -5568,11 +5603,13 @@ MultiDiagramVisualizer.register('classdiagram', function(code, nodesLayer, edges
     const methH = Math.max(28, cls.methods.length * 22 + 10);
     const totalH = headerH + attrH + methH;
 
+    // Content-derived size, overridable from the Inspector.
+    const sized = MultiDiagramVisualizer.getSize(cls.name, cardW, totalH);
     classDimensions.set(cls.name, {
       x: defPos.x,
       y: defPos.y,
-      w: cardW,
-      h: totalH,
+      w: sized.width,
+      h: sized.height,
       headerH,
       attrH,
       methH
@@ -5929,11 +5966,13 @@ MultiDiagramVisualizer.register('classdiagram', function(code, nodesLayer, edges
           title: cls.name,
           fields: [
             { key: 'name', label: 'Class Name', type: 'text', value: cls.name },
+            ...Utils.sizeFields(dim.w, dim.h),
             { key: 'font', label: Utils.FIELD_LABELS.font, type: 'color', value: fontColor },
             { key: 'fill', label: Utils.FIELD_LABELS.fill, type: 'color', value: fillColor },
             { key: 'border', label: Utils.FIELD_LABELS.border, type: 'color', value: borderColor }
           ],
           onSave: (vals) => {
+            MultiDiagramVisualizer.setSize(cls.name, vals.nodeW, vals.nodeH);
             MultiDiagramVisualizer.setColor(cls.name, vals.fill);
             MultiDiagramVisualizer.setColor(`${cls.name}_font`, vals.font);
             MultiDiagramVisualizer.setColor(`${cls.name}_border`, vals.border);
@@ -6071,10 +6110,16 @@ MultiDiagramVisualizer.register('erdiagram', function(code, nodesLayer, edgesLay
     e.colWidths = { typeColW, nameColW, keyColW, commentColW };
     e.hasComment = hasComment;
     e.hasKey = hasKey;
-    e.width = typeColW + nameColW + keyColW + commentColW;
     e.rowHeight = 28;
     e.headerHeight = 32;
-    e.height = e.headerHeight + Math.max(1, e.attributes.length) * e.rowHeight;
+    // Content-derived size, overridable from the Inspector.
+    const sized = MultiDiagramVisualizer.getSize(
+      e.name,
+      typeColW + nameColW + keyColW + commentColW,
+      e.headerHeight + Math.max(1, e.attributes.length) * e.rowHeight
+    );
+    e.width = sized.width;
+    e.height = sized.height;
 
     const defPos = defaultPositions[e.name] || { x: 60 + (idx % 3) * 320, y: 60 + Math.floor(idx / 3) * 240 };
     e.defaultX = defPos.x;
@@ -6553,11 +6598,13 @@ MultiDiagramVisualizer.register('erdiagram', function(code, nodesLayer, edgesLay
           fields: [
             { key: 'name', label: 'Entity / Table Name', type: 'text', value: e.name },
             { key: 'attributes', label: 'Attributes (type name [PK/FK/UK] ["comment"])', type: 'textarea', rows: 6, value: attrLines },
+            ...Utils.sizeFields(e.width, e.height),
             { key: 'font', label: Utils.FIELD_LABELS.font, type: 'color', value: e.fontColor },
             { key: 'fill', label: Utils.FIELD_LABELS.fill, type: 'color', value: e.fillColor },
             { key: 'border', label: Utils.FIELD_LABELS.border, type: 'color', value: e.borderColor }
           ],
           onSave: (vals) => {
+            MultiDiagramVisualizer.setSize(vals.name, vals.nodeW, vals.nodeH);
             MultiDiagramVisualizer.setColor(vals.name, vals.fill);
             MultiDiagramVisualizer.setColor(`${vals.name}_font`, vals.font);
             MultiDiagramVisualizer.setColor(`${vals.name}_border`, vals.border);
@@ -7524,10 +7571,15 @@ MultiDiagramVisualizer.register('gitgraph', function(code, nodesLayer, edgesLaye
           const commitG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
           commitG.style.cursor = 'pointer';
 
-          const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+          // Drawn as an ellipse so the Inspector's width and height both apply; the
+          // default is the round commit dot it has always been.
+          const dotDefault = c.isMerge ? 24 : 20;
+          const commitSize = MultiDiagramVisualizer.getSize(c.id, dotDefault, dotDefault);
+          const circle = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
           circle.setAttribute('cx', `${x}`);
           circle.setAttribute('cy', `${y}`);
-          circle.setAttribute('r', c.isMerge ? '12' : '10');
+          circle.setAttribute('rx', `${commitSize.width / 2}`);
+          circle.setAttribute('ry', `${commitSize.height / 2}`);
           const isSelGit = (c.id === selTitle);
           // Pastel body, full-strength branch colour on the rim.
           const commitFill = MultiDiagramVisualizer.getColor(`${c.id}_fill`, Utils.toPastel(c.color, isDark));
@@ -7539,10 +7591,11 @@ MultiDiagramVisualizer.register('gitgraph', function(code, nodesLayer, edgesLaye
           commitG.appendChild(circle);
 
           if (c.isMerge) {
-            const innerC = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            const innerC = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
             innerC.setAttribute('cx', `${x}`);
             innerC.setAttribute('cy', `${y}`);
-            innerC.setAttribute('r', '5');
+            innerC.setAttribute('rx', `${commitSize.width / 4.8}`);
+            innerC.setAttribute('ry', `${commitSize.height / 4.8}`);
             innerC.setAttribute('fill', commitBorder);
             commitG.appendChild(innerC);
           }
@@ -7593,11 +7646,13 @@ MultiDiagramVisualizer.register('gitgraph', function(code, nodesLayer, edgesLaye
                 fields: [
                   { key: 'id', label: 'Commit Message / ID', type: 'text', value: c.id },
                   { key: 'tag', label: 'Release Tag (Optional)', type: 'text', value: c.tag || '' },
+                  ...Utils.sizeFields(commitSize.width, commitSize.height),
                   { key: 'font', label: Utils.FIELD_LABELS.font, type: 'color', value: c.fontColor || textColor },
                   { key: 'fill', label: Utils.FIELD_LABELS.fill, type: 'color', value: commitFill },
                   { key: 'border', label: Utils.FIELD_LABELS.border, type: 'color', value: commitBorder }
                 ],
                 onSave: (vals) => {
+                  MultiDiagramVisualizer.setSize(vals.id, vals.nodeW, vals.nodeH);
                   MultiDiagramVisualizer.setColor(`${vals.id}_font`, vals.font);
                   MultiDiagramVisualizer.setColor(`${vals.id}_fill`, vals.fill);
                   MultiDiagramVisualizer.setColor(`${vals.id}_border`, vals.border);
@@ -7714,11 +7769,12 @@ MultiDiagramVisualizer.register('journey', function(code, nodesLayer, edgesLayer
             const cardG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
             cardG.style.cursor = 'pointer';
 
+            const cardSize = MultiDiagramVisualizer.getSize(t.name, 155, 80);
             const card = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
             card.setAttribute('x', `${x}`);
             card.setAttribute('y', `${ty}`);
-            card.setAttribute('width', '155');
-            card.setAttribute('height', '80');
+            card.setAttribute('width', `${cardSize.width}`);
+            card.setAttribute('height', `${cardSize.height}`);
             card.setAttribute('rx', '8');
             const isSelJ = (t.name === selTitle);
             card.setAttribute('fill', t.fillColor);
@@ -7771,11 +7827,13 @@ MultiDiagramVisualizer.register('journey', function(code, nodesLayer, edgesLayer
                       { value: 1, label: '1 - 😡 Bad' }
                     ], value: t.score },
                     { key: 'actor', label: 'Involved Actor(s)', type: 'text', value: t.actor },
+                    ...Utils.sizeFields(cardSize.width, cardSize.height),
                     { key: 'font', label: Utils.FIELD_LABELS.font, type: 'color', value: t.fontColor },
                     { key: 'fill', label: Utils.FIELD_LABELS.fill, type: 'color', value: t.fillColor },
                     { key: 'border', label: Utils.FIELD_LABELS.border, type: 'color', value: t.borderColor }
                   ],
                   onSave: (vals) => {
+                    MultiDiagramVisualizer.setSize(vals.name, vals.nodeW, vals.nodeH);
                     MultiDiagramVisualizer.setColor(vals.name, vals.fill);
                     MultiDiagramVisualizer.setColor(`${vals.name}_font`, vals.font);
                     MultiDiagramVisualizer.setColor(`${vals.name}_border`, vals.border);
@@ -7923,6 +7981,13 @@ MultiDiagramVisualizer.register('mindmap', function(code, nodesLayer, edgesLayer
   };
   collectTopics(rootNode);
   const allTopicOptions = allTopics.map(n => ({ value: n.text, label: n.level === 0 ? `${n.text} (root)` : n.text }));
+
+  // Topic boxes are sized from their text; the Inspector can override either side.
+  allTopics.forEach(n => {
+    const sized = MultiDiagramVisualizer.getSize(n.text, n.width, n.height);
+    n.width = sized.width;
+    n.height = sized.height;
+  });
 
   // Text of a mindmap source line, mirroring how the parser above strips shape
   // wrappers and ::icon() so a topic can be matched back to the line that defines it.
@@ -8078,11 +8143,13 @@ MultiDiagramVisualizer.register('mindmap', function(code, nodesLayer, edgesLayer
             { value: 'hexagon', label: 'Hexagon {{Root}}' },
             { value: 'cloud', label: 'Cloud )Root(' }
           ]},
+          ...Utils.sizeFields(rootNode.width, rootNode.height),
           { key: 'font', label: Utils.FIELD_LABELS.font, type: 'color', value: rFont },
           { key: 'fill', label: Utils.FIELD_LABELS.fill, type: 'color', value: rFill },
           { key: 'border', label: Utils.FIELD_LABELS.border, type: 'color', value: rBorder }
         ],
         onSave: (vals) => {
+          MultiDiagramVisualizer.setSize(vals.text, vals.nodeW, vals.nodeH);
           MultiDiagramVisualizer.setColor('root', vals.fill);
           MultiDiagramVisualizer.setColor('root_font', vals.font);
           MultiDiagramVisualizer.setColor('root_border', vals.border);
@@ -8275,11 +8342,13 @@ MultiDiagramVisualizer.register('mindmap', function(code, nodesLayer, edgesLayer
               { value: 'hexagon', label: 'Hexagon {{Topic}}' },
               { value: 'cloud', label: 'Cloud )Topic(' }
             ]},
+            ...Utils.sizeFields(node.width, node.height),
             { key: 'font', label: Utils.FIELD_LABELS.font, type: 'color', value: nodeFont },
             { key: 'fill', label: Utils.FIELD_LABELS.fill, type: 'color', value: nodeFill },
             { key: 'border', label: Utils.FIELD_LABELS.border, type: 'color', value: nodeBorder }
           ],
           onSave: (vals) => {
+            MultiDiagramVisualizer.setSize(vals.text, vals.nodeW, vals.nodeH);
             MultiDiagramVisualizer.setColor(vals.text, vals.fill);
             MultiDiagramVisualizer.setColor(`${vals.text}_font`, vals.font);
             MultiDiagramVisualizer.setColor(`${vals.text}_border`, vals.border);
@@ -9471,26 +9540,22 @@ MultiDiagramVisualizer.register('mindmap', function(code, nodesLayer, edgesLayer
             </select>
           </div>
 
-          <div class="prop-row">
-            <div class="prop-group" style="margin-bottom:0;">
-              <label>Width</label>
-              <input type="number" id="prop-node-w" class="prop-input" min="60" max="400" step="10">
-            </div>
-            <div class="prop-group" style="margin-bottom:0;">
-              <label>Height</label>
-              <input type="number" id="prop-node-h" class="prop-input" min="30" max="250" step="5">
-            </div>
+          <div class="prop-group">
+            <label>Node Width (px)</label>
+            <input type="number" id="prop-node-w" class="prop-input" min="60" max="400" step="10">
+          </div>
+          <div class="prop-group">
+            <label>Node Height (px)</label>
+            <input type="number" id="prop-node-h" class="prop-input" min="30" max="250" step="5">
           </div>
 
-          <div class="prop-row">
-            <div class="prop-group" style="margin-bottom:0;">
-              <label>Pos X</label>
-              <input type="number" id="prop-node-x" class="prop-input" step="10">
-            </div>
-            <div class="prop-group" style="margin-bottom:0;">
-              <label>Pos Y</label>
-              <input type="number" id="prop-node-y" class="prop-input" step="10">
-            </div>
+          <div class="prop-group">
+            <label>Position X</label>
+            <input type="number" id="prop-node-x" class="prop-input" step="10">
+          </div>
+          <div class="prop-group">
+            <label>Position Y</label>
+            <input type="number" id="prop-node-y" class="prop-input" step="10">
           </div>
 
           <!-- 1. Font Color -->
@@ -9571,15 +9636,15 @@ MultiDiagramVisualizer.register('mindmap', function(code, nodesLayer, edgesLayer
         <div id="edge-props-form" style="display:none;">
           <h4 style="font-size:11px; text-transform:uppercase; color:var(--text-muted); margin-bottom:12px;">Link Properties</h4>
           
-          <div style="display:flex; gap:8px;">
-            <div class="prop-group" style="flex:1;">
-              <label>From (Source)</label>
-              <select id="prop-edge-source" class="prop-input"></select>
-            </div>
-            <div class="prop-group" style="flex:1;">
-              <label>To (Target)</label>
-              <select id="prop-edge-target" class="prop-input"></select>
-            </div>
+          <!-- One field per line, matching the generic Inspector used by every other
+               diagram type. -->
+          <div class="prop-group">
+            <label>From (Source)</label>
+            <select id="prop-edge-source" class="prop-input"></select>
+          </div>
+          <div class="prop-group">
+            <label>To (Target)</label>
+            <select id="prop-edge-target" class="prop-input"></select>
           </div>
 
           <div class="prop-group">
@@ -10533,10 +10598,14 @@ MultiDiagramVisualizer.register('quadrant', function(code, nodesLayer, edgesLaye
           const itemG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
           itemG.style.cursor = 'pointer';
 
-          const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+          // Drawn as an ellipse so the Inspector's width and height both apply; the
+          // default is the round plot point it has always been.
+          const dotSize = MultiDiagramVisualizer.getSize(it.name, 16, 16);
+          const circle = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
           circle.setAttribute('cx', `${px}`);
           circle.setAttribute('cy', `${py}`);
-          circle.setAttribute('r', '8');
+          circle.setAttribute('rx', `${dotSize.width / 2}`);
+          circle.setAttribute('ry', `${dotSize.height / 2}`);
           const isSelQuad = (it.name === selTitle);
           // Pastel fill with the point's own colour as the border.
           const dotFill = MultiDiagramVisualizer.getColor(`${it.name}_fill`, Utils.toPastel(it.color, isDark));
@@ -10549,7 +10618,7 @@ MultiDiagramVisualizer.register('quadrant', function(code, nodesLayer, edgesLaye
 
           const dotFont = MultiDiagramVisualizer.getColor(`${it.name}_font`, textColor);
           const txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-          txt.setAttribute('x', `${px + 12}`);
+          txt.setAttribute('x', `${px + dotSize.width / 2 + 4}`);
           txt.setAttribute('y', `${py + 4}`);
           txt.setAttribute('fill', dotFont);
           txt.setAttribute('font-size', '11px');
@@ -10568,11 +10637,13 @@ MultiDiagramVisualizer.register('quadrant', function(code, nodesLayer, edgesLaye
                   { key: 'name', label: 'Item Name', type: 'text', value: it.name },
                   { key: 'x', label: 'X Axis (0.0 - 1.0)', type: 'number', step: 0.05, min: 0, max: 1, value: it.x },
                   { key: 'y', label: 'Y Axis (0.0 - 1.0)', type: 'number', step: 0.05, min: 0, max: 1, value: it.y },
+                  ...Utils.sizeFields(dotSize.width, dotSize.height),
                   { key: 'font', label: Utils.FIELD_LABELS.font, type: 'color', value: dotFont },
                   { key: 'fill', label: Utils.FIELD_LABELS.fill, type: 'color', value: dotFill },
                   { key: 'border', label: Utils.FIELD_LABELS.border, type: 'color', value: dotBorder }
                 ],
                 onSave: (vals) => {
+                  MultiDiagramVisualizer.setSize(vals.name, vals.nodeW, vals.nodeH);
                   MultiDiagramVisualizer.setColor(`${vals.name}_font`, vals.font);
                   MultiDiagramVisualizer.setColor(`${vals.name}_fill`, vals.fill);
                   MultiDiagramVisualizer.setColor(`${vals.name}_border`, vals.border);
@@ -10645,7 +10716,11 @@ MultiDiagramVisualizer.register('sankey', function(code, nodesLayer, edgesLayer,
   const midYMap = new Map();
   const rightYMap = new Map();
 
+  const boxW = 130;
+  const boxH = 45;
+
   const drawBox = (name, x, y, defaultColor) => {
+    const size = MultiDiagramVisualizer.getSize(name, boxW, boxH);
     // House rule: the node fill is a pastel tint of its band colour, while the border
     // keeps that colour at full strength (as do the flow bands themselves).
     const fillColor = MultiDiagramVisualizer.getColor(name, Utils.toPastel(defaultColor, isDark));
@@ -10658,8 +10733,8 @@ MultiDiagramVisualizer.register('sankey', function(code, nodesLayer, edgesLayer,
     const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
     rect.setAttribute('x', `${x}`);
     rect.setAttribute('y', `${y}`);
-    rect.setAttribute('width', '130');
-    rect.setAttribute('height', '45');
+    rect.setAttribute('width', `${size.width}`);
+    rect.setAttribute('height', `${size.height}`);
     rect.setAttribute('rx', '4');
     const isSelSankey = (name === selTitle);
     rect.setAttribute('fill', fillColor);
@@ -10670,8 +10745,8 @@ MultiDiagramVisualizer.register('sankey', function(code, nodesLayer, edgesLayer,
     g.appendChild(rect);
 
     const txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-    txt.setAttribute('x', `${x + 65}`);
-    txt.setAttribute('y', `${y + 22}`);
+    txt.setAttribute('x', `${x + size.width / 2}`);
+    txt.setAttribute('y', `${y + size.height / 2}`);
     txt.setAttribute('text-anchor', 'middle');
     txt.setAttribute('dominant-baseline', 'central');
     txt.setAttribute('fill', fontColor);
@@ -10689,11 +10764,13 @@ MultiDiagramVisualizer.register('sankey', function(code, nodesLayer, edgesLayer,
           title: name,
           fields: [
             { key: 'name', label: 'Node Name', type: 'text', value: name },
+            ...Utils.sizeFields(size.width, size.height),
             { key: 'font', label: Utils.FIELD_LABELS.font, type: 'color', value: fontColor },
             { key: 'fill', label: Utils.FIELD_LABELS.fill, type: 'color', value: fillColor },
             { key: 'border', label: Utils.FIELD_LABELS.border, type: 'color', value: borderColor }
           ],
           onSave: (vals) => {
+            MultiDiagramVisualizer.setSize(vals.name, vals.nodeW, vals.nodeH);
             MultiDiagramVisualizer.setColor(vals.name, vals.fill);
             MultiDiagramVisualizer.setColor(`${vals.name}_font`, vals.font);
             MultiDiagramVisualizer.setColor(`${vals.name}_border`, vals.border);
@@ -10926,7 +11003,8 @@ MultiDiagramVisualizer.register('sequence', function(code, nodesLayer, edgesLaye
   participants.forEach((p, idx) => {
     const defaultX = startX + idx * baseSpacing;
     const pos = MultiDiagramVisualizer.getPosition(p.id, defaultX, 40);
-    partPositions.set(p.id, { x: pos.x, y: 40, isActor: p.isActor, label: p.label, id: p.id, width: partCardW, height: partCardH });
+    const size = MultiDiagramVisualizer.getSize(p.id, partCardW, partCardH);
+    partPositions.set(p.id, { x: pos.x, y: 40, isActor: p.isActor, label: p.label, id: p.id, width: size.width, height: size.height });
   });
 
   let curY = 190;
@@ -11250,7 +11328,12 @@ MultiDiagramVisualizer.register('sequence', function(code, nodesLayer, edgesLaye
 
     const renderHeaderOrFooter = (yPos, isTop = true) => {
       const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-      g.setAttribute('transform', `translate(${pPos.x}, ${yPos})`);
+      // A service participant is a box that takes its size directly; an actor is a
+      // stick figure, so it is scaled by the same ratio instead.
+      const actorScale = p.isActor
+        ? ` scale(${pPos.width / partCardW}, ${pPos.height / partCardH})`
+        : '';
+      g.setAttribute('transform', `translate(${pPos.x}, ${yPos})${actorScale}`);
       g.style.cursor = 'grab';
 
       if (p.isActor) {
@@ -11310,8 +11393,8 @@ MultiDiagramVisualizer.register('sequence', function(code, nodesLayer, edgesLaye
         txt.textContent = p.label;
         g.appendChild(txt);
       } else {
-        const cardW = 160;
-        const cardH = 50;
+        const cardW = pPos.width;
+        const cardH = pPos.height;
 
         const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
         rect.setAttribute('x', `${-cardW / 2}`);
@@ -11351,11 +11434,13 @@ MultiDiagramVisualizer.register('sequence', function(code, nodesLayer, edgesLaye
             title: p.label,
             fields: [
               { key: 'name', label: 'Participant Name', type: 'text', value: p.label },
+              ...Utils.sizeFields(pPos.width, pPos.height),
               { key: 'font', label: Utils.FIELD_LABELS.font, type: 'color', value: fontColor },
               { key: 'fill', label: Utils.FIELD_LABELS.fill, type: 'color', value: fillColor },
               { key: 'border', label: Utils.FIELD_LABELS.border, type: 'color', value: borderColor }
             ],
             onSave: (vals) => {
+              MultiDiagramVisualizer.setSize(p.id, vals.nodeW, vals.nodeH);
               MultiDiagramVisualizer.setColor(p.id, vals.fill);
               MultiDiagramVisualizer.setColor(`${p.id}_font`, vals.font);
               MultiDiagramVisualizer.setColor(`${p.id}_border`, vals.border);
@@ -11616,6 +11701,13 @@ MultiDiagramVisualizer.register('statediagram', function(code, nodesLayer, edges
     });
   });
 
+  // Apply any Inspector size overrides before anything measures or routes to a state.
+  stateDefs.forEach(s => {
+    const sized = MultiDiagramVisualizer.getSize(s.id, s.w, s.h);
+    s.w = sized.width;
+    s.h = sized.height;
+  });
+
   const compositeNode = stateDefs.find(s => s.type === 'composite');
   const normalNodes = stateDefs.filter(s => s.type !== 'composite');
 
@@ -11679,11 +11771,13 @@ MultiDiagramVisualizer.register('statediagram', function(code, nodesLayer, edges
           title: compositeNode.label,
           fields: [
             { key: 'label', label: 'State Name', type: 'text', value: compositeNode.label },
+            ...Utils.sizeFields(compositeNode.w, compositeNode.h),
             { key: 'font', label: Utils.FIELD_LABELS.font, type: 'color', value: fontColor },
             { key: 'fill', label: Utils.FIELD_LABELS.fill, type: 'color', value: fillColor },
             { key: 'border', label: Utils.FIELD_LABELS.border, type: 'color', value: borderColor }
           ],
           onSave: (vals) => {
+            MultiDiagramVisualizer.setSize(compositeNode.id, vals.nodeW, vals.nodeH);
             MultiDiagramVisualizer.setColor(compositeNode.id, vals.fill);
             MultiDiagramVisualizer.setColor(`${compositeNode.id}_font`, vals.font);
             MultiDiagramVisualizer.setColor(`${compositeNode.id}_border`, vals.border);
@@ -11916,19 +12010,19 @@ MultiDiagramVisualizer.register('statediagram', function(code, nodesLayer, edges
             { key: 'width', label: Utils.FIELD_LABELS.lineWidth, type: 'select', value: trWidth, options: Utils.widthOptions(['1.2', '1.8', '2.5', '3.5'], '1.8') },
             { key: 'connector', label: Utils.FIELD_LABELS.connector, type: 'select', value: connStyle, options: Utils.CONNECTOR_OPTIONS },
             { key: 'style', label: Utils.FIELD_LABELS.lineDash, type: 'select', value: trStyle, options: Utils.DASH_OPTIONS },
-            { key: 'font', label: Utils.FIELD_LABELS.labelText, type: 'color', value: trFont },
-            { key: 'bg', label: Utils.FIELD_LABELS.labelBg, type: 'color', value: trBg }
+            { key: 'labelFont', label: Utils.FIELD_LABELS.labelText, type: 'color', value: trFont },
+            { key: 'labelBg', label: Utils.FIELD_LABELS.labelBg, type: 'color', value: trBg }
           ],
           onSave: (vals) => {
             MultiDiagramVisualizer.setColor(trKey, vals.color);
             MultiDiagramVisualizer.setColor(`${trKey}_width`, vals.width);
             MultiDiagramVisualizer.setColor(`${trKey}_style`, vals.style);
             MultiDiagramVisualizer.setColor(`${trKey}_conn`, vals.connector);
-            MultiDiagramVisualizer.setColor(`${trKey}_font`, vals.font);
-            MultiDiagramVisualizer.setColor(`${trKey}_bg`, vals.bg);
+            MultiDiagramVisualizer.setColor(`${trKey}_font`, vals.labelFont);
+            MultiDiagramVisualizer.setColor(`${trKey}_bg`, vals.labelBg);
             MultiDiagramVisualizer.syncColorToCode(trKey, vals.color);
-            MultiDiagramVisualizer.syncColorToCode(`${trKey}_font`, vals.font);
-            MultiDiagramVisualizer.syncColorToCode(`${trKey}_bg`, vals.bg);
+            MultiDiagramVisualizer.syncColorToCode(`${trKey}_font`, vals.labelFont);
+            MultiDiagramVisualizer.syncColorToCode(`${trKey}_bg`, vals.labelBg);
             MultiDiagramVisualizer.updateCodeLine((curCode) => {
               const lines = curCode.split('\n');
               for (let i = 0; i < lines.length; i++) {
@@ -11963,11 +12057,14 @@ MultiDiagramVisualizer.register('statediagram', function(code, nodesLayer, edges
     nodeG.setAttribute('transform', `translate(${pos.x}, ${pos.y})`);
     nodeG.style.cursor = 'grab';
 
+    // Start/end markers stay circular, so a resized one uses its smaller side.
+    const markerR = Math.min(s.w, s.h) / 2;
+
     if (s.type === 'start') {
       const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
       circle.setAttribute('cx', `${s.w / 2}`);
       circle.setAttribute('cy', `${s.h / 2}`);
-      circle.setAttribute('r', `${s.w / 2}`);
+      circle.setAttribute('r', `${markerR}`);
       circle.setAttribute('fill', fillColor);
       circle.setAttribute('stroke', isSelected ? 'var(--selection-color)' : borderColor);
       circle.setAttribute('stroke-width', isSelected ? '2.5' : '1');
@@ -11977,7 +12074,7 @@ MultiDiagramVisualizer.register('statediagram', function(code, nodesLayer, edges
       const outerRing = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
       outerRing.setAttribute('cx', `${s.w / 2}`);
       outerRing.setAttribute('cy', `${s.h / 2}`);
-      outerRing.setAttribute('r', `${s.w / 2}`);
+      outerRing.setAttribute('r', `${markerR}`);
       outerRing.setAttribute('fill', cardBg);
       outerRing.setAttribute('stroke', isSelected ? 'var(--selection-color)' : borderColor);
       outerRing.setAttribute('stroke-width', isSelected ? '2.5' : '1.8');
@@ -11987,7 +12084,7 @@ MultiDiagramVisualizer.register('statediagram', function(code, nodesLayer, edges
       const innerCore = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
       innerCore.setAttribute('cx', `${s.w / 2}`);
       innerCore.setAttribute('cy', `${s.h / 2}`);
-      innerCore.setAttribute('r', `${s.w / 2 - 5}`);
+      innerCore.setAttribute('r', `${Math.max(2, markerR - 5)}`);
       innerCore.setAttribute('fill', fillColor);
       nodeG.appendChild(innerCore);
     } else if (s.type === 'choice') {
@@ -12037,11 +12134,13 @@ MultiDiagramVisualizer.register('statediagram', function(code, nodesLayer, edges
           title: s.label,
           fields: [
             { key: 'label', label: 'State Name', type: 'text', value: s.label },
+            ...Utils.sizeFields(s.w, s.h),
             { key: 'font', label: Utils.FIELD_LABELS.font, type: 'color', value: fontColor },
             { key: 'fill', label: Utils.FIELD_LABELS.fill, type: 'color', value: fillColor },
             { key: 'border', label: Utils.FIELD_LABELS.border, type: 'color', value: borderColor }
           ],
           onSave: (vals) => {
+            MultiDiagramVisualizer.setSize(s.id, vals.nodeW, vals.nodeH);
             MultiDiagramVisualizer.setColor(s.id, vals.fill);
             MultiDiagramVisualizer.setColor(`${s.id}_font`, vals.font);
             MultiDiagramVisualizer.setColor(`${s.id}_border`, vals.border);
@@ -12157,8 +12256,9 @@ MultiDiagramVisualizer.register('timeline', function(code, nodesLayer, edgesLaye
 
           const cardG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
           cardG.style.cursor = 'pointer';
-          const cardW = 140;
-          const cardH = Math.max(40, ev.items.length * 26 + 14);
+          const cardSize = MultiDiagramVisualizer.getSize(ev.era, 140, Math.max(40, ev.items.length * 26 + 14));
+          const cardW = cardSize.width;
+          const cardH = cardSize.height;
 
           const cardRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
           cardRect.setAttribute('x', `${ex - cardW / 2}`);
@@ -12193,11 +12293,13 @@ MultiDiagramVisualizer.register('timeline', function(code, nodesLayer, edgesLaye
                 fields: [
                   { key: 'era', label: 'Era / Year', type: 'text', value: ev.era },
                   { key: 'items', label: 'Milestone Events (Comma Separated)', type: 'textarea', rows: 2, value: ev.items.join(', ') },
+                  ...Utils.sizeFields(cardW, cardH),
                   { key: 'font', label: Utils.FIELD_LABELS.font, type: 'color', value: ev.fontColor },
                   { key: 'fill', label: Utils.FIELD_LABELS.fill, type: 'color', value: ev.fillColor },
                   { key: 'border', label: Utils.FIELD_LABELS.border, type: 'color', value: ev.borderColor }
                 ],
                 onSave: (vals) => {
+                  MultiDiagramVisualizer.setSize(vals.era, vals.nodeW, vals.nodeH);
                   MultiDiagramVisualizer.setColor(vals.era, vals.fill);
                   MultiDiagramVisualizer.setColor(`${vals.era}_font`, vals.font);
                   MultiDiagramVisualizer.setColor(`${vals.era}_border`, vals.border);
