@@ -31,13 +31,18 @@ MultiDiagramVisualizer.register('journey', function(code, nodesLayer, edgesLayer
           const taskMatch = line.match(/^([^:]+):\s*([0-9]+)\s*:\s*(.+)$/);
           if (taskMatch) {
             const name = taskMatch[1].trim();
+            const score = parseInt(taskMatch[2]);
+            // Satisfaction reads straight off the card: a pastel fill in the score's
+            // hue, with that hue at full strength on the border.
+            const scoreInk = ['#D32F2F', '#F57C00', '#F9A825', '#7CB342', '#388E3C'];
+            const ink = scoreInk[Utils.clamp(score || 3, 1, 5) - 1];
             curSection.tasks.push({
               name,
-              score: parseInt(taskMatch[2]),
+              score,
               actor: taskMatch[3].trim(),
-              fillColor: MultiDiagramVisualizer.getColor(name, cardBg),
+              fillColor: MultiDiagramVisualizer.getColor(name, Utils.toPastel(ink, isDark)),
               fontColor: MultiDiagramVisualizer.getColor(`${name}_font`, primaryText),
-              borderColor: MultiDiagramVisualizer.getColor(`${name}_border`, cardBorder)
+              borderColor: MultiDiagramVisualizer.getColor(`${name}_border`, ink)
             });
           }
         });

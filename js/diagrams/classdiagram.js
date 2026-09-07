@@ -3,7 +3,7 @@ MultiDiagramVisualizer.register('classdiagram', function(code, nodesLayer, edges
   const primaryText = isDark ? '#FFFFFF' : '#1F2937';
   const textColor = isDark ? '#E0E0E0' : '#374151';
   const cardBg = isDark ? '#222538' : '#EEF0FF';
-  const cardBorder = isDark ? '#7986CB' : '#9FA8DA';
+  const cardBorder = isDark ? '#7986CB' : '#5C6BC0';
   const dividerColor = isDark ? '#5C6BC0' : '#C5CAE9';
   const linkColor = isDark ? '#90CAF9' : '#374151';
   const selTitle = (typeof AppController !== 'undefined' && AppController.instance && AppController.instance.selectedVisualObject) ? AppController.instance.selectedVisualObject.title : null;
@@ -259,6 +259,9 @@ MultiDiagramVisualizer.register('classdiagram', function(code, nodesLayer, edges
 
     // Arrow line start (fromNode) and end (toNode with marker)
     let fromCenterX, fromY, toCenterX, toY, pathD, markerPoints;
+    // Whether the chosen routing case runs between stacked classes (vertical) or
+    // side-by-side ones (horizontal) — used when re-routing to another connector style.
+    let connOrient = 'v';
 
     if (isMarkerAtSrc) {
       // Line travels from TGT (subclass) to SRC (superclass), arrow points into SRC
@@ -284,6 +287,7 @@ MultiDiagramVisualizer.register('classdiagram', function(code, nodesLayer, edges
         markerPoints = `${endX},${endY} ${endX - 7},${endY - 14} ${endX + 7},${endY - 14}`;
       } else {
         // Side by side
+        connOrient = 'h';
         const isTgtRight = tCenterX > sCenterX;
         const startX = isTgtRight ? tPos.x : tPos.x + tW;
         const startY = tCenterY;
@@ -320,6 +324,7 @@ MultiDiagramVisualizer.register('classdiagram', function(code, nodesLayer, edges
         markerPoints = `${endX},${endY} ${endX - 7},${endY + 14} ${endX + 7},${endY + 14}`;
       } else {
         // Side by side
+        connOrient = 'h';
         const isSrcRight = sCenterX > tCenterX;
         const startX = isSrcRight ? sPos.x : sPos.x + sW;
         const startY = sCenterY;
@@ -331,6 +336,22 @@ MultiDiagramVisualizer.register('classdiagram', function(code, nodesLayer, edges
         markerPoints = isSrcRight
           ? `${endX},${endY} ${endX + 14},${endY - 7} ${endX + 14},${endY + 7}`
           : `${endX},${endY} ${endX - 14},${endY - 7} ${endX - 14},${endY + 7}`;
+      }
+    }
+
+    // Connector routing. Every case above draws a bezier that stops short of the UML
+    // marker, so re-routing reuses those same two anchor points (read back off the
+    // path) and the marker keeps sitting exactly where it already does.
+    const connStyle = Utils.normalizeConnector(MultiDiagramVisualizer.getColor(`${linkKey}_conn`, 'curve'), 'curve');
+    if (connStyle !== 'curve') {
+      const anchors = pathD.match(/^M\s+([-\d.]+)\s+([-\d.]+)\s+C\s+.*,\s*([-\d.]+)\s+([-\d.]+)$/);
+      if (anchors) {
+        pathD = Utils.buildConnectorPath(
+          parseFloat(anchors[1]), parseFloat(anchors[2]),
+          parseFloat(anchors[3]), parseFloat(anchors[4]),
+          connStyle,
+          { orientation: connOrient }
+        );
       }
     }
 
@@ -423,11 +444,13 @@ MultiDiagramVisualizer.register('classdiagram', function(code, nodesLayer, edges
                 { value: '1.5', label: 'Medium (1.5px - Default)' },
                 { value: '2.2', label: 'Thick (2.2px)' },
                 { value: '3', label: 'Heavy (3px)' }
-            ]}
+            ]},
+            { key: 'connector', label: 'Connector / Line Routing', type: 'select', value: connStyle, options: Utils.CONNECTOR_OPTIONS }
           ],
           onSave: (vals) => {
             MultiDiagramVisualizer.setColor(linkKey, vals.color);
             MultiDiagramVisualizer.setColor(`${linkKey}_width`, vals.width);
+            MultiDiagramVisualizer.setColor(`${linkKey}_conn`, vals.connector);
             MultiDiagramVisualizer.syncColorToCode(linkKey, vals.color);
             MultiDiagramVisualizer.updateCodeLine((curCode) => {
               const lines = curCode.split('\n');

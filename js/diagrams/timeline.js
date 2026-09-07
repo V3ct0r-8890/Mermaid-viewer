@@ -29,7 +29,9 @@ MultiDiagramVisualizer.register('timeline', function(code, nodesLayer, edgesLaye
             events.push({
               era,
               items: items.length > 0 ? items : ['Milestone Event'],
-              fillColor: MultiDiagramVisualizer.getColor(era, cardBg),
+              // Pastel card tinted with its era's accent colour; the accent itself
+              // stays at full strength on the border.
+              fillColor: MultiDiagramVisualizer.getColor(era, Utils.toPastel(defaultCol, isDark)),
               fontColor: MultiDiagramVisualizer.getColor(`${era}_font`, primaryText),
               borderColor: MultiDiagramVisualizer.getColor(`${era}_border`, defaultCol)
             });
@@ -37,9 +39,9 @@ MultiDiagramVisualizer.register('timeline', function(code, nodesLayer, edgesLaye
         });
 
         if (events.length === 0) {
-          events.push({ era: '2024', items: ['Alpha Prototype'], fillColor: cardBg, fontColor: primaryText, borderColor: '#2196F3' });
-          events.push({ era: '2025', items: ['Beta Release'], fillColor: cardBg, fontColor: primaryText, borderColor: '#4CAF50' });
-          events.push({ era: '2026', items: ['Production Launch'], fillColor: cardBg, fontColor: primaryText, borderColor: '#FF9800' });
+          events.push({ era: '2024', items: ['Alpha Prototype'], fillColor: Utils.toPastel('#2196F3', isDark), fontColor: primaryText, borderColor: '#2196F3' });
+          events.push({ era: '2025', items: ['Beta Release'], fillColor: Utils.toPastel('#4CAF50', isDark), fontColor: primaryText, borderColor: '#4CAF50' });
+          events.push({ era: '2026', items: ['Production Launch'], fillColor: Utils.toPastel('#FF9800', isDark), fontColor: primaryText, borderColor: '#FF9800' });
         }
 
         // Title

@@ -90,22 +90,23 @@ MultiDiagramVisualizer.register('treemap', function(code, nodesLayer, edgesLayer
     return `${currency}${Number(v).toLocaleString()}`;
   };
 
-  // Group default palettes matching reference image
+  // Group default palettes matching reference image. Tile fills stay pastel; the
+  // borders carry the same hue at full strength so tiles keep a crisp edge.
   const getGroupPalette = (groupName) => {
     const gn = groupName.toLowerCase();
     if (gn.includes('hous')) {
-      return { bg: isDark ? '#3E2723' : '#FFF9C4', border: '#FFF59D', header: isDark ? '#4E342E' : '#E6EE9C', text: isDark ? '#FFE082' : '#212121' };
+      return { bg: isDark ? '#3E2723' : '#FFF9C4', border: '#F9A825', header: isDark ? '#4E342E' : '#E6EE9C', text: isDark ? '#FFE082' : '#212121' };
     }
     if (gn.includes('sav')) {
-      return { bg: isDark ? '#1B5E20' : '#DCEDC8', border: '#C8E6C9', header: isDark ? '#2E7D32' : '#C8E6C9', text: isDark ? '#C8E6C9' : '#1B5E20' };
+      return { bg: isDark ? '#1B5E20' : '#DCEDC8', border: '#388E3C', header: isDark ? '#2E7D32' : '#C8E6C9', text: isDark ? '#C8E6C9' : '#1B5E20' };
     }
     if (gn.includes('food') || gn.includes('dine')) {
-      return { bg: isDark ? '#4A148C' : '#E1BEE7', border: '#CE93D8', header: isDark ? '#6A1B9A' : '#D1C4E9', text: isDark ? '#E1BEE7' : '#4A148C' };
+      return { bg: isDark ? '#4A148C' : '#E1BEE7', border: '#7B1FA2', header: isDark ? '#6A1B9A' : '#D1C4E9', text: isDark ? '#E1BEE7' : '#4A148C' };
     }
     if (gn.includes('trans') || gn.includes('car')) {
-      return { bg: isDark ? '#880E4F' : '#F8BBD0', border: '#F48FB1', header: isDark ? '#AD1457' : '#F48FB1', text: isDark ? '#F8BBD0' : '#880E4F' };
+      return { bg: isDark ? '#880E4F' : '#F8BBD0', border: '#C2185B', header: isDark ? '#AD1457' : '#F48FB1', text: isDark ? '#F8BBD0' : '#880E4F' };
     }
-    return { bg: isDark ? '#263238' : '#CFD8DC', border: '#B0BEC5', header: isDark ? '#37474F' : '#ECEFF1', text: isDark ? '#ECEFF1' : '#263238' };
+    return { bg: isDark ? '#263238' : '#CFD8DC', border: '#546E7A', header: isDark ? '#37474F' : '#ECEFF1', text: isDark ? '#ECEFF1' : '#263238' };
   };
 
   // 2. ROOT CONTAINER

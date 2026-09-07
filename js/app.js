@@ -57,8 +57,8 @@
 
       setupInitialDiagram() {
         this.graph.diagramType = 'flowchart_td';
-        this.graph.addNode({ id: 'Client', text: 'Client App', shape: 'rounded', x: 140, y: 80, fillColor: '#E3F2FD', borderColor: '#90CAF9', fontColor: '#0D47A1' });
-        this.graph.addNode({ id: 'API', text: 'API Gateway', shape: 'rectangle', x: 140, y: 220, fillColor: '#E3F2FD', borderColor: '#90CAF9', fontColor: '#0D47A1' });
+        this.graph.addNode({ id: 'Client', text: 'Client App', shape: 'rounded', x: 140, y: 80, fillColor: '#E3F2FD', borderColor: '#1976D2', fontColor: '#0D47A1' });
+        this.graph.addNode({ id: 'API', text: 'API Gateway', shape: 'rectangle', x: 140, y: 220, fillColor: '#E3F2FD', borderColor: '#1976D2', fontColor: '#0D47A1' });
         this.graph.addNode({ id: 'Auth', text: 'Auth Service', shape: 'diamond', x: 380, y: 220, fillColor: '#FFF3E0', borderColor: '#FFE082', fontColor: '#E65100' });
         this.graph.addNode({ id: 'Database', text: 'PostgreSQL DB', shape: 'circle', x: 140, y: 360, fillColor: '#E8F5E9', borderColor: '#A5D6A7', fontColor: '#1B5E20' });
 
@@ -384,44 +384,25 @@
 
           const dx = tx - sx;
           const dy = ty - sy;
-          const curveStyle = edge.curve || 'basis';
+          const curveStyle = Utils.normalizeConnector(edge.curve, 'curve');
           let d = '';
 
-          if (curveStyle === 'linear') {
-            // 1. Direct straight line
+          // A perfectly aligned curved edge would produce a degenerate bezier, so it
+          // renders as a straight segment instead.
+          const isAlignedVertical = Math.abs(dx) < 2 && (srcDir === 'top' || srcDir === 'bottom') && (tgtDir === 'top' || tgtDir === 'bottom');
+          const isAlignedHorizontal = Math.abs(dy) < 2 && (srcDir === 'left' || srcDir === 'right') && (tgtDir === 'left' || tgtDir === 'right');
+
+          if (curveStyle === 'curve' && (isAlignedVertical || isAlignedHorizontal)) {
             d = `M ${sx} ${sy} L ${tx} ${ty}`;
-          } else if (curveStyle === 'step') {
-            // 2. Orthogonal Step (90° right angles)
-            if (srcDir === 'bottom' || srcDir === 'top') {
-              const midY = (sy + ty) / 2;
-              d = `M ${sx} ${sy} L ${sx} ${midY} L ${tx} ${midY} L ${tx} ${ty}`;
-            } else {
-              const midX = (sx + tx) / 2;
-              d = `M ${sx} ${sy} L ${midX} ${sy} L ${midX} ${ty} L ${tx} ${ty}`;
-            }
           } else {
-            // 3. Smooth Bezier Curve (basis)
-            if (Math.abs(dx) < 2 && (srcDir === 'top' || srcDir === 'bottom') && (tgtDir === 'top' || tgtDir === 'bottom')) {
-              d = `M ${sx} ${sy} L ${tx} ${ty}`;
-            } else if (Math.abs(dy) < 2 && (srcDir === 'left' || srcDir === 'right') && (tgtDir === 'left' || tgtDir === 'right')) {
-              d = `M ${sx} ${sy} L ${tx} ${ty}`;
-            } else {
-              const dist = Math.max(35, Math.min(100, Math.sqrt(dx * dx + dy * dy) * 0.4));
-              let cx1 = sx, cy1 = sy;
-              let cx2 = tx, cy2 = ty;
-
-              if (srcDir === 'bottom') cy1 = sy + dist;
-              else if (srcDir === 'top') cy1 = sy - dist;
-              else if (srcDir === 'right') cx1 = sx + dist;
-              else if (srcDir === 'left') cx1 = sx - dist;
-
-              if (tgtDir === 'top') cy2 = ty - dist;
-              else if (tgtDir === 'bottom') cy2 = ty + dist;
-              else if (tgtDir === 'left') cx2 = tx - dist;
-              else if (tgtDir === 'right') cx2 = tx + dist;
-
-              d = `M ${sx} ${sy} C ${cx1} ${cy1}, ${cx2} ${cy2}, ${tx} ${ty}`;
-            }
+            d = Utils.buildConnectorPath(sx, sy, tx, ty, curveStyle, {
+              srcDir,
+              tgtDir,
+              orientation: (srcDir === 'bottom' || srcDir === 'top') ? 'v' : 'h',
+              curvature: 0.4,
+              minCurve: 35,
+              maxCurve: 100
+            });
           }
 
           // Safari & Chrome compatible invisible 28px wide hitbox
@@ -773,10 +754,12 @@
                   swatchRow.style.gap = '5px';
                   swatchRow.style.flexWrap = 'wrap';
 
+                  // Fills get the shared pastel palette; borders, lines and text get
+                  // full-strength colours.
                   const isFillProp = f.key === 'fill' || (f.label && f.label.toLowerCase().includes('fill'));
                   const palette = isFillProp
-                    ? ['#E3F2FD', '#E8F5E9', '#FFF3E0', '#FFEBEE', '#F3E5F5', '#E0F7FA', '#FFF9C4', '#FCE4EC', '#ECEFF1', '#FFFFFF']
-                    : ['#0D47A1', '#1B5E20', '#E65100', '#B71C1C', '#4A148C', '#006064', '#212121', '#616161', '#90CAF9', '#FFFFFF'];
+                    ? [...Utils.PASTEL_FILLS, '#FFFFFF']
+                    : [...Utils.INK_COLORS, '#212121'];
                   palette.forEach(c => {
                     const sw = document.createElement('div');
                     sw.style.width = '18px';
@@ -959,7 +942,7 @@
               x: String(node.x),
               y: String(node.y),
               fillColor: node.fillColor || '#E3F2FD',
-              borderColor: node.borderColor || '#90CAF9',
+              borderColor: node.borderColor || '#1976D2',
               fontColor: node.fontColor || '#0D47A1'
             };
 
@@ -2190,7 +2173,7 @@
           width: 140,
           height: 50,
           fillColor: '#E3F2FD',
-          borderColor: '#90CAF9',
+          borderColor: '#1976D2',
           fontColor: '#0D47A1'
         };
 
@@ -2397,7 +2380,7 @@
                 width: 140,
                 height: 50,
                 fillColor: '#E3F2FD',
-                borderColor: '#90CAF9',
+                borderColor: '#1976D2',
                 fontColor: '#0D47A1'
               });
 

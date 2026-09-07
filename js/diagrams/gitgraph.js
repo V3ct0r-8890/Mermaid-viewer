@@ -142,29 +142,154 @@ MultiDiagramVisualizer.register('gitgraph', function(code, nodesLayer, edgesLaye
 
           if (idx > 0) {
             const prev = commitPositions[idx - 1];
+            const prevId = commits[idx - 1].id;
+            const connKey = `gitconn_${prevId}_to_${c.id}`;
+            const connTitle = `${prevId} → ${c.id}`;
+            const isConnSel = (selTitle === connTitle || selTitle === connKey);
+            // A same-branch hop is a straight run; a branch switch curves across.
+            const defaultConn = prev.branch === c.branch ? 'straight' : 'curve';
+            const connStyle = Utils.normalizeConnector(MultiDiagramVisualizer.getColor(`${connKey}_conn`, defaultConn), defaultConn);
+            const connColor = MultiDiagramVisualizer.getColor(connKey, bInfo.color);
+            const connWidth = MultiDiagramVisualizer.getColor(`${connKey}_width`, '3');
+            const connD = Utils.buildConnectorPath(prev.x, prev.y, x, y, connStyle, { orientation: 'h', minCurve: 35, maxCurve: 60 });
+
+            const connG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+
+            const connHit = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            connHit.setAttribute('d', connD);
+            connHit.setAttribute('stroke', 'transparent');
+            connHit.setAttribute('stroke-width', '20');
+            connHit.setAttribute('fill', 'none');
+            connHit.style.cursor = 'pointer';
+            connG.appendChild(connHit);
+
             const conn = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-            if (prev.branch === c.branch) {
-              conn.setAttribute('d', `M ${prev.x} ${prev.y} L ${x} ${y}`);
-            } else {
-              conn.setAttribute('d', `M ${prev.x} ${prev.y} C ${prev.x + 35} ${prev.y}, ${x - 35} ${y}, ${x} ${y}`);
-            }
-            conn.setAttribute('stroke', bInfo.color);
-            conn.setAttribute('stroke-width', '3');
+            conn.setAttribute('d', connD);
+            conn.setAttribute('stroke', isConnSel ? 'var(--selection-color)' : connColor);
+            conn.setAttribute('stroke-width', isConnSel ? `${parseFloat(connWidth) + 1.5}` : connWidth);
             conn.setAttribute('fill', 'none');
-            edgesLayer.appendChild(conn);
+            if (isConnSel) conn.style.filter = selGlow;
+            connG.appendChild(conn);
+
+            connG.addEventListener('mousedown', (e) => e.stopPropagation());
+            connG.addEventListener('click', (e) => {
+              e.stopPropagation();
+              if (typeof AppController !== 'undefined' && AppController.instance) {
+                AppController.instance.selectVisualObject({
+                  type: 'Git Commit Link',
+                  title: connTitle,
+                  fields: [
+                    // The commit chain's order comes from the source itself, so the ends
+                    // are shown for orientation rather than as reconnect controls.
+                    { key: 'from', label: 'From (Previous Commit)', type: 'select', value: prevId, options: [{ value: prevId, label: prevId }] },
+                    { key: 'to', label: 'To (This Commit)', type: 'select', value: c.id, options: [{ value: c.id, label: c.id }] },
+                    { key: 'color', label: 'Connector Color', type: 'color', value: connColor },
+                    { key: 'width', label: 'Line Thickness', type: 'select', value: connWidth, options: [
+                        { value: '1.5', label: 'Thin (1.5px)' },
+                        { value: '3', label: 'Medium (3px - Default)' },
+                        { value: '4', label: 'Thick (4px)' },
+                        { value: '5', label: 'Heavy (5px)' }
+                    ]},
+                    { key: 'connector', label: 'Connector / Line Routing', type: 'select', value: connStyle, options: Utils.CONNECTOR_OPTIONS }
+                  ],
+                  onSave: (vals) => {
+                    MultiDiagramVisualizer.setColor(connKey, vals.color);
+                    MultiDiagramVisualizer.setColor(`${connKey}_width`, vals.width);
+                    MultiDiagramVisualizer.setColor(`${connKey}_conn`, vals.connector);
+                    MultiDiagramVisualizer.syncColorToCode(connKey, vals.color);
+                  }
+                });
+              }
+            });
+
+            edgesLayer.appendChild(connG);
           }
 
           // If merge, draw merge curve from merged branch
           if (c.isMerge && c.mergeFrom) {
             const fromBranchInfo = branches.get(c.mergeFrom);
             if (fromBranchInfo) {
+              const mergeKey = `gitmerge_${c.mergeFrom}_to_${c.id}`;
+              const mergeTitle = `merge ${c.mergeFrom} → ${c.id}`;
+              const isMergeSel = (selTitle === mergeTitle || selTitle === mergeKey);
+              const mergeStyle = Utils.normalizeConnector(MultiDiagramVisualizer.getColor(`${mergeKey}_conn`, 'curve'), 'curve');
+              const mergeColor = MultiDiagramVisualizer.getColor(mergeKey, fromBranchInfo.color);
+              const mergeWidth = MultiDiagramVisualizer.getColor(`${mergeKey}_width`, '2.5');
+              const mergeD = Utils.buildConnectorPath(x - 70, fromBranchInfo.y, x, y, mergeStyle, { orientation: 'h', minCurve: 35, maxCurve: 50 });
+
+              const mergeG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+
+              const mergeHit = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+              mergeHit.setAttribute('d', mergeD);
+              mergeHit.setAttribute('stroke', 'transparent');
+              mergeHit.setAttribute('stroke-width', '20');
+              mergeHit.setAttribute('fill', 'none');
+              mergeHit.style.cursor = 'pointer';
+              mergeG.appendChild(mergeHit);
+
               const mergeLine = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-              mergeLine.setAttribute('d', `M ${x - 70} ${fromBranchInfo.y} C ${x - 35} ${fromBranchInfo.y}, ${x - 20} ${y}, ${x} ${y}`);
-              mergeLine.setAttribute('stroke', fromBranchInfo.color);
-              mergeLine.setAttribute('stroke-width', '2.5');
+              mergeLine.setAttribute('d', mergeD);
+              mergeLine.setAttribute('stroke', isMergeSel ? 'var(--selection-color)' : mergeColor);
+              mergeLine.setAttribute('stroke-width', isMergeSel ? `${parseFloat(mergeWidth) + 1.5}` : mergeWidth);
               mergeLine.setAttribute('stroke-dasharray', '4,3');
               mergeLine.setAttribute('fill', 'none');
-              edgesLayer.appendChild(mergeLine);
+              if (isMergeSel) mergeLine.style.filter = selGlow;
+              mergeG.appendChild(mergeLine);
+
+              mergeG.addEventListener('mousedown', (e) => e.stopPropagation());
+              mergeG.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (typeof AppController !== 'undefined' && AppController.instance) {
+                  const branchOptions = Array.from(branches.keys()).map(b => ({ value: b, label: b }));
+                  AppController.instance.selectVisualObject({
+                    type: 'Git Merge Link',
+                    title: mergeTitle,
+                    fields: [
+                      { key: 'from', label: 'From (Merged Branch)', type: 'select', value: c.mergeFrom, options: branchOptions },
+                      { key: 'to', label: 'To (Target Branch)', type: 'select', value: c.branch, options: branchOptions },
+                      { key: 'color', label: 'Merge Line Color', type: 'color', value: mergeColor },
+                      { key: 'width', label: 'Line Thickness', type: 'select', value: mergeWidth, options: [
+                          { value: '1.5', label: 'Thin (1.5px)' },
+                          { value: '2.5', label: 'Medium (2.5px - Default)' },
+                          { value: '3.5', label: 'Thick (3.5px)' },
+                          { value: '4.5', label: 'Heavy (4.5px)' }
+                      ]},
+                      { key: 'connector', label: 'Connector / Line Routing', type: 'select', value: mergeStyle, options: Utils.CONNECTOR_OPTIONS }
+                    ],
+                    onSave: (vals) => {
+                      const newFrom = vals.from || c.mergeFrom;
+                      const newKey = `gitmerge_${newFrom}_to_${c.id}`;
+                      MultiDiagramVisualizer.setColor(newKey, vals.color);
+                      MultiDiagramVisualizer.setColor(`${newKey}_width`, vals.width);
+                      MultiDiagramVisualizer.setColor(`${newKey}_conn`, vals.connector);
+                      MultiDiagramVisualizer.syncColorToCode(newKey, vals.color);
+                      // Both ends are real source edits: the merged branch is the `merge`
+                      // line's argument, the target branch is the `checkout` before it.
+                      if (newFrom !== c.mergeFrom || (vals.to && vals.to !== c.branch)) {
+                        MultiDiagramVisualizer.updateCodeLine((curCode) => {
+                          const lines = curCode.split('\n');
+                          const mergeIdx = lines.findIndex(l => new RegExp(`^\\s*merge\\s+${c.mergeFrom}\\b`, 'i').test(l));
+                          if (mergeIdx === -1) return curCode;
+                          const lead = lines[mergeIdx].match(/^(\s*)/)[1] || '  ';
+                          lines[mergeIdx] = `${lead}merge ${newFrom}`;
+                          if (vals.to && vals.to !== c.branch) {
+                            for (let i = mergeIdx - 1; i >= 0; i--) {
+                              if (/^\s*checkout\s+/i.test(lines[i])) {
+                                const cLead = lines[i].match(/^(\s*)/)[1] || '  ';
+                                lines[i] = `${cLead}checkout ${vals.to}`;
+                                break;
+                              }
+                            }
+                          }
+                          return lines.join('\n');
+                        });
+                      }
+                    }
+                  });
+                }
+              });
+
+              edgesLayer.appendChild(mergeG);
             }
           }
         });
@@ -181,8 +306,11 @@ MultiDiagramVisualizer.register('gitgraph', function(code, nodesLayer, edgesLaye
           circle.setAttribute('cy', `${y}`);
           circle.setAttribute('r', c.isMerge ? '12' : '10');
           const isSelGit = (c.id === selTitle);
-          circle.setAttribute('fill', c.color);
-          circle.setAttribute('stroke', isSelGit ? 'var(--selection-color)' : (isDark ? '#1E1E1E' : '#FFFFFF'));
+          // Pastel body, full-strength branch colour on the rim.
+          const commitFill = MultiDiagramVisualizer.getColor(`${c.id}_fill`, Utils.toPastel(c.color, isDark));
+          const commitBorder = MultiDiagramVisualizer.getColor(`${c.id}_border`, c.color);
+          circle.setAttribute('fill', commitFill);
+          circle.setAttribute('stroke', isSelGit ? 'var(--selection-color)' : commitBorder);
           circle.setAttribute('stroke-width', isSelGit ? '3.5' : '2.5');
           if (isSelGit) circle.style.filter = selGlow;
           commitG.appendChild(circle);
@@ -192,7 +320,7 @@ MultiDiagramVisualizer.register('gitgraph', function(code, nodesLayer, edgesLaye
             innerC.setAttribute('cx', `${x}`);
             innerC.setAttribute('cy', `${y}`);
             innerC.setAttribute('r', '5');
-            innerC.setAttribute('fill', '#FFFFFF');
+            innerC.setAttribute('fill', commitBorder);
             commitG.appendChild(innerC);
           }
 
@@ -242,13 +370,19 @@ MultiDiagramVisualizer.register('gitgraph', function(code, nodesLayer, edgesLaye
                 fields: [
                   { key: 'id', label: 'Commit Message / ID', type: 'text', value: c.id },
                   { key: 'tag', label: 'Release Tag (Optional)', type: 'text', value: c.tag || '' },
-                  { key: 'color', label: 'Commit Color', type: 'color', value: c.color },
-                  { key: 'font', label: 'Label Font Color', type: 'color', value: c.fontColor || textColor }
+                  { key: 'color', label: 'Commit Base Color', type: 'color', value: c.color },
+                  { key: 'font', label: '1. Label Font Color', type: 'color', value: c.fontColor || textColor },
+                  { key: 'fill', label: '2. Node Fill Color (Pastel)', type: 'color', value: commitFill },
+                  { key: 'border', label: '3. Node Border / Stroke Color', type: 'color', value: commitBorder }
                 ],
                 onSave: (vals) => {
                   MultiDiagramVisualizer.setColor(vals.id, vals.color);
                   MultiDiagramVisualizer.setColor(`${vals.id}_font`, vals.font);
+                  MultiDiagramVisualizer.setColor(`${vals.id}_fill`, vals.fill);
+                  MultiDiagramVisualizer.setColor(`${vals.id}_border`, vals.border);
                   MultiDiagramVisualizer.syncColorToCode(vals.id, vals.color);
+                  MultiDiagramVisualizer.syncColorToCode(`${vals.id}_fill`, vals.fill);
+                  MultiDiagramVisualizer.syncColorToCode(`${vals.id}_border`, vals.border);
                   MultiDiagramVisualizer.updateCodeLine((curCode) => {
                     const lines = curCode.split('\n');
                     const esc = c.id.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');

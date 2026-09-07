@@ -44,9 +44,11 @@ MultiDiagramVisualizer.register('sankey', function(code, nodesLayer, edgesLayer,
   const rightYMap = new Map();
 
   const drawBox = (name, x, y, defaultColor) => {
-    const fillColor = MultiDiagramVisualizer.getColor(name, defaultColor);
-    const fontColor = MultiDiagramVisualizer.getColor(`${name}_font`, '#FFFFFF');
-    const borderColor = MultiDiagramVisualizer.getColor(`${name}_border`, cardBorder);
+    // House rule: the node fill is a pastel tint of its band colour, while the border
+    // keeps that colour at full strength (as do the flow bands themselves).
+    const fillColor = MultiDiagramVisualizer.getColor(name, Utils.toPastel(defaultColor, isDark));
+    const fontColor = MultiDiagramVisualizer.getColor(`${name}_font`, isDark ? '#FFFFFF' : '#1F2937');
+    const borderColor = MultiDiagramVisualizer.getColor(`${name}_border`, defaultColor);
 
     const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
     g.style.cursor = 'pointer';
@@ -143,6 +145,7 @@ MultiDiagramVisualizer.register('sankey', function(code, nodesLayer, edgesLayer,
     const tInfo = rightYMap.get(f.tgt) || midYMap.get(f.tgt) || { x: 620, y: 100, color: '#4CAF50' };
     const flowKey = `${f.src}->${f.tgt}`;
     const flowColor = MultiDiagramVisualizer.getColor(flowKey, sInfo.color);
+    const connStyle = Utils.normalizeConnector(MultiDiagramVisualizer.getColor(`${flowKey}_conn`, 'curve'), 'curve');
 
     const x1 = sInfo.x + 130;
     const y1 = sInfo.y + 22;
@@ -150,7 +153,7 @@ MultiDiagramVisualizer.register('sankey', function(code, nodesLayer, edgesLayer,
     const y2 = tInfo.y + 22;
 
     const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    path.setAttribute('d', `M ${x1} ${y1} C ${(x1 + x2) / 2} ${y1}, ${(x1 + x2) / 2} ${y2}, ${x2} ${y2}`);
+    path.setAttribute('d', Utils.buildConnectorPath(x1, y1, x2, y2, connStyle, { orientation: 'h' }));
     path.setAttribute('fill', 'none');
     path.setAttribute('stroke', flowColor);
     path.setAttribute('stroke-width', `${Math.max(4, Math.min(26, f.val / 250))}`);
@@ -168,11 +171,13 @@ MultiDiagramVisualizer.register('sankey', function(code, nodesLayer, edgesLayer,
             { key: 'src', label: 'Source Node', type: 'select', value: f.src, options: allNodeOptions },
             { key: 'tgt', label: 'Target Node', type: 'select', value: f.tgt, options: allNodeOptions },
             { key: 'val', label: 'Flow Volume / Value', type: 'number', min: 1, step: 10, value: f.val },
-            { key: 'color', label: 'Flow Band Color', type: 'color', value: flowColor }
+            { key: 'color', label: 'Flow Band Color', type: 'color', value: flowColor },
+            { key: 'connector', label: 'Connector / Line Routing', type: 'select', value: connStyle, options: Utils.CONNECTOR_OPTIONS }
           ],
           onSave: (vals) => {
             const newFlowKey = `${vals.src}->${vals.tgt}`;
             MultiDiagramVisualizer.setColor(newFlowKey, vals.color);
+            MultiDiagramVisualizer.setColor(`${newFlowKey}_conn`, vals.connector);
             MultiDiagramVisualizer.syncColorToCode(newFlowKey, vals.color);
             MultiDiagramVisualizer.updateCodeLine((curCode) => {
               const lines = curCode.split('\n');

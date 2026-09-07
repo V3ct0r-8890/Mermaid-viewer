@@ -3,7 +3,7 @@ MultiDiagramVisualizer.register('mindmap', function(code, nodesLayer, edgesLayer
   const primaryText = isDark ? '#FFFFFF' : '#1F2937';
   const textColor = isDark ? '#E5E7EB' : '#374151';
   const cardBg = isDark ? '#1E222A' : '#FFFFFF';
-  const cardBorder = isDark ? '#7986CB' : '#9FA8DA';
+  const cardBorder = isDark ? '#7986CB' : '#5C6BC0';
   const primaryBorder = isDark ? '#1976D2' : '#0288D1';
   const primaryFill = isDark ? '#1E3A5F' : '#E3F2FD';
   const linkColor = isDark ? '#90CAF9' : '#1976D2';
@@ -108,6 +108,57 @@ MultiDiagramVisualizer.register('mindmap', function(code, nodesLayer, edgesLayer
     node.children.forEach(c => assignBranchIndices(c, bIdx));
   };
   rootNode.children.forEach((child, idx) => assignBranchIndices(child, idx));
+
+  // Flat topic list, used by the branch-link inspector to offer re-parenting.
+  const allTopics = [];
+  const collectTopics = (node) => {
+    allTopics.push(node);
+    node.children.forEach(collectTopics);
+  };
+  collectTopics(rootNode);
+  const allTopicOptions = allTopics.map(n => ({ value: n.text, label: n.level === 0 ? `${n.text} (root)` : n.text }));
+
+  // Text of a mindmap source line, mirroring how the parser above strips shape
+  // wrappers and ::icon() so a topic can be matched back to the line that defines it.
+  const lineTopicText = (line) => {
+    const t = (line || '').trim();
+    if (!t) return '';
+    const rootM = t.match(/^root(?:\(\(|\(|\[|\{\{|\)\(|\)\])?([^\)\]\}\(]+)/i);
+    if (rootM) return rootM[1].trim();
+    return t
+      .replace(/::icon\([^\)]+\)/, '')
+      .trim()
+      .replace(/^[\(\[\{\)\s]+|[\)\]\}\(\s]+$/g, '')
+      .trim();
+  };
+
+  // Moves a topic (with its whole subtree) under another topic by re-indenting and
+  // re-inserting those lines. Refuses moves that would put a topic inside itself.
+  const reparentTopic = (curCode, childText, newParentText) => {
+    const lines = curCode.split('\n');
+    const indentOf = (l) => l.search(/\S/);
+    const findLine = (text) => lines.findIndex(l => l.trim() && lineTopicText(l) === text);
+
+    const childIdx = findLine(childText);
+    if (childIdx === -1) return curCode;
+
+    const childIndent = indentOf(lines[childIdx]);
+    let endIdx = childIdx + 1;
+    while (endIdx < lines.length && (!lines[endIdx].trim() || indentOf(lines[endIdx]) > childIndent)) endIdx++;
+
+    const parentIdx = findLine(newParentText);
+    if (parentIdx === -1 || (parentIdx >= childIdx && parentIdx < endIdx)) return curCode;
+
+    const block = lines.slice(childIdx, endIdx);
+    const delta = (indentOf(lines[parentIdx]) + 2) - childIndent;
+    const reindented = block.map(l => (l.trim() ? ' '.repeat(Math.max(0, indentOf(l) + delta)) + l.trim() : l));
+
+    const remaining = [...lines.slice(0, childIdx), ...lines.slice(endIdx)];
+    const insertAfter = remaining.findIndex(l => l.trim() && lineTopicText(l) === newParentText);
+    if (insertAfter === -1) return curCode;
+    remaining.splice(insertAfter + 1, 0, ...reindented);
+    return remaining.join('\n');
+  };
 
   const calcSubtreeHeight = (node) => {
     if (node.children.length === 0) {
@@ -271,21 +322,14 @@ MultiDiagramVisualizer.register('mindmap', function(code, nodesLayer, edgesLayer
 
       const lColor = MultiDiagramVisualizer.getColor(linkKey, defaultColor);
       const lWidth = MultiDiagramVisualizer.getColor(`${linkKey}_width`, defaultWidth);
-      const lRouting = MultiDiagramVisualizer.getColor(`${linkKey}_routing`, 'bezier');
+      // Legacy 'bezier'/'linear' values from older saved diagrams normalize to the
+      // shared connector vocabulary.
+      const lRouting = Utils.normalizeConnector(MultiDiagramVisualizer.getColor(`${linkKey}_routing`, 'curve'), 'curve');
       const lStyle = MultiDiagramVisualizer.getColor(`${linkKey}_style`, 'solid');
 
       const isLinkSel = (selTitle === linkTitle || selTitle === linkKey);
 
-      let pathD;
-      const midX = (px + cx) / 2;
-
-      if (lRouting === 'step') {
-        pathD = `M ${px} ${py} L ${midX} ${py} L ${midX} ${cy} L ${cx} ${cy}`;
-      } else if (lRouting === 'linear') {
-        pathD = `M ${px} ${py} L ${cx} ${cy}`;
-      } else {
-        pathD = `M ${px} ${py} C ${midX} ${py}, ${midX} ${cy}, ${cx} ${cy}`;
-      }
+      const pathD = Utils.buildConnectorPath(px, py, cx, cy, lRouting, { orientation: 'h' });
 
       const linkG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
 
@@ -322,6 +366,8 @@ MultiDiagramVisualizer.register('mindmap', function(code, nodesLayer, edgesLayer
             type: 'Mindmap Branch Link',
             title: linkTitle,
             fields: [
+              { key: 'from', label: 'From (Parent Topic)', type: 'select', value: parentNode.text, options: allTopicOptions },
+              { key: 'to', label: 'To (Child Topic)', type: 'select', value: node.text, options: allTopicOptions },
               { key: 'color', label: '1. Branch Line Color', type: 'color', value: lColor },
               { key: 'width', label: '2. Line Thickness', type: 'select', value: lWidth, options: [
                   { value: '1.2', label: 'Thin (1.2px)' },
@@ -329,11 +375,7 @@ MultiDiagramVisualizer.register('mindmap', function(code, nodesLayer, edgesLayer
                   { value: '2.2', label: 'Thick (2.2px - Default)' },
                   { value: '3.2', label: 'Heavy (3.2px)' }
               ]},
-              { key: 'routing', label: '3. Connector Routing / Curve Style', type: 'select', value: lRouting, options: [
-                  { value: 'bezier', label: 'Smooth S-Curve (Bezier)' },
-                  { value: 'step', label: 'Orthogonal Step (90° Corners)' },
-                  { value: 'linear', label: 'Straight Line (Linear)' }
-              ]},
+              { key: 'routing', label: '3. Connector / Line Routing', type: 'select', value: lRouting, options: Utils.CONNECTOR_OPTIONS },
               { key: 'style', label: '4. Line Dash Style', type: 'select', value: lStyle, options: [
                   { value: 'solid', label: 'Solid (──────)' },
                   { value: 'dashed', label: 'Dashed (– – – –)' },
@@ -341,11 +383,18 @@ MultiDiagramVisualizer.register('mindmap', function(code, nodesLayer, edgesLayer
               ]}
             ],
             onSave: (vals) => {
-              MultiDiagramVisualizer.setColor(linkKey, vals.color);
-              MultiDiagramVisualizer.setColor(`${linkKey}_width`, vals.width);
-              MultiDiagramVisualizer.setColor(`${linkKey}_routing`, vals.routing);
-              MultiDiagramVisualizer.setColor(`${linkKey}_style`, vals.style);
-              MultiDiagramVisualizer.syncColorToCode(linkKey, vals.color);
+              const newParent = vals.from || parentNode.text;
+              const newChild = vals.to || node.text;
+              const newKey = `link_${newParent}_to_${newChild}`;
+              MultiDiagramVisualizer.setColor(newKey, vals.color);
+              MultiDiagramVisualizer.setColor(`${newKey}_width`, vals.width);
+              MultiDiagramVisualizer.setColor(`${newKey}_routing`, vals.routing);
+              MultiDiagramVisualizer.setColor(`${newKey}_style`, vals.style);
+              MultiDiagramVisualizer.syncColorToCode(newKey, vals.color);
+              // Re-attaching a branch moves that topic's whole subtree in the outline.
+              if (newParent !== parentNode.text || newChild !== node.text) {
+                MultiDiagramVisualizer.updateCodeLine((curCode) => reparentTopic(curCode, newChild, newParent));
+              }
             }
           });
         }

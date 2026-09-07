@@ -3,7 +3,7 @@ MultiDiagramVisualizer.register('sequence', function(code, nodesLayer, edgesLaye
   const primaryText = isDark ? '#FFFFFF' : '#1F2937';
   const textColor = isDark ? '#E0E0E0' : '#374151';
   const cardBg = isDark ? '#222538' : '#EEF0FF';
-  const cardBorder = isDark ? '#7986CB' : '#9FA8DA';
+  const cardBorder = isDark ? '#7986CB' : '#5C6BC0';
   const lifelineColor = isDark ? '#7986CB' : '#7986CB';
   const linkColor = isDark ? '#E0E0E0' : '#374151';
   const selTitle = (typeof AppController !== 'undefined' && AppController.instance && AppController.instance.selectedVisualObject) ? AppController.instance.selectedVisualObject.title : null;
@@ -293,23 +293,35 @@ MultiDiagramVisualizer.register('sequence', function(code, nodesLayer, edgesLaye
     const msgColor = MultiDiagramVisualizer.getColor(msgKey, linkColor);
     const msgWidth = MultiDiagramVisualizer.getColor(`${msgKey}_width`, '1.4');
 
+    // Connector routing. Both ends of a message sit on the same y (they run between
+    // lifelines), so the shared engine would collapse all three styles into one flat
+    // line — the styles are expressed vertically instead: a bow for curved, a lift-and-
+    // drop bracket for stepped.
+    const connStyle = Utils.normalizeConnector(MultiDiagramVisualizer.getColor(`${msgKey}_conn`, 'straight'), 'straight');
+    const stepLift = 16;
+    let msgPathD;
+    if (connStyle === 'curve') {
+      const bow = Utils.clamp(Math.abs(x2 - x1) * 0.12, 12, 28);
+      msgPathD = `M ${x1} ${y} Q ${(x1 + x2) / 2} ${y - bow}, ${x2} ${y}`;
+    } else if (connStyle === 'step') {
+      msgPathD = `M ${x1} ${y} L ${x1} ${y - stepLift} L ${x2} ${y - stepLift} L ${x2} ${y}`;
+    } else {
+      msgPathD = `M ${x1} ${y} L ${x2} ${y}`;
+    }
+
     const msgG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
 
-    const hitbox = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-    hitbox.setAttribute('x1', `${x1}`);
-    hitbox.setAttribute('y1', `${y}`);
-    hitbox.setAttribute('x2', `${x2}`);
-    hitbox.setAttribute('y2', `${y}`);
+    const hitbox = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    hitbox.setAttribute('d', msgPathD);
+    hitbox.setAttribute('fill', 'none');
     hitbox.setAttribute('stroke', 'transparent');
     hitbox.setAttribute('stroke-width', '24');
     hitbox.style.cursor = 'pointer';
     msgG.appendChild(hitbox);
 
-    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-    line.setAttribute('x1', `${x1}`);
-    line.setAttribute('y1', `${y}`);
-    line.setAttribute('x2', `${x2}`);
-    line.setAttribute('y2', `${y}`);
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    line.setAttribute('d', msgPathD);
+    line.setAttribute('fill', 'none');
     line.setAttribute('stroke', msgColor);
     line.setAttribute('stroke-width', msgWidth);
     if (msg.isDashed) line.setAttribute('stroke-dasharray', '4 3');
@@ -317,7 +329,10 @@ MultiDiagramVisualizer.register('sequence', function(code, nodesLayer, edgesLaye
 
     const arrow = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
     const ax = isLeftToRight ? x2 : x2;
-    if (isLeftToRight) {
+    if (connStyle === 'step') {
+      // A stepped message arrives travelling straight down its target lifeline.
+      arrow.setAttribute('points', `${ax},${y} ${ax - 5},${y - 9} ${ax + 5},${y - 9}`);
+    } else if (isLeftToRight) {
       arrow.setAttribute('points', `${ax},${y} ${ax - 9},${y - 5} ${ax - 9},${y + 5}`);
     } else {
       arrow.setAttribute('points', `${ax},${y} ${ax + 9},${y - 5} ${ax + 9},${y + 5}`);
@@ -352,7 +367,9 @@ MultiDiagramVisualizer.register('sequence', function(code, nodesLayer, edgesLaye
 
     const labelW = msg.label.length * 6.5 + 8;
     const labelH = 16;
-    const { x: labelX, y: labelY } = Utils.findClearLabelPosition((x1 + x2) / 2, y - 9, labelW, labelH, [...nodeObstacles, ...placedLabelRects]);
+    // Stepped messages route above the line, so the label starts above the lifted leg.
+    const labelBaseY = connStyle === 'step' ? y - stepLift - 9 : y - 9;
+    const { x: labelX, y: labelY } = Utils.findClearLabelPosition((x1 + x2) / 2, labelBaseY, labelW, labelH, [...nodeObstacles, ...placedLabelRects]);
     placedLabelRects.push({ x: labelX - labelW / 2, y: labelY - labelH / 2, width: labelW, height: labelH });
 
     const textEl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
@@ -391,12 +408,14 @@ MultiDiagramVisualizer.register('sequence', function(code, nodesLayer, edgesLaye
                 { value: '1.4', label: 'Medium (1.4px - Default)' },
                 { value: '2.2', label: 'Thick (2.2px)' },
                 { value: '3', label: 'Heavy (3px)' }
-            ]}
+            ]},
+            { key: 'connector', label: 'Connector / Line Routing', type: 'select', value: connStyle, options: Utils.CONNECTOR_OPTIONS }
           ],
           onSave: (vals) => {
             const newMsgKey = `${vals.src || msg.src}->${vals.tgt || msg.tgt}:${vals.label !== undefined ? vals.label : msg.label}`;
             MultiDiagramVisualizer.setColor(newMsgKey, vals.color);
             MultiDiagramVisualizer.setColor(`${newMsgKey}_width`, vals.width);
+            MultiDiagramVisualizer.setColor(`${newMsgKey}_conn`, vals.connector);
             MultiDiagramVisualizer.syncColorToCode(newMsgKey, vals.color);
             MultiDiagramVisualizer.updateCodeLine((curCode) => {
               const lines = curCode.split('\n');

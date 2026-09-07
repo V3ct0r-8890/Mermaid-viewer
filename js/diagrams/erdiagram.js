@@ -3,7 +3,7 @@ MultiDiagramVisualizer.register('erdiagram', function(code, nodesLayer, edgesLay
   const primaryText = isDark ? '#FFFFFF' : '#1F2937';
   const textColor = isDark ? '#E5E7EB' : '#374151';
   const cardBg = isDark ? '#1E222A' : '#FFFFFF';
-  const cardBorder = isDark ? '#7986CB' : '#9FA8DA';
+  const cardBorder = isDark ? '#7986CB' : '#5C6BC0';
   const defaultHeaderFill = isDark ? '#262A38' : '#EEF0FF';
   const linkColor = isDark ? '#90CAF9' : '#333333';
   const selTitle = (typeof AppController !== 'undefined' && AppController.instance && AppController.instance.selectedVisualObject) ? AppController.instance.selectedVisualObject.title : null;
@@ -242,6 +242,19 @@ MultiDiagramVisualizer.register('erdiagram', function(code, nodesLayer, edgesLay
       labelY = my;
     }
 
+    // The routing case above already picked a shape; that becomes this relationship's
+    // default connector style, and is only re-routed when the user picks another one
+    // (so untouched diagrams keep their hand-tuned routing exactly).
+    const defaultConn = pathD.includes(' C ') ? 'curve' : 'straight';
+    const connStyle = Utils.normalizeConnector(MultiDiagramVisualizer.getColor(`${relKey}_conn`, defaultConn), defaultConn);
+    if (connStyle !== defaultConn) {
+      pathD = Utils.buildConnectorPath(sx, sy, tx, ty, connStyle, {
+        orientation: Math.abs(srcAngle) === 90 ? 'v' : 'h'
+      });
+      labelX = (sx + tx) / 2;
+      labelY = (sy + ty) / 2;
+    }
+
     const relG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
 
     // Click Hitbox
@@ -396,7 +409,8 @@ MultiDiagramVisualizer.register('erdiagram', function(code, nodesLayer, edgesLay
                 { value: '1.4', label: 'Medium (1.4px - Default)' },
                 { value: '2', label: 'Thick (2px)' },
                 { value: '3', label: 'Heavy (3px)' }
-            ]}
+            ]},
+            { key: 'connector', label: '3. Connector / Line Routing', type: 'select', value: connStyle, options: Utils.CONNECTOR_OPTIONS }
           ],
           onSave: (vals) => {
             const newSrc = vals.src || rel.src;
@@ -404,6 +418,7 @@ MultiDiagramVisualizer.register('erdiagram', function(code, nodesLayer, edgesLay
             const newRelKey = `rel_${newSrc}_to_${newTgt}`;
             MultiDiagramVisualizer.setColor(newRelKey, vals.color);
             MultiDiagramVisualizer.setColor(`${newRelKey}_width`, vals.width);
+            MultiDiagramVisualizer.setColor(`${newRelKey}_conn`, vals.connector);
             MultiDiagramVisualizer.syncColorToCode(newRelKey, vals.color);
             MultiDiagramVisualizer.updateCodeLine((curCode) => {
               const lines = curCode.split('\n');

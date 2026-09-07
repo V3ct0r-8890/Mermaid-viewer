@@ -173,9 +173,12 @@ MultiDiagramVisualizer.register('quadrant', function(code, nodesLayer, edgesLaye
           circle.setAttribute('cy', `${py}`);
           circle.setAttribute('r', '8');
           const isSelQuad = (it.name === selTitle);
-          circle.setAttribute('fill', it.color);
-          circle.setAttribute('stroke', isSelQuad ? 'var(--selection-color)' : '#FFFFFF');
-          circle.setAttribute('stroke-width', isSelQuad ? '3.5' : '2');
+          // Pastel fill with the point's own colour as the border.
+          const dotFill = MultiDiagramVisualizer.getColor(`${it.name}_fill`, Utils.toPastel(it.color, isDark));
+          const dotBorder = MultiDiagramVisualizer.getColor(`${it.name}_border`, it.color);
+          circle.setAttribute('fill', dotFill);
+          circle.setAttribute('stroke', isSelQuad ? 'var(--selection-color)' : dotBorder);
+          circle.setAttribute('stroke-width', isSelQuad ? '3.5' : '2.5');
           if (isSelQuad) circle.style.filter = selGlow;
           itemG.appendChild(circle);
 
@@ -199,11 +202,17 @@ MultiDiagramVisualizer.register('quadrant', function(code, nodesLayer, edgesLaye
                   { key: 'name', label: 'Item Name', type: 'text', value: it.name },
                   { key: 'x', label: 'X Axis (0.0 - 1.0)', type: 'number', step: 0.05, min: 0, max: 1, value: it.x },
                   { key: 'y', label: 'Y Axis (0.0 - 1.0)', type: 'number', step: 0.05, min: 0, max: 1, value: it.y },
-                  { key: 'color', label: 'Point Color', type: 'color', value: it.color }
+                  { key: 'color', label: '1. Point Base Color', type: 'color', value: it.color },
+                  { key: 'fill', label: '2. Node Fill Color (Pastel)', type: 'color', value: dotFill },
+                  { key: 'border', label: '3. Node Border / Stroke Color', type: 'color', value: dotBorder }
                 ],
                 onSave: (vals) => {
                   MultiDiagramVisualizer.setColor(vals.name, vals.color);
+                  MultiDiagramVisualizer.setColor(`${vals.name}_fill`, vals.fill);
+                  MultiDiagramVisualizer.setColor(`${vals.name}_border`, vals.border);
                   MultiDiagramVisualizer.syncColorToCode(vals.name, vals.color);
+                  MultiDiagramVisualizer.syncColorToCode(`${vals.name}_fill`, vals.fill);
+                  MultiDiagramVisualizer.syncColorToCode(`${vals.name}_border`, vals.border);
                   MultiDiagramVisualizer.updateCodeLine((curCode) => {
                     const lines = curCode.split('\n');
                     const esc = it.name.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');

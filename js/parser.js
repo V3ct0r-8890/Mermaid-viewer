@@ -269,7 +269,7 @@
             width: 140,
             height: 50,
             fillColor: oldNode ? oldNode.fillColor : '#E3F2FD',
-            borderColor: oldNode ? oldNode.borderColor : '#90CAF9',
+            borderColor: oldNode ? oldNode.borderColor : '#1976D2',
             fontColor: oldNode ? oldNode.fontColor : '#0D47A1'
           };
           newGraph.addNode(node);

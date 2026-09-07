@@ -137,6 +137,7 @@ MultiDiagramVisualizer.register('c4context', function(code, nodesLayer, edgesLay
           const lineColor = MultiDiagramVisualizer.getColor(relKey, MultiDiagramVisualizer.getColor(`${rel.from}->${rel.to}`, linkColor));
           const labelFont = MultiDiagramVisualizer.getColor(`${relKey}_font`, textColor);
           const lineWidth = parseFloat(MultiDiagramVisualizer.getColor(`${relKey}_width`, '2')) || 2;
+          const connStyle = Utils.normalizeConnector(MultiDiagramVisualizer.getColor(`${relKey}_conn`, 'curve'), 'curve');
 
           let sx, sy, tx, ty;
           let cx1, cy1, cx2, cy2;
@@ -205,8 +206,14 @@ MultiDiagramVisualizer.register('c4context', function(code, nodesLayer, edgesLay
           }
 
           const omt = 1 - t;
-          const rawBx = omt*omt*omt*sx + 3*omt*omt*t*cx1 + 3*omt*t*t*cx2 + t*t*t*tx;
-          const rawBy = omt*omt*omt*sy + 3*omt*omt*t*cy1 + 3*omt*t*t*cy2 + t*t*t*ty;
+          // Curved routing samples the bezier itself; straight/step routing has no
+          // bezier to sample, so the badge starts at the midpoint of the run.
+          const rawBx = connStyle === 'curve'
+            ? omt*omt*omt*sx + 3*omt*omt*t*cx1 + 3*omt*t*t*cx2 + t*t*t*tx
+            : sx + (tx - sx) * t;
+          const rawBy = connStyle === 'curve'
+            ? omt*omt*omt*sy + 3*omt*omt*t*cy1 + 3*omt*t*t*cy2 + t*t*t*ty
+            : sy + (ty - sy) * t;
 
           const cleanLabel = rel.label.length > 28 ? rel.label.substring(0, 25) + '...' : rel.label;
           const badgeW = Math.max(125, Math.min(185, Math.max(cleanLabel.length * 6.2 + 20, (rel.tech ? rel.tech.length * 6.5 + 24 : 0))));
@@ -217,7 +224,11 @@ MultiDiagramVisualizer.register('c4context', function(code, nodesLayer, edgesLay
           const relG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
           relG.style.cursor = 'pointer';
 
-          const pathD = `M ${sx} ${sy} C ${cx1} ${cy1}, ${cx2} ${cy2}, ${tx} ${ty}`;
+          // Curved routing keeps the per-case control points tuned above (they route
+          // around the layout); straight/step routing goes through the shared engine.
+          const pathD = connStyle === 'curve'
+            ? `M ${sx} ${sy} C ${cx1} ${cy1}, ${cx2} ${cy2}, ${tx} ${ty}`
+            : Utils.buildConnectorPath(sx, sy, tx, ty, connStyle, { orientation: isHorizontal ? 'h' : 'v' });
 
           // Safari & Chrome 28px wide invisible click hitbox
           const hitPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
@@ -252,15 +263,20 @@ MultiDiagramVisualizer.register('c4context', function(code, nodesLayer, edgesLay
           const arrowFill = isSelRel ? 'var(--selection-color)' : lineColor;
           const showTargetArrow = rel.type !== 'Rel_Back';
           const showSourceArrow = rel.type === 'BiRel' || rel.type === 'Rel_Back';
+          // Arrowheads follow the routing style, so a step connector's arrow stays
+          // aligned with its final 90° leg instead of the straight source→target line.
+          const dirOpts = { orientation: isHorizontal ? 'h' : 'v' };
           if (showTargetArrow) {
+            const endDir = Utils.connectorEndDirection(sx, sy, tx, ty, connStyle, dirOpts);
             const arrow = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
-            arrow.setAttribute('points', makeArrowPoints(tx, ty, tx - sx, ty - sy));
+            arrow.setAttribute('points', makeArrowPoints(tx, ty, endDir.x, endDir.y));
             arrow.setAttribute('fill', arrowFill);
             relG.appendChild(arrow);
           }
           if (showSourceArrow) {
+            const startDir = Utils.connectorEndDirection(tx, ty, sx, sy, connStyle, dirOpts);
             const arrowBack = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
-            arrowBack.setAttribute('points', makeArrowPoints(sx, sy, sx - tx, sy - ty));
+            arrowBack.setAttribute('points', makeArrowPoints(sx, sy, startDir.x, startDir.y));
             arrowBack.setAttribute('fill', arrowFill);
             relG.appendChild(arrowBack);
           }
@@ -333,7 +349,8 @@ MultiDiagramVisualizer.register('c4context', function(code, nodesLayer, edgesLay
                       { value: '2', label: 'Medium (2px - Default)' },
                       { value: '3', label: 'Thick (3px)' },
                       { value: '4', label: 'Heavy (4px)' }
-                  ]}
+                  ]},
+                  { key: 'connector', label: 'Connector / Line Routing', type: 'select', value: connStyle, options: Utils.CONNECTOR_OPTIONS }
                 ],
                 onSave: (vals) => {
                   const fromEl = vals.from || rel.from;
@@ -347,6 +364,9 @@ MultiDiagramVisualizer.register('c4context', function(code, nodesLayer, edgesLay
                   }
                   if (vals.width) {
                     MultiDiagramVisualizer.setColor(`${newKey}_width`, vals.width);
+                  }
+                  if (vals.connector) {
+                    MultiDiagramVisualizer.setColor(`${newKey}_conn`, vals.connector);
                   }
                   MultiDiagramVisualizer.updateCodeLine((curCode) => {
                     const lines = curCode.split('\n');

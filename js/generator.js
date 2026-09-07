@@ -62,7 +62,7 @@
             declaredNodes.add(n.id);
           }
           const hasCustomFill = n.fillColor && n.fillColor !== '#E3F2FD' && n.fillColor !== '#2D4A66';
-          const hasCustomBorder = n.borderColor && n.borderColor !== '#90CAF9' && n.borderColor !== '#4FC3F7';
+          const hasCustomBorder = n.borderColor && n.borderColor !== '#1976D2' && n.borderColor !== '#90CAF9' && n.borderColor !== '#4FC3F7';
           const hasCustomFont = n.fontColor && n.fontColor !== '#0D47A1' && n.fontColor !== '#E1F5FE';
           if (hasCustomFill || hasCustomBorder || hasCustomFont) {
             styles.push(`  style ${n.id} fill:${n.fillColor},stroke:${n.borderColor},color:${n.fontColor}`);

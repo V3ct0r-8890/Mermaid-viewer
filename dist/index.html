@@ -1241,16 +1241,17 @@
             <label>3. Node Border / Stroke Color</label>
             <div style="display:flex; align-items:center; gap:8px;">
               <input type="color" id="prop-node-border" style="width:32px; height:26px; border:none; border-radius:3px; cursor:pointer;">
-              <span id="prop-node-border-val" style="font-size:11px; font-family:var(--code-font);">#90CAF9</span>
+              <span id="prop-node-border-val" style="font-size:11px; font-family:var(--code-font);">#1976D2</span>
             </div>
+            <!-- Borders stay at full strength (the fill swatches above carry the pastels). -->
             <div class="color-swatches" id="node-border-swatches" style="margin-top:6px;">
-              <div class="color-swatch" style="background:#90CAF9;" data-color="#90CAF9" title="Blue Border"></div>
-              <div class="color-swatch" style="background:#A5D6A7;" data-color="#A5D6A7" title="Green Border"></div>
-              <div class="color-swatch" style="background:#FFE082;" data-color="#FFE082" title="Orange Border"></div>
-              <div class="color-swatch" style="background:#CE93D8;" data-color="#CE93D8" title="Purple Border"></div>
-              <div class="color-swatch" style="background:#EF9A9A;" data-color="#EF9A9A" title="Red Border"></div>
-              <div class="color-swatch" style="background:#B0BEC5;" data-color="#B0BEC5" title="Gray Border"></div>
-              <div class="color-swatch" style="background:#4FC3F7;" data-color="#4FC3F7" title="Cyan Border"></div>
+              <div class="color-swatch" style="background:#1976D2;" data-color="#1976D2" title="Blue Border"></div>
+              <div class="color-swatch" style="background:#388E3C;" data-color="#388E3C" title="Green Border"></div>
+              <div class="color-swatch" style="background:#F57C00;" data-color="#F57C00" title="Orange Border"></div>
+              <div class="color-swatch" style="background:#7B1FA2;" data-color="#7B1FA2" title="Purple Border"></div>
+              <div class="color-swatch" style="background:#D32F2F;" data-color="#D32F2F" title="Red Border"></div>
+              <div class="color-swatch" style="background:#546E7A;" data-color="#546E7A" title="Slate Border"></div>
+              <div class="color-swatch" style="background:#0097A7;" data-color="#0097A7" title="Cyan Border"></div>
               <div class="color-swatch" style="background:#212121;" data-color="#212121" title="Dark Border"></div>
               <div class="color-swatch" style="background:#616161;" data-color="#616161" title="Medium Gray"></div>
             </div>
@@ -1650,7 +1651,7 @@
           <div class="form-group">
             <label>Border Color</label>
             <div class="color-input-wrapper">
-              <input type="color" id="nm-border" value="#90CAF9">
+              <input type="color" id="nm-border" value="#1976D2">
             </div>
           </div>
           <div class="form-group">
@@ -2226,6 +2227,133 @@ treemap-beta
           toast.className = '';
         }, 2800);
       },
+      // --- CONNECTOR ROUTING ENGINE ---
+      // Shared by every diagram type so a link's routing style means the same thing
+      // everywhere. Values match the native Flowchart's existing edge.curve values
+      // ('basis'/'linear'/'step') via normalizeConnector below, so old saved diagrams
+      // and the Flowchart edge form keep working unchanged.
+      CONNECTOR_OPTIONS: [
+        { value: 'curve', label: 'Curved (Bezier)' },
+        { value: 'straight', label: 'Straight Line' },
+        { value: 'step', label: 'Orthogonal Step (90° Corners)' }
+      ],
+      normalizeConnector(style, fallback = 'curve') {
+        const s = String(style || '').toLowerCase().trim();
+        if (s === 'curve' || s === 'basis' || s === 'bezier' || s === 'curved') return 'curve';
+        if (s === 'straight' || s === 'linear' || s === 'line') return 'straight';
+        if (s === 'step' || s === 'orthogonal' || s === 'ortho') return 'step';
+        return fallback;
+      },
+      // Builds the SVG path `d` for a connector between two points.
+      // opts: { orientation: 'auto'|'h'|'v', curvature (0-1), minCurve, srcDir, tgtDir }
+      // srcDir/tgtDir ('top'|'bottom'|'left'|'right') take priority when supplied — they
+      // let a diagram that knows which side of a node it left from keep the connector
+      // leaving perpendicular to that side.
+      buildConnectorPath(x1, y1, x2, y2, style, opts = {}) {
+        const mode = Utils.normalizeConnector(style, 'curve');
+        const dx = x2 - x1;
+        const dy = y2 - y1;
+
+        if (mode === 'straight') {
+          return `M ${x1} ${y1} L ${x2} ${y2}`;
+        }
+
+        const srcDir = opts.srcDir;
+        const tgtDir = opts.tgtDir;
+        let orientation = opts.orientation || 'auto';
+        if (orientation === 'auto') {
+          if (srcDir === 'left' || srcDir === 'right') orientation = 'h';
+          else if (srcDir === 'top' || srcDir === 'bottom') orientation = 'v';
+          else orientation = Math.abs(dx) >= Math.abs(dy) ? 'h' : 'v';
+        }
+
+        if (mode === 'step') {
+          if (orientation === 'h') {
+            const midX = x1 + dx / 2;
+            return `M ${x1} ${y1} L ${midX} ${y1} L ${midX} ${y2} L ${x2} ${y2}`;
+          }
+          const midY = y1 + dy / 2;
+          return `M ${x1} ${y1} L ${x1} ${midY} L ${x2} ${midY} L ${x2} ${y2}`;
+        }
+
+        // Curved (cubic bezier). Control points push out along the leaving/entering
+        // direction so the curve meets each endpoint cleanly.
+        const curvature = opts.curvature ?? 0.45;
+        const minCurve = opts.minCurve ?? 30;
+        const span = Math.sqrt(dx * dx + dy * dy);
+        const k = Math.max(minCurve, Math.min(opts.maxCurve ?? 140, span * curvature));
+
+        let cx1 = x1, cy1 = y1, cx2 = x2, cy2 = y2;
+        if (srcDir === 'bottom') cy1 = y1 + k;
+        else if (srcDir === 'top') cy1 = y1 - k;
+        else if (srcDir === 'right') cx1 = x1 + k;
+        else if (srcDir === 'left') cx1 = x1 - k;
+        else if (orientation === 'h') cx1 = x1 + Math.sign(dx || 1) * k;
+        else cy1 = y1 + Math.sign(dy || 1) * k;
+
+        if (tgtDir === 'top') cy2 = y2 - k;
+        else if (tgtDir === 'bottom') cy2 = y2 + k;
+        else if (tgtDir === 'left') cx2 = x2 - k;
+        else if (tgtDir === 'right') cx2 = x2 + k;
+        else if (orientation === 'h') cx2 = x2 - Math.sign(dx || 1) * k;
+        else cy2 = y2 - Math.sign(dy || 1) * k;
+
+        return `M ${x1} ${y1} C ${cx1} ${cy1}, ${cx2} ${cy2}, ${x2} ${y2}`;
+      },
+      // Direction (unit vector) a connector arrives at its endpoint with, so arrowheads
+      // stay aligned with whichever routing style is active.
+      connectorEndDirection(x1, y1, x2, y2, style, opts = {}) {
+        const mode = Utils.normalizeConnector(style, 'curve');
+        const dx = x2 - x1;
+        const dy = y2 - y1;
+        if (mode === 'step') {
+          let orientation = opts.orientation || 'auto';
+          if (orientation === 'auto') orientation = Math.abs(dx) >= Math.abs(dy) ? 'h' : 'v';
+          // The final leg of a step path is always perpendicular to the split axis.
+          if (orientation === 'h') return { x: Math.sign(dx) || 1, y: 0 };
+          return { x: 0, y: Math.sign(dy) || 1 };
+        }
+        const len = Math.sqrt(dx * dx + dy * dy) || 1;
+        return { x: dx / len, y: dy / len };
+      },
+
+      // --- PASTEL FILL PALETTE ---
+      // House rule: node FILLS are pastel; node borders, link lines and text stay at
+      // full strength so shapes read clearly against the soft fill.
+      PASTEL_FILLS: ['#E3F2FD', '#E8F5E9', '#FFF3E0', '#F3E5F5', '#FFEBEE', '#E0F7FA', '#FFF9C4', '#FCE4EC', '#EDE7F6', '#E0F2F1'],
+      PASTEL_FILLS_DARK: ['#1E3A5F', '#1B4D3E', '#4A3B18', '#3E244D', '#4D1E36', '#12414A', '#4A431A', '#4A2036', '#2E2A4D', '#173F3A'],
+      // Full-strength companions, used for borders/lines next to the pastel fill above.
+      INK_COLORS: ['#1976D2', '#388E3C', '#F57C00', '#7B1FA2', '#D32F2F', '#0097A7', '#F9A825', '#C2185B', '#5E35B1', '#00796B'],
+      pastelFill(index, isDark = false) {
+        const list = isDark ? Utils.PASTEL_FILLS_DARK : Utils.PASTEL_FILLS;
+        return list[Math.abs(index | 0) % list.length];
+      },
+      inkColor(index) {
+        return Utils.INK_COLORS[Math.abs(index | 0) % Utils.INK_COLORS.length];
+      },
+      // Softens any full-strength color into a pastel tint suitable for a node fill,
+      // keeping its hue. In dark mode it blends toward the dark canvas instead of white
+      // so fills stay readable rather than glaring.
+      toPastel(hex, isDark = false, amount = null) {
+        const raw = String(hex || '').trim().replace(/^#/, '');
+        let full = raw;
+        if (/^[0-9A-Fa-f]{3}$/.test(raw)) {
+          full = raw.split('').map(c => c + c).join('');
+        }
+        if (!/^[0-9A-Fa-f]{6}$/.test(full)) return hex;
+
+        const r = parseInt(full.slice(0, 2), 16);
+        const g = parseInt(full.slice(2, 4), 16);
+        const b = parseInt(full.slice(4, 6), 16);
+        const mix = amount ?? (isDark ? 0.68 : 0.78);
+        const base = isDark ? 28 : 255;
+        const blend = (c) => Math.round(c + (base - c) * mix);
+        return '#' + [blend(r), blend(g), blend(b)]
+          .map(v => Utils.clamp(v, 0, 255).toString(16).padStart(2, '0'))
+          .join('')
+          .toUpperCase();
+      },
+
       // Axis-aligned rect overlap test. Rects are {x, y, width, height} (x,y = top-left).
       rectsOverlap(a, b, padding = 0) {
         return (
@@ -2607,7 +2735,7 @@ treemap-beta
             declaredNodes.add(n.id);
           }
           const hasCustomFill = n.fillColor && n.fillColor !== '#E3F2FD' && n.fillColor !== '#2D4A66';
-          const hasCustomBorder = n.borderColor && n.borderColor !== '#90CAF9' && n.borderColor !== '#4FC3F7';
+          const hasCustomBorder = n.borderColor && n.borderColor !== '#1976D2' && n.borderColor !== '#90CAF9' && n.borderColor !== '#4FC3F7';
           const hasCustomFont = n.fontColor && n.fontColor !== '#0D47A1' && n.fontColor !== '#E1F5FE';
           if (hasCustomFill || hasCustomBorder || hasCustomFont) {
             styles.push(`  style ${n.id} fill:${n.fillColor},stroke:${n.borderColor},color:${n.fontColor}`);
@@ -3936,16 +4064,17 @@ class MultiDiagramVisualizer {
             <label>3. Node Border / Stroke Color</label>
             <div style="display:flex; align-items:center; gap:8px;">
               <input type="color" id="prop-node-border" style="width:32px; height:26px; border:none; border-radius:3px; cursor:pointer;">
-              <span id="prop-node-border-val" style="font-size:11px; font-family:var(--code-font);">#90CAF9</span>
+              <span id="prop-node-border-val" style="font-size:11px; font-family:var(--code-font);">#1976D2</span>
             </div>
+            <!-- Borders stay at full strength (the fill swatches above carry the pastels). -->
             <div class="color-swatches" id="node-border-swatches" style="margin-top:6px;">
-              <div class="color-swatch" style="background:#90CAF9;" data-color="#90CAF9" title="Blue Border"></div>
-              <div class="color-swatch" style="background:#A5D6A7;" data-color="#A5D6A7" title="Green Border"></div>
-              <div class="color-swatch" style="background:#FFE082;" data-color="#FFE082" title="Orange Border"></div>
-              <div class="color-swatch" style="background:#CE93D8;" data-color="#CE93D8" title="Purple Border"></div>
-              <div class="color-swatch" style="background:#EF9A9A;" data-color="#EF9A9A" title="Red Border"></div>
-              <div class="color-swatch" style="background:#B0BEC5;" data-color="#B0BEC5" title="Gray Border"></div>
-              <div class="color-swatch" style="background:#4FC3F7;" data-color="#4FC3F7" title="Cyan Border"></div>
+              <div class="color-swatch" style="background:#1976D2;" data-color="#1976D2" title="Blue Border"></div>
+              <div class="color-swatch" style="background:#388E3C;" data-color="#388E3C" title="Green Border"></div>
+              <div class="color-swatch" style="background:#F57C00;" data-color="#F57C00" title="Orange Border"></div>
+              <div class="color-swatch" style="background:#7B1FA2;" data-color="#7B1FA2" title="Purple Border"></div>
+              <div class="color-swatch" style="background:#D32F2F;" data-color="#D32F2F" title="Red Border"></div>
+              <div class="color-swatch" style="background:#546E7A;" data-color="#546E7A" title="Slate Border"></div>
+              <div class="color-swatch" style="background:#0097A7;" data-color="#0097A7" title="Cyan Border"></div>
               <div class="color-swatch" style="background:#212121;" data-color="#212121" title="Dark Border"></div>
               <div class="color-swatch" style="background:#616161;" data-color="#616161" title="Medium Gray"></div>
             </div>
@@ -4345,7 +4474,7 @@ class MultiDiagramVisualizer {
           <div class="form-group">
             <label>Border Color</label>
             <div class="color-input-wrapper">
-              <input type="color" id="nm-border" value="#90CAF9">
+              <input type="color" id="nm-border" value="#1976D2">
             </div>
           </div>
           <div class="form-group">
@@ -4800,6 +4929,7 @@ MultiDiagramVisualizer.register('c4context', function(code, nodesLayer, edgesLay
           const lineColor = MultiDiagramVisualizer.getColor(relKey, MultiDiagramVisualizer.getColor(`${rel.from}->${rel.to}`, linkColor));
           const labelFont = MultiDiagramVisualizer.getColor(`${relKey}_font`, textColor);
           const lineWidth = parseFloat(MultiDiagramVisualizer.getColor(`${relKey}_width`, '2')) || 2;
+          const connStyle = Utils.normalizeConnector(MultiDiagramVisualizer.getColor(`${relKey}_conn`, 'curve'), 'curve');
 
           let sx, sy, tx, ty;
           let cx1, cy1, cx2, cy2;
@@ -4868,8 +4998,14 @@ MultiDiagramVisualizer.register('c4context', function(code, nodesLayer, edgesLay
           }
 
           const omt = 1 - t;
-          const rawBx = omt*omt*omt*sx + 3*omt*omt*t*cx1 + 3*omt*t*t*cx2 + t*t*t*tx;
-          const rawBy = omt*omt*omt*sy + 3*omt*omt*t*cy1 + 3*omt*t*t*cy2 + t*t*t*ty;
+          // Curved routing samples the bezier itself; straight/step routing has no
+          // bezier to sample, so the badge starts at the midpoint of the run.
+          const rawBx = connStyle === 'curve'
+            ? omt*omt*omt*sx + 3*omt*omt*t*cx1 + 3*omt*t*t*cx2 + t*t*t*tx
+            : sx + (tx - sx) * t;
+          const rawBy = connStyle === 'curve'
+            ? omt*omt*omt*sy + 3*omt*omt*t*cy1 + 3*omt*t*t*cy2 + t*t*t*ty
+            : sy + (ty - sy) * t;
 
           const cleanLabel = rel.label.length > 28 ? rel.label.substring(0, 25) + '...' : rel.label;
           const badgeW = Math.max(125, Math.min(185, Math.max(cleanLabel.length * 6.2 + 20, (rel.tech ? rel.tech.length * 6.5 + 24 : 0))));
@@ -4880,7 +5016,11 @@ MultiDiagramVisualizer.register('c4context', function(code, nodesLayer, edgesLay
           const relG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
           relG.style.cursor = 'pointer';
 
-          const pathD = `M ${sx} ${sy} C ${cx1} ${cy1}, ${cx2} ${cy2}, ${tx} ${ty}`;
+          // Curved routing keeps the per-case control points tuned above (they route
+          // around the layout); straight/step routing goes through the shared engine.
+          const pathD = connStyle === 'curve'
+            ? `M ${sx} ${sy} C ${cx1} ${cy1}, ${cx2} ${cy2}, ${tx} ${ty}`
+            : Utils.buildConnectorPath(sx, sy, tx, ty, connStyle, { orientation: isHorizontal ? 'h' : 'v' });
 
           // Safari & Chrome 28px wide invisible click hitbox
           const hitPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
@@ -4915,15 +5055,20 @@ MultiDiagramVisualizer.register('c4context', function(code, nodesLayer, edgesLay
           const arrowFill = isSelRel ? 'var(--selection-color)' : lineColor;
           const showTargetArrow = rel.type !== 'Rel_Back';
           const showSourceArrow = rel.type === 'BiRel' || rel.type === 'Rel_Back';
+          // Arrowheads follow the routing style, so a step connector's arrow stays
+          // aligned with its final 90° leg instead of the straight source→target line.
+          const dirOpts = { orientation: isHorizontal ? 'h' : 'v' };
           if (showTargetArrow) {
+            const endDir = Utils.connectorEndDirection(sx, sy, tx, ty, connStyle, dirOpts);
             const arrow = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
-            arrow.setAttribute('points', makeArrowPoints(tx, ty, tx - sx, ty - sy));
+            arrow.setAttribute('points', makeArrowPoints(tx, ty, endDir.x, endDir.y));
             arrow.setAttribute('fill', arrowFill);
             relG.appendChild(arrow);
           }
           if (showSourceArrow) {
+            const startDir = Utils.connectorEndDirection(tx, ty, sx, sy, connStyle, dirOpts);
             const arrowBack = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
-            arrowBack.setAttribute('points', makeArrowPoints(sx, sy, sx - tx, sy - ty));
+            arrowBack.setAttribute('points', makeArrowPoints(sx, sy, startDir.x, startDir.y));
             arrowBack.setAttribute('fill', arrowFill);
             relG.appendChild(arrowBack);
           }
@@ -4996,7 +5141,8 @@ MultiDiagramVisualizer.register('c4context', function(code, nodesLayer, edgesLay
                       { value: '2', label: 'Medium (2px - Default)' },
                       { value: '3', label: 'Thick (3px)' },
                       { value: '4', label: 'Heavy (4px)' }
-                  ]}
+                  ]},
+                  { key: 'connector', label: 'Connector / Line Routing', type: 'select', value: connStyle, options: Utils.CONNECTOR_OPTIONS }
                 ],
                 onSave: (vals) => {
                   const fromEl = vals.from || rel.from;
@@ -5010,6 +5156,9 @@ MultiDiagramVisualizer.register('c4context', function(code, nodesLayer, edgesLay
                   }
                   if (vals.width) {
                     MultiDiagramVisualizer.setColor(`${newKey}_width`, vals.width);
+                  }
+                  if (vals.connector) {
+                    MultiDiagramVisualizer.setColor(`${newKey}_conn`, vals.connector);
                   }
                   MultiDiagramVisualizer.updateCodeLine((curCode) => {
                     const lines = curCode.split('\n');
@@ -5176,7 +5325,7 @@ MultiDiagramVisualizer.register('classdiagram', function(code, nodesLayer, edges
   const primaryText = isDark ? '#FFFFFF' : '#1F2937';
   const textColor = isDark ? '#E0E0E0' : '#374151';
   const cardBg = isDark ? '#222538' : '#EEF0FF';
-  const cardBorder = isDark ? '#7986CB' : '#9FA8DA';
+  const cardBorder = isDark ? '#7986CB' : '#5C6BC0';
   const dividerColor = isDark ? '#5C6BC0' : '#C5CAE9';
   const linkColor = isDark ? '#90CAF9' : '#374151';
   const selTitle = (typeof AppController !== 'undefined' && AppController.instance && AppController.instance.selectedVisualObject) ? AppController.instance.selectedVisualObject.title : null;
@@ -5432,6 +5581,9 @@ MultiDiagramVisualizer.register('classdiagram', function(code, nodesLayer, edges
 
     // Arrow line start (fromNode) and end (toNode with marker)
     let fromCenterX, fromY, toCenterX, toY, pathD, markerPoints;
+    // Whether the chosen routing case runs between stacked classes (vertical) or
+    // side-by-side ones (horizontal) — used when re-routing to another connector style.
+    let connOrient = 'v';
 
     if (isMarkerAtSrc) {
       // Line travels from TGT (subclass) to SRC (superclass), arrow points into SRC
@@ -5457,6 +5609,7 @@ MultiDiagramVisualizer.register('classdiagram', function(code, nodesLayer, edges
         markerPoints = `${endX},${endY} ${endX - 7},${endY - 14} ${endX + 7},${endY - 14}`;
       } else {
         // Side by side
+        connOrient = 'h';
         const isTgtRight = tCenterX > sCenterX;
         const startX = isTgtRight ? tPos.x : tPos.x + tW;
         const startY = tCenterY;
@@ -5493,6 +5646,7 @@ MultiDiagramVisualizer.register('classdiagram', function(code, nodesLayer, edges
         markerPoints = `${endX},${endY} ${endX - 7},${endY + 14} ${endX + 7},${endY + 14}`;
       } else {
         // Side by side
+        connOrient = 'h';
         const isSrcRight = sCenterX > tCenterX;
         const startX = isSrcRight ? sPos.x : sPos.x + sW;
         const startY = sCenterY;
@@ -5504,6 +5658,22 @@ MultiDiagramVisualizer.register('classdiagram', function(code, nodesLayer, edges
         markerPoints = isSrcRight
           ? `${endX},${endY} ${endX + 14},${endY - 7} ${endX + 14},${endY + 7}`
           : `${endX},${endY} ${endX - 14},${endY - 7} ${endX - 14},${endY + 7}`;
+      }
+    }
+
+    // Connector routing. Every case above draws a bezier that stops short of the UML
+    // marker, so re-routing reuses those same two anchor points (read back off the
+    // path) and the marker keeps sitting exactly where it already does.
+    const connStyle = Utils.normalizeConnector(MultiDiagramVisualizer.getColor(`${linkKey}_conn`, 'curve'), 'curve');
+    if (connStyle !== 'curve') {
+      const anchors = pathD.match(/^M\s+([-\d.]+)\s+([-\d.]+)\s+C\s+.*,\s*([-\d.]+)\s+([-\d.]+)$/);
+      if (anchors) {
+        pathD = Utils.buildConnectorPath(
+          parseFloat(anchors[1]), parseFloat(anchors[2]),
+          parseFloat(anchors[3]), parseFloat(anchors[4]),
+          connStyle,
+          { orientation: connOrient }
+        );
       }
     }
 
@@ -5596,11 +5766,13 @@ MultiDiagramVisualizer.register('classdiagram', function(code, nodesLayer, edges
                 { value: '1.5', label: 'Medium (1.5px - Default)' },
                 { value: '2.2', label: 'Thick (2.2px)' },
                 { value: '3', label: 'Heavy (3px)' }
-            ]}
+            ]},
+            { key: 'connector', label: 'Connector / Line Routing', type: 'select', value: connStyle, options: Utils.CONNECTOR_OPTIONS }
           ],
           onSave: (vals) => {
             MultiDiagramVisualizer.setColor(linkKey, vals.color);
             MultiDiagramVisualizer.setColor(`${linkKey}_width`, vals.width);
+            MultiDiagramVisualizer.setColor(`${linkKey}_conn`, vals.connector);
             MultiDiagramVisualizer.syncColorToCode(linkKey, vals.color);
             MultiDiagramVisualizer.updateCodeLine((curCode) => {
               const lines = curCode.split('\n');
@@ -5747,7 +5919,7 @@ MultiDiagramVisualizer.register('erdiagram', function(code, nodesLayer, edgesLay
   const primaryText = isDark ? '#FFFFFF' : '#1F2937';
   const textColor = isDark ? '#E5E7EB' : '#374151';
   const cardBg = isDark ? '#1E222A' : '#FFFFFF';
-  const cardBorder = isDark ? '#7986CB' : '#9FA8DA';
+  const cardBorder = isDark ? '#7986CB' : '#5C6BC0';
   const defaultHeaderFill = isDark ? '#262A38' : '#EEF0FF';
   const linkColor = isDark ? '#90CAF9' : '#333333';
   const selTitle = (typeof AppController !== 'undefined' && AppController.instance && AppController.instance.selectedVisualObject) ? AppController.instance.selectedVisualObject.title : null;
@@ -5986,6 +6158,19 @@ MultiDiagramVisualizer.register('erdiagram', function(code, nodesLayer, edgesLay
       labelY = my;
     }
 
+    // The routing case above already picked a shape; that becomes this relationship's
+    // default connector style, and is only re-routed when the user picks another one
+    // (so untouched diagrams keep their hand-tuned routing exactly).
+    const defaultConn = pathD.includes(' C ') ? 'curve' : 'straight';
+    const connStyle = Utils.normalizeConnector(MultiDiagramVisualizer.getColor(`${relKey}_conn`, defaultConn), defaultConn);
+    if (connStyle !== defaultConn) {
+      pathD = Utils.buildConnectorPath(sx, sy, tx, ty, connStyle, {
+        orientation: Math.abs(srcAngle) === 90 ? 'v' : 'h'
+      });
+      labelX = (sx + tx) / 2;
+      labelY = (sy + ty) / 2;
+    }
+
     const relG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
 
     // Click Hitbox
@@ -6140,7 +6325,8 @@ MultiDiagramVisualizer.register('erdiagram', function(code, nodesLayer, edgesLay
                 { value: '1.4', label: 'Medium (1.4px - Default)' },
                 { value: '2', label: 'Thick (2px)' },
                 { value: '3', label: 'Heavy (3px)' }
-            ]}
+            ]},
+            { key: 'connector', label: '3. Connector / Line Routing', type: 'select', value: connStyle, options: Utils.CONNECTOR_OPTIONS }
           ],
           onSave: (vals) => {
             const newSrc = vals.src || rel.src;
@@ -6148,6 +6334,7 @@ MultiDiagramVisualizer.register('erdiagram', function(code, nodesLayer, edgesLay
             const newRelKey = `rel_${newSrc}_to_${newTgt}`;
             MultiDiagramVisualizer.setColor(newRelKey, vals.color);
             MultiDiagramVisualizer.setColor(`${newRelKey}_width`, vals.width);
+            MultiDiagramVisualizer.setColor(`${newRelKey}_conn`, vals.connector);
             MultiDiagramVisualizer.syncColorToCode(newRelKey, vals.color);
             MultiDiagramVisualizer.updateCodeLine((curCode) => {
               const lines = curCode.split('\n');
@@ -7165,29 +7352,154 @@ MultiDiagramVisualizer.register('gitgraph', function(code, nodesLayer, edgesLaye
 
           if (idx > 0) {
             const prev = commitPositions[idx - 1];
+            const prevId = commits[idx - 1].id;
+            const connKey = `gitconn_${prevId}_to_${c.id}`;
+            const connTitle = `${prevId} → ${c.id}`;
+            const isConnSel = (selTitle === connTitle || selTitle === connKey);
+            // A same-branch hop is a straight run; a branch switch curves across.
+            const defaultConn = prev.branch === c.branch ? 'straight' : 'curve';
+            const connStyle = Utils.normalizeConnector(MultiDiagramVisualizer.getColor(`${connKey}_conn`, defaultConn), defaultConn);
+            const connColor = MultiDiagramVisualizer.getColor(connKey, bInfo.color);
+            const connWidth = MultiDiagramVisualizer.getColor(`${connKey}_width`, '3');
+            const connD = Utils.buildConnectorPath(prev.x, prev.y, x, y, connStyle, { orientation: 'h', minCurve: 35, maxCurve: 60 });
+
+            const connG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+
+            const connHit = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            connHit.setAttribute('d', connD);
+            connHit.setAttribute('stroke', 'transparent');
+            connHit.setAttribute('stroke-width', '20');
+            connHit.setAttribute('fill', 'none');
+            connHit.style.cursor = 'pointer';
+            connG.appendChild(connHit);
+
             const conn = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-            if (prev.branch === c.branch) {
-              conn.setAttribute('d', `M ${prev.x} ${prev.y} L ${x} ${y}`);
-            } else {
-              conn.setAttribute('d', `M ${prev.x} ${prev.y} C ${prev.x + 35} ${prev.y}, ${x - 35} ${y}, ${x} ${y}`);
-            }
-            conn.setAttribute('stroke', bInfo.color);
-            conn.setAttribute('stroke-width', '3');
+            conn.setAttribute('d', connD);
+            conn.setAttribute('stroke', isConnSel ? 'var(--selection-color)' : connColor);
+            conn.setAttribute('stroke-width', isConnSel ? `${parseFloat(connWidth) + 1.5}` : connWidth);
             conn.setAttribute('fill', 'none');
-            edgesLayer.appendChild(conn);
+            if (isConnSel) conn.style.filter = selGlow;
+            connG.appendChild(conn);
+
+            connG.addEventListener('mousedown', (e) => e.stopPropagation());
+            connG.addEventListener('click', (e) => {
+              e.stopPropagation();
+              if (typeof AppController !== 'undefined' && AppController.instance) {
+                AppController.instance.selectVisualObject({
+                  type: 'Git Commit Link',
+                  title: connTitle,
+                  fields: [
+                    // The commit chain's order comes from the source itself, so the ends
+                    // are shown for orientation rather than as reconnect controls.
+                    { key: 'from', label: 'From (Previous Commit)', type: 'select', value: prevId, options: [{ value: prevId, label: prevId }] },
+                    { key: 'to', label: 'To (This Commit)', type: 'select', value: c.id, options: [{ value: c.id, label: c.id }] },
+                    { key: 'color', label: 'Connector Color', type: 'color', value: connColor },
+                    { key: 'width', label: 'Line Thickness', type: 'select', value: connWidth, options: [
+                        { value: '1.5', label: 'Thin (1.5px)' },
+                        { value: '3', label: 'Medium (3px - Default)' },
+                        { value: '4', label: 'Thick (4px)' },
+                        { value: '5', label: 'Heavy (5px)' }
+                    ]},
+                    { key: 'connector', label: 'Connector / Line Routing', type: 'select', value: connStyle, options: Utils.CONNECTOR_OPTIONS }
+                  ],
+                  onSave: (vals) => {
+                    MultiDiagramVisualizer.setColor(connKey, vals.color);
+                    MultiDiagramVisualizer.setColor(`${connKey}_width`, vals.width);
+                    MultiDiagramVisualizer.setColor(`${connKey}_conn`, vals.connector);
+                    MultiDiagramVisualizer.syncColorToCode(connKey, vals.color);
+                  }
+                });
+              }
+            });
+
+            edgesLayer.appendChild(connG);
           }
 
           // If merge, draw merge curve from merged branch
           if (c.isMerge && c.mergeFrom) {
             const fromBranchInfo = branches.get(c.mergeFrom);
             if (fromBranchInfo) {
+              const mergeKey = `gitmerge_${c.mergeFrom}_to_${c.id}`;
+              const mergeTitle = `merge ${c.mergeFrom} → ${c.id}`;
+              const isMergeSel = (selTitle === mergeTitle || selTitle === mergeKey);
+              const mergeStyle = Utils.normalizeConnector(MultiDiagramVisualizer.getColor(`${mergeKey}_conn`, 'curve'), 'curve');
+              const mergeColor = MultiDiagramVisualizer.getColor(mergeKey, fromBranchInfo.color);
+              const mergeWidth = MultiDiagramVisualizer.getColor(`${mergeKey}_width`, '2.5');
+              const mergeD = Utils.buildConnectorPath(x - 70, fromBranchInfo.y, x, y, mergeStyle, { orientation: 'h', minCurve: 35, maxCurve: 50 });
+
+              const mergeG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+
+              const mergeHit = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+              mergeHit.setAttribute('d', mergeD);
+              mergeHit.setAttribute('stroke', 'transparent');
+              mergeHit.setAttribute('stroke-width', '20');
+              mergeHit.setAttribute('fill', 'none');
+              mergeHit.style.cursor = 'pointer';
+              mergeG.appendChild(mergeHit);
+
               const mergeLine = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-              mergeLine.setAttribute('d', `M ${x - 70} ${fromBranchInfo.y} C ${x - 35} ${fromBranchInfo.y}, ${x - 20} ${y}, ${x} ${y}`);
-              mergeLine.setAttribute('stroke', fromBranchInfo.color);
-              mergeLine.setAttribute('stroke-width', '2.5');
+              mergeLine.setAttribute('d', mergeD);
+              mergeLine.setAttribute('stroke', isMergeSel ? 'var(--selection-color)' : mergeColor);
+              mergeLine.setAttribute('stroke-width', isMergeSel ? `${parseFloat(mergeWidth) + 1.5}` : mergeWidth);
               mergeLine.setAttribute('stroke-dasharray', '4,3');
               mergeLine.setAttribute('fill', 'none');
-              edgesLayer.appendChild(mergeLine);
+              if (isMergeSel) mergeLine.style.filter = selGlow;
+              mergeG.appendChild(mergeLine);
+
+              mergeG.addEventListener('mousedown', (e) => e.stopPropagation());
+              mergeG.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (typeof AppController !== 'undefined' && AppController.instance) {
+                  const branchOptions = Array.from(branches.keys()).map(b => ({ value: b, label: b }));
+                  AppController.instance.selectVisualObject({
+                    type: 'Git Merge Link',
+                    title: mergeTitle,
+                    fields: [
+                      { key: 'from', label: 'From (Merged Branch)', type: 'select', value: c.mergeFrom, options: branchOptions },
+                      { key: 'to', label: 'To (Target Branch)', type: 'select', value: c.branch, options: branchOptions },
+                      { key: 'color', label: 'Merge Line Color', type: 'color', value: mergeColor },
+                      { key: 'width', label: 'Line Thickness', type: 'select', value: mergeWidth, options: [
+                          { value: '1.5', label: 'Thin (1.5px)' },
+                          { value: '2.5', label: 'Medium (2.5px - Default)' },
+                          { value: '3.5', label: 'Thick (3.5px)' },
+                          { value: '4.5', label: 'Heavy (4.5px)' }
+                      ]},
+                      { key: 'connector', label: 'Connector / Line Routing', type: 'select', value: mergeStyle, options: Utils.CONNECTOR_OPTIONS }
+                    ],
+                    onSave: (vals) => {
+                      const newFrom = vals.from || c.mergeFrom;
+                      const newKey = `gitmerge_${newFrom}_to_${c.id}`;
+                      MultiDiagramVisualizer.setColor(newKey, vals.color);
+                      MultiDiagramVisualizer.setColor(`${newKey}_width`, vals.width);
+                      MultiDiagramVisualizer.setColor(`${newKey}_conn`, vals.connector);
+                      MultiDiagramVisualizer.syncColorToCode(newKey, vals.color);
+                      // Both ends are real source edits: the merged branch is the `merge`
+                      // line's argument, the target branch is the `checkout` before it.
+                      if (newFrom !== c.mergeFrom || (vals.to && vals.to !== c.branch)) {
+                        MultiDiagramVisualizer.updateCodeLine((curCode) => {
+                          const lines = curCode.split('\n');
+                          const mergeIdx = lines.findIndex(l => new RegExp(`^\\s*merge\\s+${c.mergeFrom}\\b`, 'i').test(l));
+                          if (mergeIdx === -1) return curCode;
+                          const lead = lines[mergeIdx].match(/^(\s*)/)[1] || '  ';
+                          lines[mergeIdx] = `${lead}merge ${newFrom}`;
+                          if (vals.to && vals.to !== c.branch) {
+                            for (let i = mergeIdx - 1; i >= 0; i--) {
+                              if (/^\s*checkout\s+/i.test(lines[i])) {
+                                const cLead = lines[i].match(/^(\s*)/)[1] || '  ';
+                                lines[i] = `${cLead}checkout ${vals.to}`;
+                                break;
+                              }
+                            }
+                          }
+                          return lines.join('\n');
+                        });
+                      }
+                    }
+                  });
+                }
+              });
+
+              edgesLayer.appendChild(mergeG);
             }
           }
         });
@@ -7204,8 +7516,11 @@ MultiDiagramVisualizer.register('gitgraph', function(code, nodesLayer, edgesLaye
           circle.setAttribute('cy', `${y}`);
           circle.setAttribute('r', c.isMerge ? '12' : '10');
           const isSelGit = (c.id === selTitle);
-          circle.setAttribute('fill', c.color);
-          circle.setAttribute('stroke', isSelGit ? 'var(--selection-color)' : (isDark ? '#1E1E1E' : '#FFFFFF'));
+          // Pastel body, full-strength branch colour on the rim.
+          const commitFill = MultiDiagramVisualizer.getColor(`${c.id}_fill`, Utils.toPastel(c.color, isDark));
+          const commitBorder = MultiDiagramVisualizer.getColor(`${c.id}_border`, c.color);
+          circle.setAttribute('fill', commitFill);
+          circle.setAttribute('stroke', isSelGit ? 'var(--selection-color)' : commitBorder);
           circle.setAttribute('stroke-width', isSelGit ? '3.5' : '2.5');
           if (isSelGit) circle.style.filter = selGlow;
           commitG.appendChild(circle);
@@ -7215,7 +7530,7 @@ MultiDiagramVisualizer.register('gitgraph', function(code, nodesLayer, edgesLaye
             innerC.setAttribute('cx', `${x}`);
             innerC.setAttribute('cy', `${y}`);
             innerC.setAttribute('r', '5');
-            innerC.setAttribute('fill', '#FFFFFF');
+            innerC.setAttribute('fill', commitBorder);
             commitG.appendChild(innerC);
           }
 
@@ -7265,13 +7580,19 @@ MultiDiagramVisualizer.register('gitgraph', function(code, nodesLayer, edgesLaye
                 fields: [
                   { key: 'id', label: 'Commit Message / ID', type: 'text', value: c.id },
                   { key: 'tag', label: 'Release Tag (Optional)', type: 'text', value: c.tag || '' },
-                  { key: 'color', label: 'Commit Color', type: 'color', value: c.color },
-                  { key: 'font', label: 'Label Font Color', type: 'color', value: c.fontColor || textColor }
+                  { key: 'color', label: 'Commit Base Color', type: 'color', value: c.color },
+                  { key: 'font', label: '1. Label Font Color', type: 'color', value: c.fontColor || textColor },
+                  { key: 'fill', label: '2. Node Fill Color (Pastel)', type: 'color', value: commitFill },
+                  { key: 'border', label: '3. Node Border / Stroke Color', type: 'color', value: commitBorder }
                 ],
                 onSave: (vals) => {
                   MultiDiagramVisualizer.setColor(vals.id, vals.color);
                   MultiDiagramVisualizer.setColor(`${vals.id}_font`, vals.font);
+                  MultiDiagramVisualizer.setColor(`${vals.id}_fill`, vals.fill);
+                  MultiDiagramVisualizer.setColor(`${vals.id}_border`, vals.border);
                   MultiDiagramVisualizer.syncColorToCode(vals.id, vals.color);
+                  MultiDiagramVisualizer.syncColorToCode(`${vals.id}_fill`, vals.fill);
+                  MultiDiagramVisualizer.syncColorToCode(`${vals.id}_border`, vals.border);
                   MultiDiagramVisualizer.updateCodeLine((curCode) => {
                     const lines = curCode.split('\n');
                     const esc = c.id.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\</body>');
@@ -7332,13 +7653,18 @@ MultiDiagramVisualizer.register('journey', function(code, nodesLayer, edgesLayer
           const taskMatch = line.match(/^([^:]+):\s*([0-9]+)\s*:\s*(.+)$/);
           if (taskMatch) {
             const name = taskMatch[1].trim();
+            const score = parseInt(taskMatch[2]);
+            // Satisfaction reads straight off the card: a pastel fill in the score's
+            // hue, with that hue at full strength on the border.
+            const scoreInk = ['#D32F2F', '#F57C00', '#F9A825', '#7CB342', '#388E3C'];
+            const ink = scoreInk[Utils.clamp(score || 3, 1, 5) - 1];
             curSection.tasks.push({
               name,
-              score: parseInt(taskMatch[2]),
+              score,
               actor: taskMatch[3].trim(),
-              fillColor: MultiDiagramVisualizer.getColor(name, cardBg),
+              fillColor: MultiDiagramVisualizer.getColor(name, Utils.toPastel(ink, isDark)),
               fontColor: MultiDiagramVisualizer.getColor(`${name}_font`, primaryText),
-              borderColor: MultiDiagramVisualizer.getColor(`${name}_border`, cardBorder)
+              borderColor: MultiDiagramVisualizer.getColor(`${name}_border`, ink)
             });
           }
         });
@@ -7472,7 +7798,7 @@ MultiDiagramVisualizer.register('mindmap', function(code, nodesLayer, edgesLayer
   const primaryText = isDark ? '#FFFFFF' : '#1F2937';
   const textColor = isDark ? '#E5E7EB' : '#374151';
   const cardBg = isDark ? '#1E222A' : '#FFFFFF';
-  const cardBorder = isDark ? '#7986CB' : '#9FA8DA';
+  const cardBorder = isDark ? '#7986CB' : '#5C6BC0';
   const primaryBorder = isDark ? '#1976D2' : '#0288D1';
   const primaryFill = isDark ? '#1E3A5F' : '#E3F2FD';
   const linkColor = isDark ? '#90CAF9' : '#1976D2';
@@ -7577,6 +7903,57 @@ MultiDiagramVisualizer.register('mindmap', function(code, nodesLayer, edgesLayer
     node.children.forEach(c => assignBranchIndices(c, bIdx));
   };
   rootNode.children.forEach((child, idx) => assignBranchIndices(child, idx));
+
+  // Flat topic list, used by the branch-link inspector to offer re-parenting.
+  const allTopics = [];
+  const collectTopics = (node) => {
+    allTopics.push(node);
+    node.children.forEach(collectTopics);
+  };
+  collectTopics(rootNode);
+  const allTopicOptions = allTopics.map(n => ({ value: n.text, label: n.level === 0 ? `${n.text} (root)` : n.text }));
+
+  // Text of a mindmap source line, mirroring how the parser above strips shape
+  // wrappers and ::icon() so a topic can be matched back to the line that defines it.
+  const lineTopicText = (line) => {
+    const t = (line || '').trim();
+    if (!t) return '';
+    const rootM = t.match(/^root(?:\(\(|\(|\[|\{\{|\)\(|\)\])?([^\)\]\}\(]+)/i);
+    if (rootM) return rootM[1].trim();
+    return t
+      .replace(/::icon\([^\)]+\)/, '')
+      .trim()
+      .replace(/^[\(\[\{\)\s]+|[\)\]\}\(\s]+$/g, '')
+      .trim();
+  };
+
+  // Moves a topic (with its whole subtree) under another topic by re-indenting and
+  // re-inserting those lines. Refuses moves that would put a topic inside itself.
+  const reparentTopic = (curCode, childText, newParentText) => {
+    const lines = curCode.split('\n');
+    const indentOf = (l) => l.search(/\S/);
+    const findLine = (text) => lines.findIndex(l => l.trim() && lineTopicText(l) === text);
+
+    const childIdx = findLine(childText);
+    if (childIdx === -1) return curCode;
+
+    const childIndent = indentOf(lines[childIdx]);
+    let endIdx = childIdx + 1;
+    while (endIdx < lines.length && (!lines[endIdx].trim() || indentOf(lines[endIdx]) > childIndent)) endIdx++;
+
+    const parentIdx = findLine(newParentText);
+    if (parentIdx === -1 || (parentIdx >= childIdx && parentIdx < endIdx)) return curCode;
+
+    const block = lines.slice(childIdx, endIdx);
+    const delta = (indentOf(lines[parentIdx]) + 2) - childIndent;
+    const reindented = block.map(l => (l.trim() ? ' '.repeat(Math.max(0, indentOf(l) + delta)) + l.trim() : l));
+
+    const remaining = [...lines.slice(0, childIdx), ...lines.slice(endIdx)];
+    const insertAfter = remaining.findIndex(l => l.trim() && lineTopicText(l) === newParentText);
+    if (insertAfter === -1) return curCode;
+    remaining.splice(insertAfter + 1, 0, ...reindented);
+    return remaining.join('\n');
+  };
 
   const calcSubtreeHeight = (node) => {
     if (node.children.length === 0) {
@@ -7740,21 +8117,14 @@ MultiDiagramVisualizer.register('mindmap', function(code, nodesLayer, edgesLayer
 
       const lColor = MultiDiagramVisualizer.getColor(linkKey, defaultColor);
       const lWidth = MultiDiagramVisualizer.getColor(`${linkKey}_width`, defaultWidth);
-      const lRouting = MultiDiagramVisualizer.getColor(`${linkKey}_routing`, 'bezier');
+      // Legacy 'bezier'/'linear' values from older saved diagrams normalize to the
+      // shared connector vocabulary.
+      const lRouting = Utils.normalizeConnector(MultiDiagramVisualizer.getColor(`${linkKey}_routing`, 'curve'), 'curve');
       const lStyle = MultiDiagramVisualizer.getColor(`${linkKey}_style`, 'solid');
 
       const isLinkSel = (selTitle === linkTitle || selTitle === linkKey);
 
-      let pathD;
-      const midX = (px + cx) / 2;
-
-      if (lRouting === 'step') {
-        pathD = `M ${px} ${py} L ${midX} ${py} L ${midX} ${cy} L ${cx} ${cy}`;
-      } else if (lRouting === 'linear') {
-        pathD = `M ${px} ${py} L ${cx} ${cy}`;
-      } else {
-        pathD = `M ${px} ${py} C ${midX} ${py}, ${midX} ${cy}, ${cx} ${cy}`;
-      }
+      const pathD = Utils.buildConnectorPath(px, py, cx, cy, lRouting, { orientation: 'h' });
 
       const linkG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
 
@@ -7791,6 +8161,8 @@ MultiDiagramVisualizer.register('mindmap', function(code, nodesLayer, edgesLayer
             type: 'Mindmap Branch Link',
             title: linkTitle,
             fields: [
+              { key: 'from', label: 'From (Parent Topic)', type: 'select', value: parentNode.text, options: allTopicOptions },
+              { key: 'to', label: 'To (Child Topic)', type: 'select', value: node.text, options: allTopicOptions },
               { key: 'color', label: '1. Branch Line Color', type: 'color', value: lColor },
               { key: 'width', label: '2. Line Thickness', type: 'select', value: lWidth, options: [
                   { value: '1.2', label: 'Thin (1.2px)' },
@@ -7798,11 +8170,7 @@ MultiDiagramVisualizer.register('mindmap', function(code, nodesLayer, edgesLayer
                   { value: '2.2', label: 'Thick (2.2px - Default)' },
                   { value: '3.2', label: 'Heavy (3.2px)' }
               ]},
-              { key: 'routing', label: '3. Connector Routing / Curve Style', type: 'select', value: lRouting, options: [
-                  { value: 'bezier', label: 'Smooth S-Curve (Bezier)' },
-                  { value: 'step', label: 'Orthogonal Step (90° Corners)' },
-                  { value: 'linear', label: 'Straight Line (Linear)' }
-              ]},
+              { key: 'routing', label: '3. Connector / Line Routing', type: 'select', value: lRouting, options: Utils.CONNECTOR_OPTIONS },
               { key: 'style', label: '4. Line Dash Style', type: 'select', value: lStyle, options: [
                   { value: 'solid', label: 'Solid (──────)' },
                   { value: 'dashed', label: 'Dashed (– – – –)' },
@@ -7810,11 +8178,18 @@ MultiDiagramVisualizer.register('mindmap', function(code, nodesLayer, edgesLayer
               ]}
             ],
             onSave: (vals) => {
-              MultiDiagramVisualizer.setColor(linkKey, vals.color);
-              MultiDiagramVisualizer.setColor(`${linkKey}_width`, vals.width);
-              MultiDiagramVisualizer.setColor(`${linkKey}_routing`, vals.routing);
-              MultiDiagramVisualizer.setColor(`${linkKey}_style`, vals.style);
-              MultiDiagramVisualizer.syncColorToCode(linkKey, vals.color);
+              const newParent = vals.from || parentNode.text;
+              const newChild = vals.to || node.text;
+              const newKey = `link_${newParent}_to_${newChild}`;
+              MultiDiagramVisualizer.setColor(newKey, vals.color);
+              MultiDiagramVisualizer.setColor(`${newKey}_width`, vals.width);
+              MultiDiagramVisualizer.setColor(`${newKey}_routing`, vals.routing);
+              MultiDiagramVisualizer.setColor(`${newKey}_style`, vals.style);
+              MultiDiagramVisualizer.syncColorToCode(newKey, vals.color);
+              // Re-attaching a branch moves that topic's whole subtree in the outline.
+              if (newParent !== parentNode.text || newChild !== node.text) {
+                MultiDiagramVisualizer.updateCodeLine((curCode) => reparentTopic(curCode, newChild, newParent));
+              }
             }
           });
         }
@@ -9161,16 +9536,17 @@ MultiDiagramVisualizer.register('mindmap', function(code, nodesLayer, edgesLayer
             <label>3. Node Border / Stroke Color</label>
             <div style="display:flex; align-items:center; gap:8px;">
               <input type="color" id="prop-node-border" style="width:32px; height:26px; border:none; border-radius:3px; cursor:pointer;">
-              <span id="prop-node-border-val" style="font-size:11px; font-family:var(--code-font);">#90CAF9</span>
+              <span id="prop-node-border-val" style="font-size:11px; font-family:var(--code-font);">#1976D2</span>
             </div>
+            <!-- Borders stay at full strength (the fill swatches above carry the pastels). -->
             <div class="color-swatches" id="node-border-swatches" style="margin-top:6px;">
-              <div class="color-swatch" style="background:#90CAF9;" data-color="#90CAF9" title="Blue Border"></div>
-              <div class="color-swatch" style="background:#A5D6A7;" data-color="#A5D6A7" title="Green Border"></div>
-              <div class="color-swatch" style="background:#FFE082;" data-color="#FFE082" title="Orange Border"></div>
-              <div class="color-swatch" style="background:#CE93D8;" data-color="#CE93D8" title="Purple Border"></div>
-              <div class="color-swatch" style="background:#EF9A9A;" data-color="#EF9A9A" title="Red Border"></div>
-              <div class="color-swatch" style="background:#B0BEC5;" data-color="#B0BEC5" title="Gray Border"></div>
-              <div class="color-swatch" style="background:#4FC3F7;" data-color="#4FC3F7" title="Cyan Border"></div>
+              <div class="color-swatch" style="background:#1976D2;" data-color="#1976D2" title="Blue Border"></div>
+              <div class="color-swatch" style="background:#388E3C;" data-color="#388E3C" title="Green Border"></div>
+              <div class="color-swatch" style="background:#F57C00;" data-color="#F57C00" title="Orange Border"></div>
+              <div class="color-swatch" style="background:#7B1FA2;" data-color="#7B1FA2" title="Purple Border"></div>
+              <div class="color-swatch" style="background:#D32F2F;" data-color="#D32F2F" title="Red Border"></div>
+              <div class="color-swatch" style="background:#546E7A;" data-color="#546E7A" title="Slate Border"></div>
+              <div class="color-swatch" style="background:#0097A7;" data-color="#0097A7" title="Cyan Border"></div>
               <div class="color-swatch" style="background:#212121;" data-color="#212121" title="Dark Border"></div>
               <div class="color-swatch" style="background:#616161;" data-color="#616161" title="Medium Gray"></div>
             </div>
@@ -9570,7 +9946,7 @@ MultiDiagramVisualizer.register('mindmap', function(code, nodesLayer, edgesLayer
           <div class="form-group">
             <label>Border Color</label>
             <div class="color-input-wrapper">
-              <input type="color" id="nm-border" value="#90CAF9">
+              <input type="color" id="nm-border" value="#1976D2">
             </div>
           </div>
           <div class="form-group">
@@ -9828,17 +10204,18 @@ MultiDiagramVisualizer.register('pie', function(code, nodesLayer, edgesLayer, is
             data.push({
               label: rawLbl,
               val: parseFloat(m[2]),
+              // Pastel slice, full-strength edge (the palette above is already pastel).
               fillColor: MultiDiagramVisualizer.getColor(rawLbl, defaultCol),
               fontColor: MultiDiagramVisualizer.getColor(`${rawLbl}_font`, textColor),
-              borderColor: MultiDiagramVisualizer.getColor(`${rawLbl}_border`, cardBg)
+              borderColor: MultiDiagramVisualizer.getColor(`${rawLbl}_border`, Utils.inkColor(data.length))
             });
           }
         });
 
         if (data.length === 0) {
-          data.push({ label: 'Category A', val: 40, fillColor: '#BBDEFB', fontColor: textColor, borderColor: cardBg });
-          data.push({ label: 'Category B', val: 35, fillColor: '#C8E6C9', fontColor: textColor, borderColor: cardBg });
-          data.push({ label: 'Category C', val: 25, fillColor: '#FFE082', fontColor: textColor, borderColor: cardBg });
+          data.push({ label: 'Category A', val: 40, fillColor: '#BBDEFB', fontColor: textColor, borderColor: Utils.inkColor(0) });
+          data.push({ label: 'Category B', val: 35, fillColor: '#C8E6C9', fontColor: textColor, borderColor: Utils.inkColor(1) });
+          data.push({ label: 'Category C', val: 25, fillColor: '#FFE082', fontColor: textColor, borderColor: Utils.inkColor(2) });
         }
 
         const total = data.reduce((acc, d) => acc + d.val, 0) || 1;
@@ -10155,9 +10532,12 @@ MultiDiagramVisualizer.register('quadrant', function(code, nodesLayer, edgesLaye
           circle.setAttribute('cy', `${py}`);
           circle.setAttribute('r', '8');
           const isSelQuad = (it.name === selTitle);
-          circle.setAttribute('fill', it.color);
-          circle.setAttribute('stroke', isSelQuad ? 'var(--selection-color)' : '#FFFFFF');
-          circle.setAttribute('stroke-width', isSelQuad ? '3.5' : '2');
+          // Pastel fill with the point's own colour as the border.
+          const dotFill = MultiDiagramVisualizer.getColor(`${it.name}_fill`, Utils.toPastel(it.color, isDark));
+          const dotBorder = MultiDiagramVisualizer.getColor(`${it.name}_border`, it.color);
+          circle.setAttribute('fill', dotFill);
+          circle.setAttribute('stroke', isSelQuad ? 'var(--selection-color)' : dotBorder);
+          circle.setAttribute('stroke-width', isSelQuad ? '3.5' : '2.5');
           if (isSelQuad) circle.style.filter = selGlow;
           itemG.appendChild(circle);
 
@@ -10181,11 +10561,17 @@ MultiDiagramVisualizer.register('quadrant', function(code, nodesLayer, edgesLaye
                   { key: 'name', label: 'Item Name', type: 'text', value: it.name },
                   { key: 'x', label: 'X Axis (0.0 - 1.0)', type: 'number', step: 0.05, min: 0, max: 1, value: it.x },
                   { key: 'y', label: 'Y Axis (0.0 - 1.0)', type: 'number', step: 0.05, min: 0, max: 1, value: it.y },
-                  { key: 'color', label: 'Point Color', type: 'color', value: it.color }
+                  { key: 'color', label: '1. Point Base Color', type: 'color', value: it.color },
+                  { key: 'fill', label: '2. Node Fill Color (Pastel)', type: 'color', value: dotFill },
+                  { key: 'border', label: '3. Node Border / Stroke Color', type: 'color', value: dotBorder }
                 ],
                 onSave: (vals) => {
                   MultiDiagramVisualizer.setColor(vals.name, vals.color);
+                  MultiDiagramVisualizer.setColor(`${vals.name}_fill`, vals.fill);
+                  MultiDiagramVisualizer.setColor(`${vals.name}_border`, vals.border);
                   MultiDiagramVisualizer.syncColorToCode(vals.name, vals.color);
+                  MultiDiagramVisualizer.syncColorToCode(`${vals.name}_fill`, vals.fill);
+                  MultiDiagramVisualizer.syncColorToCode(`${vals.name}_border`, vals.border);
                   MultiDiagramVisualizer.updateCodeLine((curCode) => {
                     const lines = curCode.split('\n');
                     const esc = it.name.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\</body>');
@@ -10253,9 +10639,11 @@ MultiDiagramVisualizer.register('sankey', function(code, nodesLayer, edgesLayer,
   const rightYMap = new Map();
 
   const drawBox = (name, x, y, defaultColor) => {
-    const fillColor = MultiDiagramVisualizer.getColor(name, defaultColor);
-    const fontColor = MultiDiagramVisualizer.getColor(`${name}_font`, '#FFFFFF');
-    const borderColor = MultiDiagramVisualizer.getColor(`${name}_border`, cardBorder);
+    // House rule: the node fill is a pastel tint of its band colour, while the border
+    // keeps that colour at full strength (as do the flow bands themselves).
+    const fillColor = MultiDiagramVisualizer.getColor(name, Utils.toPastel(defaultColor, isDark));
+    const fontColor = MultiDiagramVisualizer.getColor(`${name}_font`, isDark ? '#FFFFFF' : '#1F2937');
+    const borderColor = MultiDiagramVisualizer.getColor(`${name}_border`, defaultColor);
 
     const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
     g.style.cursor = 'pointer';
@@ -10352,6 +10740,7 @@ MultiDiagramVisualizer.register('sankey', function(code, nodesLayer, edgesLayer,
     const tInfo = rightYMap.get(f.tgt) || midYMap.get(f.tgt) || { x: 620, y: 100, color: '#4CAF50' };
     const flowKey = `${f.src}->${f.tgt}`;
     const flowColor = MultiDiagramVisualizer.getColor(flowKey, sInfo.color);
+    const connStyle = Utils.normalizeConnector(MultiDiagramVisualizer.getColor(`${flowKey}_conn`, 'curve'), 'curve');
 
     const x1 = sInfo.x + 130;
     const y1 = sInfo.y + 22;
@@ -10359,7 +10748,7 @@ MultiDiagramVisualizer.register('sankey', function(code, nodesLayer, edgesLayer,
     const y2 = tInfo.y + 22;
 
     const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    path.setAttribute('d', `M ${x1} ${y1} C ${(x1 + x2) / 2} ${y1}, ${(x1 + x2) / 2} ${y2}, ${x2} ${y2}`);
+    path.setAttribute('d', Utils.buildConnectorPath(x1, y1, x2, y2, connStyle, { orientation: 'h' }));
     path.setAttribute('fill', 'none');
     path.setAttribute('stroke', flowColor);
     path.setAttribute('stroke-width', `${Math.max(4, Math.min(26, f.val / 250))}`);
@@ -10377,11 +10766,13 @@ MultiDiagramVisualizer.register('sankey', function(code, nodesLayer, edgesLayer,
             { key: 'src', label: 'Source Node', type: 'select', value: f.src, options: allNodeOptions },
             { key: 'tgt', label: 'Target Node', type: 'select', value: f.tgt, options: allNodeOptions },
             { key: 'val', label: 'Flow Volume / Value', type: 'number', min: 1, step: 10, value: f.val },
-            { key: 'color', label: 'Flow Band Color', type: 'color', value: flowColor }
+            { key: 'color', label: 'Flow Band Color', type: 'color', value: flowColor },
+            { key: 'connector', label: 'Connector / Line Routing', type: 'select', value: connStyle, options: Utils.CONNECTOR_OPTIONS }
           ],
           onSave: (vals) => {
             const newFlowKey = `${vals.src}->${vals.tgt}`;
             MultiDiagramVisualizer.setColor(newFlowKey, vals.color);
+            MultiDiagramVisualizer.setColor(`${newFlowKey}_conn`, vals.connector);
             MultiDiagramVisualizer.syncColorToCode(newFlowKey, vals.color);
             MultiDiagramVisualizer.updateCodeLine((curCode) => {
               const lines = curCode.split('\n');
@@ -10413,7 +10804,7 @@ MultiDiagramVisualizer.register('sequence', function(code, nodesLayer, edgesLaye
   const primaryText = isDark ? '#FFFFFF' : '#1F2937';
   const textColor = isDark ? '#E0E0E0' : '#374151';
   const cardBg = isDark ? '#222538' : '#EEF0FF';
-  const cardBorder = isDark ? '#7986CB' : '#9FA8DA';
+  const cardBorder = isDark ? '#7986CB' : '#5C6BC0';
   const lifelineColor = isDark ? '#7986CB' : '#7986CB';
   const linkColor = isDark ? '#E0E0E0' : '#374151';
   const selTitle = (typeof AppController !== 'undefined' && AppController.instance && AppController.instance.selectedVisualObject) ? AppController.instance.selectedVisualObject.title : null;
@@ -10703,23 +11094,35 @@ MultiDiagramVisualizer.register('sequence', function(code, nodesLayer, edgesLaye
     const msgColor = MultiDiagramVisualizer.getColor(msgKey, linkColor);
     const msgWidth = MultiDiagramVisualizer.getColor(`${msgKey}_width`, '1.4');
 
+    // Connector routing. Both ends of a message sit on the same y (they run between
+    // lifelines), so the shared engine would collapse all three styles into one flat
+    // line — the styles are expressed vertically instead: a bow for curved, a lift-and-
+    // drop bracket for stepped.
+    const connStyle = Utils.normalizeConnector(MultiDiagramVisualizer.getColor(`${msgKey}_conn`, 'straight'), 'straight');
+    const stepLift = 16;
+    let msgPathD;
+    if (connStyle === 'curve') {
+      const bow = Utils.clamp(Math.abs(x2 - x1) * 0.12, 12, 28);
+      msgPathD = `M ${x1} ${y} Q ${(x1 + x2) / 2} ${y - bow}, ${x2} ${y}`;
+    } else if (connStyle === 'step') {
+      msgPathD = `M ${x1} ${y} L ${x1} ${y - stepLift} L ${x2} ${y - stepLift} L ${x2} ${y}`;
+    } else {
+      msgPathD = `M ${x1} ${y} L ${x2} ${y}`;
+    }
+
     const msgG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
 
-    const hitbox = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-    hitbox.setAttribute('x1', `${x1}`);
-    hitbox.setAttribute('y1', `${y}`);
-    hitbox.setAttribute('x2', `${x2}`);
-    hitbox.setAttribute('y2', `${y}`);
+    const hitbox = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    hitbox.setAttribute('d', msgPathD);
+    hitbox.setAttribute('fill', 'none');
     hitbox.setAttribute('stroke', 'transparent');
     hitbox.setAttribute('stroke-width', '24');
     hitbox.style.cursor = 'pointer';
     msgG.appendChild(hitbox);
 
-    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-    line.setAttribute('x1', `${x1}`);
-    line.setAttribute('y1', `${y}`);
-    line.setAttribute('x2', `${x2}`);
-    line.setAttribute('y2', `${y}`);
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    line.setAttribute('d', msgPathD);
+    line.setAttribute('fill', 'none');
     line.setAttribute('stroke', msgColor);
     line.setAttribute('stroke-width', msgWidth);
     if (msg.isDashed) line.setAttribute('stroke-dasharray', '4 3');
@@ -10727,7 +11130,10 @@ MultiDiagramVisualizer.register('sequence', function(code, nodesLayer, edgesLaye
 
     const arrow = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
     const ax = isLeftToRight ? x2 : x2;
-    if (isLeftToRight) {
+    if (connStyle === 'step') {
+      // A stepped message arrives travelling straight down its target lifeline.
+      arrow.setAttribute('points', `${ax},${y} ${ax - 5},${y - 9} ${ax + 5},${y - 9}`);
+    } else if (isLeftToRight) {
       arrow.setAttribute('points', `${ax},${y} ${ax - 9},${y - 5} ${ax - 9},${y + 5}`);
     } else {
       arrow.setAttribute('points', `${ax},${y} ${ax + 9},${y - 5} ${ax + 9},${y + 5}`);
@@ -10762,7 +11168,9 @@ MultiDiagramVisualizer.register('sequence', function(code, nodesLayer, edgesLaye
 
     const labelW = msg.label.length * 6.5 + 8;
     const labelH = 16;
-    const { x: labelX, y: labelY } = Utils.findClearLabelPosition((x1 + x2) / 2, y - 9, labelW, labelH, [...nodeObstacles, ...placedLabelRects]);
+    // Stepped messages route above the line, so the label starts above the lifted leg.
+    const labelBaseY = connStyle === 'step' ? y - stepLift - 9 : y - 9;
+    const { x: labelX, y: labelY } = Utils.findClearLabelPosition((x1 + x2) / 2, labelBaseY, labelW, labelH, [...nodeObstacles, ...placedLabelRects]);
     placedLabelRects.push({ x: labelX - labelW / 2, y: labelY - labelH / 2, width: labelW, height: labelH });
 
     const textEl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
@@ -10801,12 +11209,14 @@ MultiDiagramVisualizer.register('sequence', function(code, nodesLayer, edgesLaye
                 { value: '1.4', label: 'Medium (1.4px - Default)' },
                 { value: '2.2', label: 'Thick (2.2px)' },
                 { value: '3', label: 'Heavy (3px)' }
-            ]}
+            ]},
+            { key: 'connector', label: 'Connector / Line Routing', type: 'select', value: connStyle, options: Utils.CONNECTOR_OPTIONS }
           ],
           onSave: (vals) => {
             const newMsgKey = `${vals.src || msg.src}->${vals.tgt || msg.tgt}:${vals.label !== undefined ? vals.label : msg.label}`;
             MultiDiagramVisualizer.setColor(newMsgKey, vals.color);
             MultiDiagramVisualizer.setColor(`${newMsgKey}_width`, vals.width);
+            MultiDiagramVisualizer.setColor(`${newMsgKey}_conn`, vals.connector);
             MultiDiagramVisualizer.syncColorToCode(newMsgKey, vals.color);
             MultiDiagramVisualizer.updateCodeLine((curCode) => {
               const lines = curCode.split('\n');
@@ -11302,6 +11712,9 @@ MultiDiagramVisualizer.register('statediagram', function(code, nodesLayer, edges
     const tPos = MultiDiagramVisualizer.getPosition(tDef.id, tDef.defaultX, tDef.defaultY);
 
     let pathD, labelX, labelY;
+    // Endpoints of whichever routing case ran, so a non-step connector style can be
+    // rebuilt from the same anchor points by the shared routing engine below.
+    let ends = null;
 
     if (tr.kind === 'branch_left') {
       const xStart = sPos.x + sDef.w * 0.25;
@@ -11312,6 +11725,7 @@ MultiDiagramVisualizer.register('statediagram', function(code, nodesLayer, edges
       pathD = `M ${xStart} ${yStart} L ${xStart} ${yMid} L ${xEnd} ${yMid} L ${xEnd} ${yEnd}`;
       labelX = xEnd;
       labelY = yMid + 25;
+      ends = { x1: xStart, y1: yStart, x2: xEnd, y2: yEnd, orientation: 'v' };
     } else if (tr.kind === 'branch_right') {
       const xStart = sPos.x + sDef.w * 0.75;
       const yStart = sPos.y + sDef.h;
@@ -11321,6 +11735,7 @@ MultiDiagramVisualizer.register('statediagram', function(code, nodesLayer, edges
       pathD = `M ${xStart} ${yStart} L ${xStart} ${yMid} L ${xEnd} ${yMid} L ${xEnd} ${yEnd}`;
       labelX = xEnd;
       labelY = yMid + 25;
+      ends = { x1: xStart, y1: yStart, x2: xEnd, y2: yEnd, orientation: 'v' };
     } else if (tr.kind === 'col_down_right') {
       const xStart = sPos.x + sDef.w * 0.75;
       const yStart = sPos.y + sDef.h;
@@ -11330,6 +11745,7 @@ MultiDiagramVisualizer.register('statediagram', function(code, nodesLayer, edges
       pathD = `M ${xStart} ${yStart} L ${xStart} ${yStart + 20} L ${xStep} ${yStart + 20} L ${xStep} ${yEnd - 20} L ${xEnd} ${yEnd - 20} L ${xEnd} ${yEnd}`;
       labelX = xStep;
       labelY = (yStart + yEnd) / 2;
+      ends = { x1: xStart, y1: yStart, x2: xEnd, y2: yEnd, orientation: 'v' };
     } else if (tr.kind === 'col_up_left') {
       const xStart = sPos.x + sDef.w * 0.25;
       const yStart = sPos.y;
@@ -11339,6 +11755,7 @@ MultiDiagramVisualizer.register('statediagram', function(code, nodesLayer, edges
       pathD = `M ${xStart} ${yStart} L ${xStart} ${yStart - 20} L ${xStep} ${yStart - 20} L ${xStep} ${yEnd + 20} L ${xEnd} ${yEnd + 20} L ${xEnd} ${yEnd}`;
       labelX = xStep;
       labelY = (yStart + yEnd) / 2;
+      ends = { x1: xStart, y1: yStart, x2: xEnd, y2: yEnd, orientation: 'v' };
     } else {
       // Orthogonal Stepped Connection for general/custom transitions
       const x1 = sPos.x + sDef.w / 2;
@@ -11350,11 +11767,13 @@ MultiDiagramVisualizer.register('statediagram', function(code, nodesLayer, edges
         pathD = `M ${x1} ${y1} L ${x2} ${y2}`;
         labelX = (x1 + x2) / 2;
         labelY = (y1 + y2) / 2;
+        ends = { x1, y1, x2, y2, orientation: 'v' };
       } else if (y2 > y1 + 30) {
         const yMid = (y1 + y2) / 2;
         pathD = `M ${x1} ${y1} L ${x1} ${yMid} L ${x2} ${yMid} L ${x2} ${y2}`;
         labelX = (x1 + x2) / 2;
         labelY = yMid;
+        ends = { x1, y1, x2, y2, orientation: 'v' };
       } else if (y1 > y2 + 30) {
         const yMid = (y1 + y2) / 2;
         const xStart = sPos.x + sDef.w / 2;
@@ -11364,6 +11783,7 @@ MultiDiagramVisualizer.register('statediagram', function(code, nodesLayer, edges
         pathD = `M ${xStart} ${yStart} L ${xStart} ${yMid} L ${xEnd} ${yMid} L ${xEnd} ${yEnd}`;
         labelX = (xStart + xEnd) / 2;
         labelY = yMid;
+        ends = { x1: xStart, y1: yStart, x2: xEnd, y2: yEnd, orientation: 'v' };
       } else {
         const isLeft = x1 > x2;
         const startX = isLeft ? sPos.x : sPos.x + sDef.w;
@@ -11374,6 +11794,7 @@ MultiDiagramVisualizer.register('statediagram', function(code, nodesLayer, edges
         pathD = `M ${startX} ${startY} L ${xMid} ${startY} L ${xMid} ${endY} L ${endX} ${endY}`;
         labelX = xMid;
         labelY = (startY + endY) / 2;
+        ends = { x1: startX, y1: startY, x2: endX, y2: endY, orientation: 'h' };
       }
     }
 
@@ -11388,6 +11809,14 @@ MultiDiagramVisualizer.register('statediagram', function(code, nodesLayer, edges
     const trStyle = MultiDiagramVisualizer.getColor(`${trKey}_style`, 'solid');
     const trFont = MultiDiagramVisualizer.getColor(`${trKey}_font`, isDark ? '#90CAF9' : '#1976D2');
     const trBg = MultiDiagramVisualizer.getColor(`${trKey}_bg`, isDark ? '#1E293B' : '#F3F4F6');
+    // State transitions are orthogonal by default; curve/straight re-route between the
+    // same anchor points the case above picked.
+    const connStyle = Utils.normalizeConnector(MultiDiagramVisualizer.getColor(`${trKey}_conn`, 'step'), 'step');
+    if (ends && connStyle !== 'step') {
+      pathD = Utils.buildConnectorPath(ends.x1, ends.y1, ends.x2, ends.y2, connStyle, { orientation: ends.orientation });
+      labelX = (ends.x1 + ends.x2) / 2;
+      labelY = (ends.y1 + ends.y2) / 2;
+    }
 
     const trG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
 
@@ -11493,13 +11922,15 @@ MultiDiagramVisualizer.register('statediagram', function(code, nodesLayer, edges
                 { value: 'dashed', label: 'Dashed (– – – –)' },
                 { value: 'dotted', label: 'Dotted (········)' }
             ]},
-            { key: 'font', label: '4. Label Text Color', type: 'color', value: trFont },
-            { key: 'bg', label: '5. Label Badge Background', type: 'color', value: trBg }
+            { key: 'connector', label: '4. Connector / Line Routing', type: 'select', value: connStyle, options: Utils.CONNECTOR_OPTIONS },
+            { key: 'font', label: '5. Label Text Color', type: 'color', value: trFont },
+            { key: 'bg', label: '6. Label Badge Background', type: 'color', value: trBg }
           ],
           onSave: (vals) => {
             MultiDiagramVisualizer.setColor(trKey, vals.color);
             MultiDiagramVisualizer.setColor(`${trKey}_width`, vals.width);
             MultiDiagramVisualizer.setColor(`${trKey}_style`, vals.style);
+            MultiDiagramVisualizer.setColor(`${trKey}_conn`, vals.connector);
             MultiDiagramVisualizer.setColor(`${trKey}_font`, vals.font);
             MultiDiagramVisualizer.setColor(`${trKey}_bg`, vals.bg);
             MultiDiagramVisualizer.syncColorToCode(trKey, vals.color);
@@ -11667,7 +12098,9 @@ MultiDiagramVisualizer.register('timeline', function(code, nodesLayer, edgesLaye
             events.push({
               era,
               items: items.length > 0 ? items : ['Milestone Event'],
-              fillColor: MultiDiagramVisualizer.getColor(era, cardBg),
+              // Pastel card tinted with its era's accent colour; the accent itself
+              // stays at full strength on the border.
+              fillColor: MultiDiagramVisualizer.getColor(era, Utils.toPastel(defaultCol, isDark)),
               fontColor: MultiDiagramVisualizer.getColor(`${era}_font`, primaryText),
               borderColor: MultiDiagramVisualizer.getColor(`${era}_border`, defaultCol)
             });
@@ -11675,9 +12108,9 @@ MultiDiagramVisualizer.register('timeline', function(code, nodesLayer, edgesLaye
         });
 
         if (events.length === 0) {
-          events.push({ era: '2024', items: ['Alpha Prototype'], fillColor: cardBg, fontColor: primaryText, borderColor: '#2196F3' });
-          events.push({ era: '2025', items: ['Beta Release'], fillColor: cardBg, fontColor: primaryText, borderColor: '#4CAF50' });
-          events.push({ era: '2026', items: ['Production Launch'], fillColor: cardBg, fontColor: primaryText, borderColor: '#FF9800' });
+          events.push({ era: '2024', items: ['Alpha Prototype'], fillColor: Utils.toPastel('#2196F3', isDark), fontColor: primaryText, borderColor: '#2196F3' });
+          events.push({ era: '2025', items: ['Beta Release'], fillColor: Utils.toPastel('#4CAF50', isDark), fontColor: primaryText, borderColor: '#4CAF50' });
+          events.push({ era: '2026', items: ['Production Launch'], fillColor: Utils.toPastel('#FF9800', isDark), fontColor: primaryText, borderColor: '#FF9800' });
         }
 
         // Title
@@ -11897,22 +12330,23 @@ MultiDiagramVisualizer.register('treemap', function(code, nodesLayer, edgesLayer
     return `${currency}${Number(v).toLocaleString()}`;
   };
 
-  // Group default palettes matching reference image
+  // Group default palettes matching reference image. Tile fills stay pastel; the
+  // borders carry the same hue at full strength so tiles keep a crisp edge.
   const getGroupPalette = (groupName) => {
     const gn = groupName.toLowerCase();
     if (gn.includes('hous')) {
-      return { bg: isDark ? '#3E2723' : '#FFF9C4', border: '#FFF59D', header: isDark ? '#4E342E' : '#E6EE9C', text: isDark ? '#FFE082' : '#212121' };
+      return { bg: isDark ? '#3E2723' : '#FFF9C4', border: '#F9A825', header: isDark ? '#4E342E' : '#E6EE9C', text: isDark ? '#FFE082' : '#212121' };
     }
     if (gn.includes('sav')) {
-      return { bg: isDark ? '#1B5E20' : '#DCEDC8', border: '#C8E6C9', header: isDark ? '#2E7D32' : '#C8E6C9', text: isDark ? '#C8E6C9' : '#1B5E20' };
+      return { bg: isDark ? '#1B5E20' : '#DCEDC8', border: '#388E3C', header: isDark ? '#2E7D32' : '#C8E6C9', text: isDark ? '#C8E6C9' : '#1B5E20' };
     }
     if (gn.includes('food') || gn.includes('dine')) {
-      return { bg: isDark ? '#4A148C' : '#E1BEE7', border: '#CE93D8', header: isDark ? '#6A1B9A' : '#D1C4E9', text: isDark ? '#E1BEE7' : '#4A148C' };
+      return { bg: isDark ? '#4A148C' : '#E1BEE7', border: '#7B1FA2', header: isDark ? '#6A1B9A' : '#D1C4E9', text: isDark ? '#E1BEE7' : '#4A148C' };
     }
     if (gn.includes('trans') || gn.includes('car')) {
-      return { bg: isDark ? '#880E4F' : '#F8BBD0', border: '#F48FB1', header: isDark ? '#AD1457' : '#F48FB1', text: isDark ? '#F8BBD0' : '#880E4F' };
+      return { bg: isDark ? '#880E4F' : '#F8BBD0', border: '#C2185B', header: isDark ? '#AD1457' : '#F48FB1', text: isDark ? '#F8BBD0' : '#880E4F' };
     }
-    return { bg: isDark ? '#263238' : '#CFD8DC', border: '#B0BEC5', header: isDark ? '#37474F' : '#ECEFF1', text: isDark ? '#ECEFF1' : '#263238' };
+    return { bg: isDark ? '#263238' : '#CFD8DC', border: '#546E7A', header: isDark ? '#37474F' : '#ECEFF1', text: isDark ? '#ECEFF1' : '#263238' };
   };
 
   // 2. ROOT CONTAINER
@@ -12489,7 +12923,7 @@ MultiDiagramVisualizer.register('treemap-beta', MultiDiagramVisualizer.renderers
             width: 140,
             height: 50,
             fillColor: oldNode ? oldNode.fillColor : '#E3F2FD',
-            borderColor: oldNode ? oldNode.borderColor : '#90CAF9',
+            borderColor: oldNode ? oldNode.borderColor : '#1976D2',
             fontColor: oldNode ? oldNode.fontColor : '#0D47A1'
           };
           newGraph.addNode(node);
@@ -12764,8 +13198,8 @@ MultiDiagramVisualizer.register('treemap-beta', MultiDiagramVisualizer.renderers
 
       setupInitialDiagram() {
         this.graph.diagramType = 'flowchart_td';
-        this.graph.addNode({ id: 'Client', text: 'Client App', shape: 'rounded', x: 140, y: 80, fillColor: '#E3F2FD', borderColor: '#90CAF9', fontColor: '#0D47A1' });
-        this.graph.addNode({ id: 'API', text: 'API Gateway', shape: 'rectangle', x: 140, y: 220, fillColor: '#E3F2FD', borderColor: '#90CAF9', fontColor: '#0D47A1' });
+        this.graph.addNode({ id: 'Client', text: 'Client App', shape: 'rounded', x: 140, y: 80, fillColor: '#E3F2FD', borderColor: '#1976D2', fontColor: '#0D47A1' });
+        this.graph.addNode({ id: 'API', text: 'API Gateway', shape: 'rectangle', x: 140, y: 220, fillColor: '#E3F2FD', borderColor: '#1976D2', fontColor: '#0D47A1' });
         this.graph.addNode({ id: 'Auth', text: 'Auth Service', shape: 'diamond', x: 380, y: 220, fillColor: '#FFF3E0', borderColor: '#FFE082', fontColor: '#E65100' });
         this.graph.addNode({ id: 'Database', text: 'PostgreSQL DB', shape: 'circle', x: 140, y: 360, fillColor: '#E8F5E9', borderColor: '#A5D6A7', fontColor: '#1B5E20' });
 
@@ -13091,44 +13525,25 @@ MultiDiagramVisualizer.register('treemap-beta', MultiDiagramVisualizer.renderers
 
           const dx = tx - sx;
           const dy = ty - sy;
-          const curveStyle = edge.curve || 'basis';
+          const curveStyle = Utils.normalizeConnector(edge.curve, 'curve');
           let d = '';
 
-          if (curveStyle === 'linear') {
-            // 1. Direct straight line
+          // A perfectly aligned curved edge would produce a degenerate bezier, so it
+          // renders as a straight segment instead.
+          const isAlignedVertical = Math.abs(dx) < 2 && (srcDir === 'top' || srcDir === 'bottom') && (tgtDir === 'top' || tgtDir === 'bottom');
+          const isAlignedHorizontal = Math.abs(dy) < 2 && (srcDir === 'left' || srcDir === 'right') && (tgtDir === 'left' || tgtDir === 'right');
+
+          if (curveStyle === 'curve' && (isAlignedVertical || isAlignedHorizontal)) {
             d = `M ${sx} ${sy} L ${tx} ${ty}`;
-          } else if (curveStyle === 'step') {
-            // 2. Orthogonal Step (90° right angles)
-            if (srcDir === 'bottom' || srcDir === 'top') {
-              const midY = (sy + ty) / 2;
-              d = `M ${sx} ${sy} L ${sx} ${midY} L ${tx} ${midY} L ${tx} ${ty}`;
-            } else {
-              const midX = (sx + tx) / 2;
-              d = `M ${sx} ${sy} L ${midX} ${sy} L ${midX} ${ty} L ${tx} ${ty}`;
-            }
           } else {
-            // 3. Smooth Bezier Curve (basis)
-            if (Math.abs(dx) < 2 && (srcDir === 'top' || srcDir === 'bottom') && (tgtDir === 'top' || tgtDir === 'bottom')) {
-              d = `M ${sx} ${sy} L ${tx} ${ty}`;
-            } else if (Math.abs(dy) < 2 && (srcDir === 'left' || srcDir === 'right') && (tgtDir === 'left' || tgtDir === 'right')) {
-              d = `M ${sx} ${sy} L ${tx} ${ty}`;
-            } else {
-              const dist = Math.max(35, Math.min(100, Math.sqrt(dx * dx + dy * dy) * 0.4));
-              let cx1 = sx, cy1 = sy;
-              let cx2 = tx, cy2 = ty;
-
-              if (srcDir === 'bottom') cy1 = sy + dist;
-              else if (srcDir === 'top') cy1 = sy - dist;
-              else if (srcDir === 'right') cx1 = sx + dist;
-              else if (srcDir === 'left') cx1 = sx - dist;
-
-              if (tgtDir === 'top') cy2 = ty - dist;
-              else if (tgtDir === 'bottom') cy2 = ty + dist;
-              else if (tgtDir === 'left') cx2 = tx - dist;
-              else if (tgtDir === 'right') cx2 = tx + dist;
-
-              d = `M ${sx} ${sy} C ${cx1} ${cy1}, ${cx2} ${cy2}, ${tx} ${ty}`;
-            }
+            d = Utils.buildConnectorPath(sx, sy, tx, ty, curveStyle, {
+              srcDir,
+              tgtDir,
+              orientation: (srcDir === 'bottom' || srcDir === 'top') ? 'v' : 'h',
+              curvature: 0.4,
+              minCurve: 35,
+              maxCurve: 100
+            });
           }
 
           // Safari & Chrome compatible invisible 28px wide hitbox
@@ -13480,10 +13895,12 @@ MultiDiagramVisualizer.register('treemap-beta', MultiDiagramVisualizer.renderers
                   swatchRow.style.gap = '5px';
                   swatchRow.style.flexWrap = 'wrap';
 
+                  // Fills get the shared pastel palette; borders, lines and text get
+                  // full-strength colours.
                   const isFillProp = f.key === 'fill' || (f.label && f.label.toLowerCase().includes('fill'));
                   const palette = isFillProp
-                    ? ['#E3F2FD', '#E8F5E9', '#FFF3E0', '#FFEBEE', '#F3E5F5', '#E0F7FA', '#FFF9C4', '#FCE4EC', '#ECEFF1', '#FFFFFF']
-                    : ['#0D47A1', '#1B5E20', '#E65100', '#B71C1C', '#4A148C', '#006064', '#212121', '#616161', '#90CAF9', '#FFFFFF'];
+                    ? [...Utils.PASTEL_FILLS, '#FFFFFF']
+                    : [...Utils.INK_COLORS, '#212121'];
                   palette.forEach(c => {
                     const sw = document.createElement('div');
                     sw.style.width = '18px';
@@ -13666,7 +14083,7 @@ MultiDiagramVisualizer.register('treemap-beta', MultiDiagramVisualizer.renderers
               x: String(node.x),
               y: String(node.y),
               fillColor: node.fillColor || '#E3F2FD',
-              borderColor: node.borderColor || '#90CAF9',
+              borderColor: node.borderColor || '#1976D2',
               fontColor: node.fontColor || '#0D47A1'
             };
 
@@ -14897,7 +15314,7 @@ MultiDiagramVisualizer.register('treemap-beta', MultiDiagramVisualizer.renderers
           width: 140,
           height: 50,
           fillColor: '#E3F2FD',
-          borderColor: '#90CAF9',
+          borderColor: '#1976D2',
           fontColor: '#0D47A1'
         };
 
@@ -15104,7 +15521,7 @@ MultiDiagramVisualizer.register('treemap-beta', MultiDiagramVisualizer.renderers
                 width: 140,
                 height: 50,
                 fillColor: '#E3F2FD',
-                borderColor: '#90CAF9',
+                borderColor: '#1976D2',
                 fontColor: '#0D47A1'
               });
 

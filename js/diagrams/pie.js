@@ -28,17 +28,18 @@ MultiDiagramVisualizer.register('pie', function(code, nodesLayer, edgesLayer, is
             data.push({
               label: rawLbl,
               val: parseFloat(m[2]),
+              // Pastel slice, full-strength edge (the palette above is already pastel).
               fillColor: MultiDiagramVisualizer.getColor(rawLbl, defaultCol),
               fontColor: MultiDiagramVisualizer.getColor(`${rawLbl}_font`, textColor),
-              borderColor: MultiDiagramVisualizer.getColor(`${rawLbl}_border`, cardBg)
+              borderColor: MultiDiagramVisualizer.getColor(`${rawLbl}_border`, Utils.inkColor(data.length))
             });
           }
         });
 
         if (data.length === 0) {
-          data.push({ label: 'Category A', val: 40, fillColor: '#BBDEFB', fontColor: textColor, borderColor: cardBg });
-          data.push({ label: 'Category B', val: 35, fillColor: '#C8E6C9', fontColor: textColor, borderColor: cardBg });
-          data.push({ label: 'Category C', val: 25, fillColor: '#FFE082', fontColor: textColor, borderColor: cardBg });
+          data.push({ label: 'Category A', val: 40, fillColor: '#BBDEFB', fontColor: textColor, borderColor: Utils.inkColor(0) });
+          data.push({ label: 'Category B', val: 35, fillColor: '#C8E6C9', fontColor: textColor, borderColor: Utils.inkColor(1) });
+          data.push({ label: 'Category C', val: 25, fillColor: '#FFE082', fontColor: textColor, borderColor: Utils.inkColor(2) });
         }
 
         const total = data.reduce((acc, d) => acc + d.val, 0) || 1;

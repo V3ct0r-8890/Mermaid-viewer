@@ -335,6 +335,9 @@ MultiDiagramVisualizer.register('statediagram', function(code, nodesLayer, edges
     const tPos = MultiDiagramVisualizer.getPosition(tDef.id, tDef.defaultX, tDef.defaultY);
 
     let pathD, labelX, labelY;
+    // Endpoints of whichever routing case ran, so a non-step connector style can be
+    // rebuilt from the same anchor points by the shared routing engine below.
+    let ends = null;
 
     if (tr.kind === 'branch_left') {
       const xStart = sPos.x + sDef.w * 0.25;
@@ -345,6 +348,7 @@ MultiDiagramVisualizer.register('statediagram', function(code, nodesLayer, edges
       pathD = `M ${xStart} ${yStart} L ${xStart} ${yMid} L ${xEnd} ${yMid} L ${xEnd} ${yEnd}`;
       labelX = xEnd;
       labelY = yMid + 25;
+      ends = { x1: xStart, y1: yStart, x2: xEnd, y2: yEnd, orientation: 'v' };
     } else if (tr.kind === 'branch_right') {
       const xStart = sPos.x + sDef.w * 0.75;
       const yStart = sPos.y + sDef.h;
@@ -354,6 +358,7 @@ MultiDiagramVisualizer.register('statediagram', function(code, nodesLayer, edges
       pathD = `M ${xStart} ${yStart} L ${xStart} ${yMid} L ${xEnd} ${yMid} L ${xEnd} ${yEnd}`;
       labelX = xEnd;
       labelY = yMid + 25;
+      ends = { x1: xStart, y1: yStart, x2: xEnd, y2: yEnd, orientation: 'v' };
     } else if (tr.kind === 'col_down_right') {
       const xStart = sPos.x + sDef.w * 0.75;
       const yStart = sPos.y + sDef.h;
@@ -363,6 +368,7 @@ MultiDiagramVisualizer.register('statediagram', function(code, nodesLayer, edges
       pathD = `M ${xStart} ${yStart} L ${xStart} ${yStart + 20} L ${xStep} ${yStart + 20} L ${xStep} ${yEnd - 20} L ${xEnd} ${yEnd - 20} L ${xEnd} ${yEnd}`;
       labelX = xStep;
       labelY = (yStart + yEnd) / 2;
+      ends = { x1: xStart, y1: yStart, x2: xEnd, y2: yEnd, orientation: 'v' };
     } else if (tr.kind === 'col_up_left') {
       const xStart = sPos.x + sDef.w * 0.25;
       const yStart = sPos.y;
@@ -372,6 +378,7 @@ MultiDiagramVisualizer.register('statediagram', function(code, nodesLayer, edges
       pathD = `M ${xStart} ${yStart} L ${xStart} ${yStart - 20} L ${xStep} ${yStart - 20} L ${xStep} ${yEnd + 20} L ${xEnd} ${yEnd + 20} L ${xEnd} ${yEnd}`;
       labelX = xStep;
       labelY = (yStart + yEnd) / 2;
+      ends = { x1: xStart, y1: yStart, x2: xEnd, y2: yEnd, orientation: 'v' };
     } else {
       // Orthogonal Stepped Connection for general/custom transitions
       const x1 = sPos.x + sDef.w / 2;
@@ -383,11 +390,13 @@ MultiDiagramVisualizer.register('statediagram', function(code, nodesLayer, edges
         pathD = `M ${x1} ${y1} L ${x2} ${y2}`;
         labelX = (x1 + x2) / 2;
         labelY = (y1 + y2) / 2;
+        ends = { x1, y1, x2, y2, orientation: 'v' };
       } else if (y2 > y1 + 30) {
         const yMid = (y1 + y2) / 2;
         pathD = `M ${x1} ${y1} L ${x1} ${yMid} L ${x2} ${yMid} L ${x2} ${y2}`;
         labelX = (x1 + x2) / 2;
         labelY = yMid;
+        ends = { x1, y1, x2, y2, orientation: 'v' };
       } else if (y1 > y2 + 30) {
         const yMid = (y1 + y2) / 2;
         const xStart = sPos.x + sDef.w / 2;
@@ -397,6 +406,7 @@ MultiDiagramVisualizer.register('statediagram', function(code, nodesLayer, edges
         pathD = `M ${xStart} ${yStart} L ${xStart} ${yMid} L ${xEnd} ${yMid} L ${xEnd} ${yEnd}`;
         labelX = (xStart + xEnd) / 2;
         labelY = yMid;
+        ends = { x1: xStart, y1: yStart, x2: xEnd, y2: yEnd, orientation: 'v' };
       } else {
         const isLeft = x1 > x2;
         const startX = isLeft ? sPos.x : sPos.x + sDef.w;
@@ -407,6 +417,7 @@ MultiDiagramVisualizer.register('statediagram', function(code, nodesLayer, edges
         pathD = `M ${startX} ${startY} L ${xMid} ${startY} L ${xMid} ${endY} L ${endX} ${endY}`;
         labelX = xMid;
         labelY = (startY + endY) / 2;
+        ends = { x1: startX, y1: startY, x2: endX, y2: endY, orientation: 'h' };
       }
     }
 
@@ -421,6 +432,14 @@ MultiDiagramVisualizer.register('statediagram', function(code, nodesLayer, edges
     const trStyle = MultiDiagramVisualizer.getColor(`${trKey}_style`, 'solid');
     const trFont = MultiDiagramVisualizer.getColor(`${trKey}_font`, isDark ? '#90CAF9' : '#1976D2');
     const trBg = MultiDiagramVisualizer.getColor(`${trKey}_bg`, isDark ? '#1E293B' : '#F3F4F6');
+    // State transitions are orthogonal by default; curve/straight re-route between the
+    // same anchor points the case above picked.
+    const connStyle = Utils.normalizeConnector(MultiDiagramVisualizer.getColor(`${trKey}_conn`, 'step'), 'step');
+    if (ends && connStyle !== 'step') {
+      pathD = Utils.buildConnectorPath(ends.x1, ends.y1, ends.x2, ends.y2, connStyle, { orientation: ends.orientation });
+      labelX = (ends.x1 + ends.x2) / 2;
+      labelY = (ends.y1 + ends.y2) / 2;
+    }
 
     const trG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
 
@@ -526,13 +545,15 @@ MultiDiagramVisualizer.register('statediagram', function(code, nodesLayer, edges
                 { value: 'dashed', label: 'Dashed (– – – –)' },
                 { value: 'dotted', label: 'Dotted (········)' }
             ]},
-            { key: 'font', label: '4. Label Text Color', type: 'color', value: trFont },
-            { key: 'bg', label: '5. Label Badge Background', type: 'color', value: trBg }
+            { key: 'connector', label: '4. Connector / Line Routing', type: 'select', value: connStyle, options: Utils.CONNECTOR_OPTIONS },
+            { key: 'font', label: '5. Label Text Color', type: 'color', value: trFont },
+            { key: 'bg', label: '6. Label Badge Background', type: 'color', value: trBg }
           ],
           onSave: (vals) => {
             MultiDiagramVisualizer.setColor(trKey, vals.color);
             MultiDiagramVisualizer.setColor(`${trKey}_width`, vals.width);
             MultiDiagramVisualizer.setColor(`${trKey}_style`, vals.style);
+            MultiDiagramVisualizer.setColor(`${trKey}_conn`, vals.connector);
             MultiDiagramVisualizer.setColor(`${trKey}_font`, vals.font);
             MultiDiagramVisualizer.setColor(`${trKey}_bg`, vals.bg);
             MultiDiagramVisualizer.syncColorToCode(trKey, vals.color);
