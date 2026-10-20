@@ -69,6 +69,27 @@
         };
       }
 
+      static validateProject(proj) {
+        if (!proj || typeof proj !== 'object' || Array.isArray(proj)) return 'Project file must be a JSON object';
+        for (const k of ['nodes', 'edges', 'rules']) {
+          if (proj[k] !== undefined && !Array.isArray(proj[k])) return `"${k}" must be an array`;
+        }
+        if (proj.diagramType !== undefined && typeof proj.diagramType !== 'string') return '"diagramType" must be a string';
+        if (proj.customRawCode != null && typeof proj.customRawCode !== 'string') return '"customRawCode" must be a string';
+        for (const n of proj.nodes || []) {
+          if (!n || typeof n !== 'object' || typeof n.id !== 'string') return 'Every node needs a string "id"';
+        }
+        const ids = new Set((proj.nodes || []).map(n => n.id));
+        for (const e of proj.edges || []) {
+          if (!e || typeof e !== 'object' || typeof e.source !== 'string' || typeof e.target !== 'string') return 'Every edge needs string "source" and "target"';
+          if (!ids.has(e.source) || !ids.has(e.target)) return 'An edge references a node that does not exist';
+        }
+        for (const r of proj.rules || []) {
+          if (!r || typeof r.pattern !== 'string' || (r.type !== 'allowed' && r.type !== 'blocked')) return 'Every rule needs a string "pattern" and type "allowed" or "blocked"';
+        }
+        return null;
+      }
+
       fromProject(proj) {
         this.diagramType = proj.diagramType || 'flowchart_td';
         this.customRawCode = proj.customRawCode || null;
@@ -95,6 +116,7 @@
           return { allowed: true };
         }
         for (const rule of rules) {
+          if (typeof rule.pattern !== 'string' || !rule.pattern.includes('->')) continue;
           const [sPat, tPat] = rule.pattern.split('->').map(s => s.trim());
           const matchSource = (sPat === '*' || sPat.toLowerCase() === sourceId.toLowerCase());
           const matchTarget = (tPat === '*' || tPat.toLowerCase() === targetId.toLowerCase());

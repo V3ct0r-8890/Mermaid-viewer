@@ -33,8 +33,8 @@ const fullCode = [
   'js/parser.js'
 ].map(f => fs.readFileSync(f, 'utf8')).join('\n;\n');
 
-const fn = new Function(fullCode + '; return { DIAGRAM_TEMPLATES, MultiDiagramVisualizer, MermaidParser, GraphModel };');
-const { DIAGRAM_TEMPLATES, MultiDiagramVisualizer, MermaidParser, GraphModel } = fn();
+const fn = new Function(fullCode + '; return { DIAGRAM_TEMPLATES, MultiDiagramVisualizer, MermaidParser, GraphModel, ValidationEngine };');
+const { DIAGRAM_TEMPLATES, MultiDiagramVisualizer, MermaidParser, GraphModel, ValidationEngine } = fn();
 
 console.log(`\n=== RUNNING AUTOMATED REGRESSION TEST SUITE (${DIAGRAM_TEMPLATES.length} TEMPLATES) ===\n`);
 
@@ -68,6 +68,57 @@ DIAGRAM_TEMPLATES.forEach((tpl, idx) => {
     console.error(`  ✗ FAIL: ${testName} -> ${err.message}`);
     failedCount++;
   }
+});
+
+
+console.log('=== STATE PERSISTENCE / VALIDATION TESTS ===\n');
+const assert = require('assert');
+const V = MultiDiagramVisualizer;
+function check(name, f) {
+  try { f(); console.log(`  ✓ PASS: ${name}`); passedCount++; }
+  catch (err) { console.error(`  ✗ FAIL: ${name} -> ${err.message}`); failedCount++; }
+}
+
+check('layout directives parse into position/size maps', () => {
+  V.resetState('classDiagram\n  class A\n%% @pos: A = 120,-40\n%% @size: A = 200,90');
+  assert.deepStrictEqual(V.nodePositions.get('A'), { x: 120, y: -40 });
+  assert.deepStrictEqual(V.nodeSizes.get('A'), { width: 200, height: 90 });
+});
+
+check('resetState clears state from a previous diagram', () => {
+  V.customColors.set('Old', '#fff');
+  V.nodePositions.set('Old', { x: 1, y: 2 });
+  V.nodeSizes.set('Old', { width: 1, height: 2 });
+  V.resetState('pie\n  "A" : 1');
+  assert.strictEqual(V.customColors.size, 0);
+  assert.strictEqual(V.nodePositions.size, 0);
+  assert.strictEqual(V.nodeSizes.size, 0);
+});
+
+check('render restores layout from saved code without clobbering live drags', () => {
+  V.resetState('');
+  V.nodePositions.set('A', { x: 5, y: 5 });
+  V.render('classdiagram', 'classDiagram\n  class A\n%% @pos: A = 120,40', createMockElement('g'), createMockElement('g'), false);
+  assert.deepStrictEqual(V.nodePositions.get('A'), { x: 5, y: 5 });
+  V.resetState('classDiagram\n  class A\n%% @pos: A = 120,40');
+  assert.deepStrictEqual(V.nodePositions.get('A'), { x: 120, y: 40 });
+});
+
+check('validateProject accepts a real project and rejects malformed ones', () => {
+  const g = new GraphModel();
+  g.nodes = [{ id: 'a' }, { id: 'b' }];
+  g.edges = [{ id: 'e', source: 'a', target: 'b' }];
+  assert.strictEqual(GraphModel.validateProject(g.toProject('light')), null);
+  assert.ok(GraphModel.validateProject(null));
+  assert.ok(GraphModel.validateProject({ nodes: 'x' }));
+  assert.ok(GraphModel.validateProject({ nodes: [{ id: 'a' }], edges: [{ source: 'a', target: 'zzz' }] }));
+  assert.ok(GraphModel.validateProject({ rules: [{ pattern: 5, type: 'allowed' }] }));
+});
+
+check('ValidationEngine ignores rules without ->', () => {
+  const r = ValidationEngine.validateConnection('a', 'b', [{ pattern: 'garbage', type: 'blocked' }, { pattern: 'a -> b', type: 'blocked' }]);
+  assert.strictEqual(r.allowed, false);
+  assert.strictEqual(ValidationEngine.validateConnection('a', 'b', [{ pattern: 'garbage', type: 'blocked' }]).allowed, true);
 });
 
 console.log(`\n=== TEST SUMMARY: ${passedCount} PASSED, ${failedCount} FAILED ===\n`);

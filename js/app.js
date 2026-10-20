@@ -1380,6 +1380,7 @@
           this.graph.fromProject(res.graph.toProject(this.themeMgr.currentTheme));
           const isFlow = (this.graph.diagramType === 'flowchart_td' || this.graph.diagramType === 'flowchart_lr');
           this.graph.customRawCode = isFlow ? null : code;
+          if (!isAuto) this.resetVisualState();
           document.getElementById('editor-error').textContent = 'Valid Mermaid';
           document.getElementById('editor-error').style.color = 'var(--text-muted)';
           this.renderAll();
@@ -1525,8 +1526,7 @@
         this.updatePropertiesPanel();
 
         if (typeof MultiDiagramVisualizer !== 'undefined') {
-          MultiDiagramVisualizer.customColors.clear();
-          MultiDiagramVisualizer.nodePositions.clear();
+          MultiDiagramVisualizer.resetState(tpl.code);
         }
         this.nodesLayer.innerHTML = '';
         this.edgesLayer.innerHTML = '';
@@ -2135,10 +2135,17 @@
         }
       }
 
+      resetVisualState() {
+        if (typeof MultiDiagramVisualizer !== 'undefined') {
+          MultiDiagramVisualizer.resetState(this.graph.customRawCode || '');
+        }
+      }
+
       handleUndo() {
         const prev = this.historyMgr.undo();
         if (prev) {
           this.graph.fromProject(prev);
+          this.resetVisualState();
           this.renderAll();
           this.updateMermaidCode();
           Utils.showToast('Reverted to previous layout (Undo)', 'info');
@@ -2149,6 +2156,7 @@
         const next = this.historyMgr.redo();
         if (next) {
           this.graph.fromProject(next);
+          this.resetVisualState();
           this.renderAll();
           this.updateMermaidCode();
           Utils.showToast('Redo', 'info');
@@ -3244,6 +3252,7 @@
           this.graph.nodes = [];
           this.graph.edges = [];
           this.graph.customRawCode = null;
+          this.resetVisualState();
           this.selectedNodeIds.clear();
           this.selectedEdgeId = null;
           this.renderAll();
@@ -3323,10 +3332,13 @@
         this.graph.rules.forEach(rule => {
           const chip = document.createElement('div');
           chip.className = `rule-chip ${rule.type}`;
-          chip.innerHTML = `
-            <span>${rule.type === 'allowed' ? '✔' : '✖'} ${rule.pattern}</span>
-            <button class="rule-del-btn" title="Delete Rule">✕</button>
-          `;
+          const label = document.createElement('span');
+          label.textContent = `${rule.type === 'allowed' ? '✔' : '✖'} ${rule.pattern}`;
+          const delBtn = document.createElement('button');
+          delBtn.className = 'rule-del-btn';
+          delBtn.title = 'Delete Rule';
+          delBtn.textContent = '✕';
+          chip.append(label, delBtn);
 
           chip.querySelector('.rule-del-btn').addEventListener('click', (e) => {
             e.stopPropagation();
@@ -3426,7 +3438,10 @@
           if (file.name.endsWith('.json')) {
             try {
               const proj = JSON.parse(content);
+              const problem = GraphModel.validateProject(proj);
+              if (problem) throw new Error(problem);
               this.graph.fromProject(proj);
+              this.resetVisualState();
               if (proj.theme) this.themeMgr.setTheme(proj.theme);
               if (this.typeSelect && proj.diagramType) this.typeSelect.value = proj.diagramType;
               this.renderAll();

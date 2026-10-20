@@ -64,6 +64,7 @@ class MultiDiagramVisualizer {
       width: isNaN(w) ? 0 : w,
       height: isNaN(h) ? 0 : h
     });
+    MultiDiagramVisualizer.syncLayoutToCode();
   }
 
   static parseColorDirectives(code) {
@@ -73,6 +74,58 @@ class MultiDiagramVisualizer {
       const key = m[1].trim();
       const color = m[2].trim();
       MultiDiagramVisualizer.customColors.set(key, color);
+    }
+  }
+
+  static parseLayoutDirectives(code, overwrite = false) {
+    if (!code) return;
+    const num = '(-?\\d+(?:\\.\\d+)?)';
+    const posRe = new RegExp('^%%\\s*@pos:\\s*([^=\\n]+?)\\s*=\\s*' + num + '\\s*,\\s*' + num + '\\s*$', 'gm');
+    const sizeRe = new RegExp('^%%\\s*@size:\\s*([^=\\n]+?)\\s*=\\s*' + num + '\\s*,\\s*' + num + '\\s*$', 'gm');
+    for (const m of code.matchAll(posRe)) {
+      const key = m[1].trim();
+      if (overwrite || !MultiDiagramVisualizer.nodePositions.has(key)) {
+        MultiDiagramVisualizer.nodePositions.set(key, { x: parseFloat(m[2]), y: parseFloat(m[3]) });
+      }
+    }
+    for (const m of code.matchAll(sizeRe)) {
+      const key = m[1].trim();
+      if (overwrite || !MultiDiagramVisualizer.nodeSizes.has(key)) {
+        MultiDiagramVisualizer.nodeSizes.set(key, { width: parseFloat(m[2]), height: parseFloat(m[3]) });
+      }
+    }
+  }
+
+  // Positions, sizes and colours are keyed by label, so they only make sense for the
+  // diagram they were set in. Call this whenever a different diagram (or a different
+  // snapshot of one) becomes current; the code's directives are then the source of truth.
+  static resetState(code) {
+    MultiDiagramVisualizer.customColors.clear();
+    MultiDiagramVisualizer.nodePositions.clear();
+    MultiDiagramVisualizer.nodeSizes.clear();
+    MultiDiagramVisualizer.parseColorDirectives(code);
+    MultiDiagramVisualizer.parseLayoutDirectives(code, true);
+  }
+
+  static syncLayoutToCode() {
+    const app = (typeof AppController !== 'undefined' && AppController.instance) ? AppController.instance : null;
+    if (!app || !app.codeEditor) return;
+    const lines = [];
+    [...MultiDiagramVisualizer.nodePositions.keys()].sort().forEach(k => {
+      const p = MultiDiagramVisualizer.nodePositions.get(k);
+      lines.push(`%% @pos: ${k} = ${p.x},${p.y}`);
+    });
+    [...MultiDiagramVisualizer.nodeSizes.keys()].sort().forEach(k => {
+      const z = MultiDiagramVisualizer.nodeSizes.get(k);
+      if (z.width > 0 || z.height > 0) lines.push(`%% @size: ${k} = ${z.width},${z.height}`);
+    });
+    const stripped = app.codeEditor.value.replace(/^%%\s*@(?:pos|size):[^\n]*(?:\n|$)/gm, '').trimEnd();
+    const code = lines.length ? stripped + '\n' + lines.join('\n') : stripped;
+    if (code === app.codeEditor.value) return;
+    app.codeEditor.value = code;
+    app.graph.customRawCode = code;
+    if (app.codeHighlight) {
+      app.codeHighlight.innerHTML = SyntaxHighlighter.highlight(code);
     }
   }
 
@@ -146,8 +199,10 @@ class MultiDiagramVisualizer {
       const onMouseUp = () => {
         window.removeEventListener('mousemove', onMouseMove);
         window.removeEventListener('mouseup', onMouseUp);
-        if (hasDragged && onDragEnd) {
-          onDragEnd();
+        if (hasDragged) {
+          MultiDiagramVisualizer.syncLayoutToCode();
+          if (onDragEnd) onDragEnd();
+          if (app) app.recordHistory();
         }
       };
 
@@ -160,6 +215,7 @@ class MultiDiagramVisualizer {
     nodesLayer.innerHTML = '';
     edgesLayer.innerHTML = '';
     MultiDiagramVisualizer.parseColorDirectives(code);
+    MultiDiagramVisualizer.parseLayoutDirectives(code, false);
 
     const normType = String(type || '').toLowerCase();
     const renderer = MultiDiagramVisualizer.renderers.get(normType);

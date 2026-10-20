@@ -2587,6 +2587,27 @@ treemap-beta
         };
       }
 
+      static validateProject(proj) {
+        if (!proj || typeof proj !== 'object' || Array.isArray(proj)) return 'Project file must be a JSON object';
+        for (const k of ['nodes', 'edges', 'rules']) {
+          if (proj[k] !== undefined && !Array.isArray(proj[k])) return `"${k}" must be an array`;
+        }
+        if (proj.diagramType !== undefined && typeof proj.diagramType !== 'string') return '"diagramType" must be a string';
+        if (proj.customRawCode != null && typeof proj.customRawCode !== 'string') return '"customRawCode" must be a string';
+        for (const n of proj.nodes || []) {
+          if (!n || typeof n !== 'object' || typeof n.id !== 'string') return 'Every node needs a string "id"';
+        }
+        const ids = new Set((proj.nodes || []).map(n => n.id));
+        for (const e of proj.edges || []) {
+          if (!e || typeof e !== 'object' || typeof e.source !== 'string' || typeof e.target !== 'string') return 'Every edge needs string "source" and "target"';
+          if (!ids.has(e.source) || !ids.has(e.target)) return 'An edge references a node that does not exist';
+        }
+        for (const r of proj.rules || []) {
+          if (!r || typeof r.pattern !== 'string' || (r.type !== 'allowed' && r.type !== 'blocked')) return 'Every rule needs a string "pattern" and type "allowed" or "blocked"';
+        }
+        return null;
+      }
+
       fromProject(proj) {
         this.diagramType = proj.diagramType || 'flowchart_td';
         this.customRawCode = proj.customRawCode || null;
@@ -2613,6 +2634,7 @@ treemap-beta
           return { allowed: true };
         }
         for (const rule of rules) {
+          if (typeof rule.pattern !== 'string' || !rule.pattern.includes('->')) continue;
           const [sPat, tPat] = rule.pattern.split('->').map(s => s.trim());
           const matchSource = (sPat === '*' || sPat.toLowerCase() === sourceId.toLowerCase());
           const matchTarget = (tPat === '*' || tPat.toLowerCase() === targetId.toLowerCase());
@@ -2881,6 +2903,7 @@ class MultiDiagramVisualizer {
       width: isNaN(w) ? 0 : w,
       height: isNaN(h) ? 0 : h
     });
+    MultiDiagramVisualizer.syncLayoutToCode();
   }
 
   static parseColorDirectives(code) {
@@ -2890,6 +2913,62 @@ class MultiDiagramVisualizer {
       const key = m[1].trim();
       const color = m[2].trim();
       MultiDiagramVisualizer.customColors.set(key, color);
+    }
+  }
+
+  static parseLayoutDirectives(code, overwrite = false) {
+    if (!code) return;
+    const num = '(-?\\d+(?:\\.\\d+)?)';
+    const posRe = new RegExp('^%%\\s*@pos:\\s*([^=\\n]+?)\\s*=\\s*' + num + '\\s*,\\s*' + num + '\\s*
+</html>
+, 'gm');
+    const sizeRe = new RegExp('^%%\\s*@size:\\s*([^=\\n]+?)\\s*=\\s*' + num + '\\s*,\\s*' + num + '\\s*
+</html>
+, 'gm');
+    for (const m of code.matchAll(posRe)) {
+      const key = m[1].trim();
+      if (overwrite || !MultiDiagramVisualizer.nodePositions.has(key)) {
+        MultiDiagramVisualizer.nodePositions.set(key, { x: parseFloat(m[2]), y: parseFloat(m[3]) });
+      }
+    }
+    for (const m of code.matchAll(sizeRe)) {
+      const key = m[1].trim();
+      if (overwrite || !MultiDiagramVisualizer.nodeSizes.has(key)) {
+        MultiDiagramVisualizer.nodeSizes.set(key, { width: parseFloat(m[2]), height: parseFloat(m[3]) });
+      }
+    }
+  }
+
+  // Positions, sizes and colours are keyed by label, so they only make sense for the
+  // diagram they were set in. Call this whenever a different diagram (or a different
+  // snapshot of one) becomes current; the code's directives are then the source of truth.
+  static resetState(code) {
+    MultiDiagramVisualizer.customColors.clear();
+    MultiDiagramVisualizer.nodePositions.clear();
+    MultiDiagramVisualizer.nodeSizes.clear();
+    MultiDiagramVisualizer.parseColorDirectives(code);
+    MultiDiagramVisualizer.parseLayoutDirectives(code, true);
+  }
+
+  static syncLayoutToCode() {
+    const app = (typeof AppController !== 'undefined' && AppController.instance) ? AppController.instance : null;
+    if (!app || !app.codeEditor) return;
+    const lines = [];
+    [...MultiDiagramVisualizer.nodePositions.keys()].sort().forEach(k => {
+      const p = MultiDiagramVisualizer.nodePositions.get(k);
+      lines.push(`%% @pos: ${k} = ${p.x},${p.y}`);
+    });
+    [...MultiDiagramVisualizer.nodeSizes.keys()].sort().forEach(k => {
+      const z = MultiDiagramVisualizer.nodeSizes.get(k);
+      if (z.width > 0 || z.height > 0) lines.push(`%% @size: ${k} = ${z.width},${z.height}`);
+    });
+    const stripped = app.codeEditor.value.replace(/^%%\s*@(?:pos|size):[^\n]*(?:\n|$)/gm, '').trimEnd();
+    const code = lines.length ? stripped + '\n' + lines.join('\n') : stripped;
+    if (code === app.codeEditor.value) return;
+    app.codeEditor.value = code;
+    app.graph.customRawCode = code;
+    if (app.codeHighlight) {
+      app.codeHighlight.innerHTML = SyntaxHighlighter.highlight(code);
     }
   }
 
@@ -4809,8 +4888,10 @@ class MultiDiagramVisualizer {
       const onMouseUp = () => {
         window.removeEventListener('mousemove', onMouseMove);
         window.removeEventListener('mouseup', onMouseUp);
-        if (hasDragged && onDragEnd) {
-          onDragEnd();
+        if (hasDragged) {
+          MultiDiagramVisualizer.syncLayoutToCode();
+          if (onDragEnd) onDragEnd();
+          if (app) app.recordHistory();
         }
       };
 
@@ -4823,6 +4904,7 @@ class MultiDiagramVisualizer {
     nodesLayer.innerHTML = '';
     edgesLayer.innerHTML = '';
     MultiDiagramVisualizer.parseColorDirectives(code);
+    MultiDiagramVisualizer.parseLayoutDirectives(code, false);
 
     const normType = String(type || '').toLowerCase();
     const renderer = MultiDiagramVisualizer.renderers.get(normType);
@@ -14616,6 +14698,7 @@ MultiDiagramVisualizer.register('treemap-beta', MultiDiagramVisualizer.renderers
           this.graph.fromProject(res.graph.toProject(this.themeMgr.currentTheme));
           const isFlow = (this.graph.diagramType === 'flowchart_td' || this.graph.diagramType === 'flowchart_lr');
           this.graph.customRawCode = isFlow ? null : code;
+          if (!isAuto) this.resetVisualState();
           document.getElementById('editor-error').textContent = 'Valid Mermaid';
           document.getElementById('editor-error').style.color = 'var(--text-muted)';
           this.renderAll();
@@ -14761,8 +14844,7 @@ MultiDiagramVisualizer.register('treemap-beta', MultiDiagramVisualizer.renderers
         this.updatePropertiesPanel();
 
         if (typeof MultiDiagramVisualizer !== 'undefined') {
-          MultiDiagramVisualizer.customColors.clear();
-          MultiDiagramVisualizer.nodePositions.clear();
+          MultiDiagramVisualizer.resetState(tpl.code);
         }
         this.nodesLayer.innerHTML = '';
         this.edgesLayer.innerHTML = '';
@@ -15371,10 +15453,17 @@ MultiDiagramVisualizer.register('treemap-beta', MultiDiagramVisualizer.renderers
         }
       }
 
+      resetVisualState() {
+        if (typeof MultiDiagramVisualizer !== 'undefined') {
+          MultiDiagramVisualizer.resetState(this.graph.customRawCode || '');
+        }
+      }
+
       handleUndo() {
         const prev = this.historyMgr.undo();
         if (prev) {
           this.graph.fromProject(prev);
+          this.resetVisualState();
           this.renderAll();
           this.updateMermaidCode();
           Utils.showToast('Reverted to previous layout (Undo)', 'info');
@@ -15385,6 +15474,7 @@ MultiDiagramVisualizer.register('treemap-beta', MultiDiagramVisualizer.renderers
         const next = this.historyMgr.redo();
         if (next) {
           this.graph.fromProject(next);
+          this.resetVisualState();
           this.renderAll();
           this.updateMermaidCode();
           Utils.showToast('Redo', 'info');
@@ -16480,6 +16570,7 @@ MultiDiagramVisualizer.register('treemap-beta', MultiDiagramVisualizer.renderers
           this.graph.nodes = [];
           this.graph.edges = [];
           this.graph.customRawCode = null;
+          this.resetVisualState();
           this.selectedNodeIds.clear();
           this.selectedEdgeId = null;
           this.renderAll();
@@ -16559,10 +16650,13 @@ MultiDiagramVisualizer.register('treemap-beta', MultiDiagramVisualizer.renderers
         this.graph.rules.forEach(rule => {
           const chip = document.createElement('div');
           chip.className = `rule-chip ${rule.type}`;
-          chip.innerHTML = `
-            <span>${rule.type === 'allowed' ? '✔' : '✖'} ${rule.pattern}</span>
-            <button class="rule-del-btn" title="Delete Rule">✕</button>
-          `;
+          const label = document.createElement('span');
+          label.textContent = `${rule.type === 'allowed' ? '✔' : '✖'} ${rule.pattern}`;
+          const delBtn = document.createElement('button');
+          delBtn.className = 'rule-del-btn';
+          delBtn.title = 'Delete Rule';
+          delBtn.textContent = '✕';
+          chip.append(label, delBtn);
 
           chip.querySelector('.rule-del-btn').addEventListener('click', (e) => {
             e.stopPropagation();
@@ -16662,7 +16756,10 @@ MultiDiagramVisualizer.register('treemap-beta', MultiDiagramVisualizer.renderers
           if (file.name.endsWith('.json')) {
             try {
               const proj = JSON.parse(content);
+              const problem = GraphModel.validateProject(proj);
+              if (problem) throw new Error(problem);
               this.graph.fromProject(proj);
+              this.resetVisualState();
               if (proj.theme) this.themeMgr.setTheme(proj.theme);
               if (this.typeSelect && proj.diagramType) this.typeSelect.value = proj.diagramType;
               this.renderAll();
